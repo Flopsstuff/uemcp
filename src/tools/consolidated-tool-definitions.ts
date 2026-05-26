@@ -77,7 +77,8 @@ export const PERFORMANCE_ACTIONS = [
 ] as const;
 
 export const BEHAVIOR_TREE_ACTIONS = [
-  'create', 'add_node', 'connect_nodes', 'remove_node', 'break_connections', 'set_node_properties'
+  'create', 'add_node', 'connect_nodes', 'remove_node', 'break_connections',
+  'set_node_properties', 'add_subnode'
 ] as const;
 
 export const NAVIGATION_ACTIONS = [
@@ -2606,8 +2607,15 @@ export const consolidatedToolDefinitions: ToolDefinition[] = [
             controllerClass: commonSchemas.stringProp,
             assignedBehaviorTree: commonSchemas.stringProp,
             assignedBlackboard: commonSchemas.stringProp,
+            rootGraphBlackboard: commonSchemas.stringProp,
+            rootGraphBlackboardMatchesAssigned: commonSchemas.booleanProp,
             blackboardKeys: commonSchemas.arrayOfObjects,
             btNodeCount: commonSchemas.integerProp,
+            rootDecoratorCount: commonSchemas.integerProp,
+            rootDecoratorClasses: commonSchemas.arrayOfStrings,
+            rootDecorators: commonSchemas.arrayOfObjects,
+            childDecorators: commonSchemas.arrayOfObjects,
+            services: commonSchemas.arrayOfObjects,
             perceptionSenses: commonSchemas.arrayOfStrings,
             teamId: commonSchemas.integerProp,
             stateTreeStates: commonSchemas.arrayOfStrings,
