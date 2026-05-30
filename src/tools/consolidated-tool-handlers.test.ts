@@ -131,6 +131,40 @@ describe('consolidated action params compatibility', () => {
     }), expect.any(Object));
   });
 
+  it('returns structured error context for unknown consolidated tools', async () => {
+    const { tools } = createConnectedTools();
+
+    const result = await handleConsolidatedToolCall('missing_tool', { action: 'probe' }, tools) as Record<string, unknown>;
+
+    expect(result).toMatchObject({
+      success: false,
+      isError: true,
+      error: 'UNKNOWN_TOOL',
+      toolName: 'missing_tool',
+      action: 'probe'
+    });
+    expect(String(result.message)).toContain('Unknown consolidated tool: missing_tool');
+  });
+
+  it('preserves tool and action context on dispatch exceptions', async () => {
+    const { tools } = createConnectedTools();
+
+    const result = await handleConsolidatedToolCall('manage_level_structure', {
+      action: 'create_level',
+      levelName: 'BadLevel',
+      levelPath: '/etc/passwd'
+    }, tools) as Record<string, unknown>;
+
+    expect(result).toMatchObject({
+      success: false,
+      isError: true,
+      error: 'SECURITY_VIOLATION',
+      toolName: 'manage_level_structure',
+      action: 'create_level'
+    });
+    expect(String(result.message)).toContain('Security violation');
+  });
+
   it('routes full editor screenshot mode with base64 image return enabled', async () => {
     const { tools, sendAutomationRequest } = createConnectedTools();
 

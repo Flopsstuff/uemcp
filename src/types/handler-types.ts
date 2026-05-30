@@ -682,7 +682,7 @@ export interface AnimationArgs extends HandlerArgs {
     meshPath?: string;
     montagePath?: string;
     playRate?: number;
-    
+
     // Blend space
     horizontalAxis?: BlendSpaceAxis;
     verticalAxis?: BlendSpaceAxis;
@@ -690,38 +690,38 @@ export interface AnimationArgs extends HandlerArgs {
     maxX?: number;
     minY?: number;
     maxY?: number;
-    
+
     // State machine
     machineName?: string;
     states?: unknown[];
     transitions?: unknown[];
     blueprintPath?: string;
-    
+
     // IK
     ikBones?: unknown[];
     enableFootPlacement?: boolean;
-    
+
     // Procedural anim
     systemName?: string;
     baseAnimation?: string;
     modifiers?: unknown[];
-    
+
     // Blend tree
     treeName?: string;
     blendType?: string;
     basePose?: string;
     additiveAnimations?: unknown[];
-    
+
     // Animation asset
     assetType?: string;
-    
+
     // Notify
     animationPath?: string;
     assetPath?: string;
     notifyName?: string;
     time?: number;
     startTime?: number;
-    
+
     // Vehicle
     vehicleName?: string;
     vehicleType?: string;
@@ -730,10 +730,10 @@ export interface AnimationArgs extends HandlerArgs {
     transmission?: unknown;
     pluginDependencies?: string[];
     plugins?: string[];
-    
+
     // Physics simulation
     physicsAssetName?: string;
-    
+
     // Cleanup
     artifacts?: unknown[];
 }
@@ -799,7 +799,7 @@ export interface MatchStateDefinition {
 
 /**
  * Arguments for manage_game_framework tool (Phase 21)
- * 
+ *
  * Covers:
  * - Core Classes: GameMode, GameState, PlayerController, PlayerState, GameInstance, HUD
  * - Game Mode Configuration: class assignments, game rules
@@ -812,7 +812,7 @@ export interface GameFrameworkArgs extends HandlerArgs {
     path?: string;
     gameModeBlueprint?: string;
     blueprintPath?: string;
-    
+
     // Class assignments
     parentClass?: string;
     pawnClass?: string;
@@ -822,40 +822,40 @@ export interface GameFrameworkArgs extends HandlerArgs {
     playerStateClass?: string;
     spectatorClass?: string;
     hudClass?: string;
-    
+
     // Game rules
     bDelayedStart?: boolean;
-    
+
     // Match states
     states?: MatchStateDefinition[];
-    
+
     // Round system
     numRounds?: number;
     roundTime?: number;
     intermissionTime?: number;
-    
+
     // Team system
     numTeams?: number;
     teamSize?: number;
     autoBalance?: boolean;
     friendlyFire?: boolean;
     teamIndex?: number;
-    
+
     // Scoring
     scorePerKill?: number;
     scorePerObjective?: number;
     scorePerAssist?: number;
-    
+
     // Spawn system
     spawnSelectionMethod?: 'Random' | 'RoundRobin' | 'FarthestFromEnemies';
     respawnDelay?: number;
     respawnLocation?: 'PlayerStart' | 'LastDeath' | 'TeamBase';
     usePlayerStarts?: boolean;
-    
+
     // Spectating
     allowSpectating?: boolean;
     spectatorViewMode?: 'FreeCam' | 'ThirdPerson' | 'FirstPerson' | 'DeathCam';
-    
+
     // Save option
     save?: boolean;
 }
@@ -866,7 +866,7 @@ export interface GameFrameworkArgs extends HandlerArgs {
 
 /**
  * Arguments for manage_navigation tool (Phase 25)
- * 
+ *
  * Covers:
  * - NavMesh: settings configuration, agent properties, rebuild
  * - Nav Modifiers: component creation, area class, cost configuration
@@ -878,13 +878,13 @@ export interface NavigationArgs extends HandlerArgs {
     actorName?: string;
     actorPath?: string;
     blueprintPath?: string;
-    
+
     // Nav agent properties (ARecastNavMesh)
     agentRadius?: number;
     agentHeight?: number;
     agentStepHeight?: number;
     agentMaxSlope?: number;
-    
+
     // NavMesh generation settings (FNavMeshResolutionParam)
     cellSize?: number;
     cellHeight?: number;
@@ -892,18 +892,18 @@ export interface NavigationArgs extends HandlerArgs {
     minRegionArea?: number;
     mergeRegionSize?: number;
     maxSimplificationError?: number;
-    
+
     // Nav modifier component (UNavModifierComponent)
     componentName?: string;
     areaClass?: string;
     areaClassToReplace?: string;
     failsafeExtent?: Vector3;
     bIncludeAgentHeight?: boolean;
-    
+
     // Nav area cost configuration
     areaCost?: number;
     fixedAreaEnteringCost?: number;
-    
+
     // Nav link configuration (ANavLinkProxy, FNavigationLink)
     linkName?: string;
     startPoint?: Vector3;
@@ -911,7 +911,7 @@ export interface NavigationArgs extends HandlerArgs {
     direction?: 'BothWays' | 'LeftToRight' | 'RightToLeft';
     snapRadius?: number;
     linkEnabled?: boolean;
-    
+
     // Smart link configuration (UNavLinkCustomComponent)
     linkType?: 'simple' | 'smart';
     bSmartLinkIsRelevant?: boolean;
@@ -919,20 +919,20 @@ export interface NavigationArgs extends HandlerArgs {
     disabledAreaClass?: string;
     broadcastRadius?: number;
     broadcastInterval?: number;
-    
+
     // Obstacle configuration
     bCreateBoxObstacle?: boolean;
     obstacleOffset?: Vector3;
     obstacleExtent?: Vector3;
     obstacleAreaClass?: string;
-    
+
     // Location and transform
     location?: Vector3;
     rotation?: Rotator;
-    
+
     // Query parameters
     filter?: string;
-    
+
     // Save option
     save?: boolean;
 }
@@ -960,7 +960,7 @@ export interface VoiceSettings {
 
 /**
  * Arguments for manage_sessions tool (Phase 22)
- * 
+ *
  * Covers:
  * - Session Management: local session settings, session interface
  * - Local Multiplayer: split-screen configuration, local players
@@ -970,7 +970,7 @@ export interface VoiceSettings {
 export interface SessionsArgs extends HandlerArgs {
     // Session identification
     sessionName?: string;
-    
+
     // Local session settings
     maxPlayers?: number;
     bIsLANMatch?: boolean;
@@ -979,18 +979,18 @@ export interface SessionsArgs extends HandlerArgs {
     bUsesPresence?: boolean;
     bUseLobbiesIfAvailable?: boolean;
     bShouldAdvertise?: boolean;
-    
+
     // Session interface
     interfaceType?: 'Default' | 'LAN' | 'Null';
-    
+
     // Split-screen configuration
     enabled?: boolean;
     splitScreenType?: 'None' | 'TwoPlayer_Horizontal' | 'TwoPlayer_Vertical' | 'ThreePlayer_FavorTop' | 'ThreePlayer_FavorBottom' | 'FourPlayer_Grid';
-    
+
     // Local player management
     playerIndex?: number;
     controllerId?: number;
-    
+
     // LAN settings
     serverAddress?: string;
     serverPort?: number;
@@ -998,22 +998,22 @@ export interface SessionsArgs extends HandlerArgs {
     serverName?: string;
     mapName?: string;
     travelOptions?: string;
-    
+
     // Voice chat
     voiceEnabled?: boolean;
     voiceSettings?: VoiceSettings;
     channelName?: string;
     channelType?: 'Team' | 'Global' | 'Proximity' | 'Party';
-    
+
     // Player targeting for voice operations
     playerName?: string;
     targetPlayerId?: string;
     muted?: boolean;
-    
+
     // Voice attenuation
     attenuationRadius?: number;
     attenuationFalloff?: number;
-    
+
     // Push-to-talk
     pushToTalkEnabled?: boolean;
     pushToTalkKey?: string;
@@ -1025,7 +1025,7 @@ export interface SessionsArgs extends HandlerArgs {
 
 /**
  * Arguments for manage_level_structure tool (Phase 23)
- * 
+ *
  * Covers:
  * - Levels: create levels, sublevels, streaming, bounds
  * - World Partition: grid configuration, data layers, HLOD
@@ -1037,81 +1037,81 @@ export interface LevelStructureArgs extends HandlerArgs {
     levelName?: string;
     levelPath?: string;
     parentLevel?: string;
-    
+
     // Level creation
     templateLevel?: string;
     bCreateWorldPartition?: boolean;
-    
+
     // Sublevel configuration
     sublevelName?: string;
     sublevelPath?: string;
-    
+
     // Level streaming
     streamingMethod?: 'Blueprint' | 'AlwaysLoaded' | 'Disabled';
     bShouldBeVisible?: boolean;
     bShouldBlockOnLoad?: boolean;
     bDisableDistanceStreaming?: boolean;
-    
+
     // Streaming distance
     streamingDistance?: number;
     minStreamingDistance?: number;
-    
+
     // Level bounds
     boundsOrigin?: Vector3;
     boundsExtent?: Vector3;
     bAutoCalculateBounds?: boolean;
-    
+
     // World Partition
     bEnableWorldPartition?: boolean;
     gridCellSize?: number;
     loadingRange?: number;
-    
+
     // Data layers
     dataLayerName?: string;
     dataLayerLabel?: string;
     bIsInitiallyVisible?: boolean;
     bIsInitiallyLoaded?: boolean;
     dataLayerType?: 'Runtime' | 'Editor';
-    
+
     // Actor assignment to data layer
     actorName?: string;
     actorPath?: string;
-    
+
     // HLOD configuration
     hlodLayerName?: string;
     hlodLayerPath?: string;
     bIsSpatiallyLoaded?: boolean;
     cellSize?: number;
     loadingDistance?: number;
-    
+
     // Minimap volume
     volumeName?: string;
     volumeLocation?: Vector3;
     volumeExtent?: Vector3;
-    
+
     // Level Blueprint
     nodeClass?: string;
     nodePosition?: { x: number; y: number };
     nodeName?: string;
-    
+
     // Node connections
     sourceNodeName?: string;
     sourcePinName?: string;
     targetNodeName?: string;
     targetPinName?: string;
-    
+
     // Level instances
     levelInstanceName?: string;
     levelAssetPath?: string;
     instanceLocation?: Vector3;
     instanceRotation?: Rotator;
     instanceScale?: Vector3;
-    
+
     // Packed level actor
     packedLevelName?: string;
     bPackBlueprints?: boolean;
     bPackStaticMeshes?: boolean;
-    
+
     // Save option
     save?: boolean;
 }
@@ -1137,7 +1137,7 @@ export type SplineCoordinateSpace = 'Local' | 'World';
 
 /**
  * Arguments for manage_splines tool (Phase 26)
- * 
+ *
  * Covers:
  * - Spline Creation: create_spline_actor, add_spline_point, remove_spline_point, set_spline_point_position
  * - Spline Configuration: set_spline_point_tangents, set_spline_point_rotation, set_spline_point_scale, set_spline_type
@@ -1153,12 +1153,12 @@ export interface SplinesArgs extends HandlerArgs {
     splineName?: string;
     componentName?: string;
     blueprintPath?: string;
-    
+
     // Location and transform
     location?: Vector3;
     rotation?: Rotator;
     scale?: Vector3;
-    
+
     // Spline point manipulation
     pointIndex?: number;
     position?: Vector3;
@@ -1168,12 +1168,12 @@ export interface SplinesArgs extends HandlerArgs {
     pointRotation?: Rotator;
     pointScale?: Vector3;
     coordinateSpace?: SplineCoordinateSpace;
-    
+
     // Spline type configuration
     splineType?: SplinePointType;
     bClosedLoop?: boolean;
     bUpdateSpline?: boolean;
-    
+
     // Spline mesh configuration
     meshPath?: string;
     materialPath?: string;
@@ -1187,7 +1187,7 @@ export interface SplinesArgs extends HandlerArgs {
     startRoll?: number;
     endRoll?: number;
     bSmoothInterpRollScale?: boolean;
-    
+
     // Mesh scattering along spline
     spacing?: number;
     startOffset?: number;
@@ -1199,7 +1199,7 @@ export interface SplinesArgs extends HandlerArgs {
     scaleMin?: number;
     scaleMax?: number;
     randomSeed?: number;
-    
+
     // Template-specific options
     templateType?: 'road' | 'river' | 'fence' | 'wall' | 'cable' | 'pipe';
     width?: number;
@@ -1208,7 +1208,7 @@ export interface SplinesArgs extends HandlerArgs {
     railHeight?: number;
     pipeRadius?: number;
     cableSlack?: number;
-    
+
     // Points array for batch operations
     points?: Array<{
         position: Vector3;
@@ -1218,10 +1218,10 @@ export interface SplinesArgs extends HandlerArgs {
         scale?: Vector3;
         type?: SplinePointType;
     }>;
-    
+
     // Query parameters
     filter?: string;
-    
+
     // Save option
     save?: boolean;
 }
@@ -1239,17 +1239,17 @@ export interface VolumeProperties {
     fluidFriction?: number;
     terminalVelocity?: number;
     priority?: number;
-    
+
     // Pain Causing Volume
     bPainCausing?: boolean;
     damagePerSec?: number;
     damageType?: string;
     bEntryPain?: boolean;
     painInterval?: number;
-    
+
     // Audio Volume
     bEnabled?: boolean;
-    
+
     // Reverb Volume
     reverbSettings?: {
         bApplyReverb?: boolean;
@@ -1257,17 +1257,17 @@ export interface VolumeProperties {
         fadeTime?: number;
         reverbEffect?: string;
     };
-    
+
     // Cull Distance Volume
     cullDistances?: Array<{
         size: number;
         cullDistance: number;
     }>;
-    
+
     // Nav Modifier Volume
     areaClass?: string;
     bDynamicModifier?: boolean;
-    
+
     // Post Process Volume (Note: Full PP config is Phase 29.5)
     bUnbound?: boolean;
     blendRadius?: number;
@@ -1276,7 +1276,7 @@ export interface VolumeProperties {
 
 /**
  * Arguments for manage_volumes tool (Phase 24)
- * 
+ *
  * Covers:
  * - Trigger Volumes: trigger_volume, trigger_box, trigger_sphere, trigger_capsule
  * - Gameplay Volumes: blocking, kill_z, pain_causing, physics, audio, reverb
@@ -1289,65 +1289,65 @@ export interface VolumesArgs extends HandlerArgs {
     volumeName?: string;
     volumePath?: string;
     volumeClass?: string;
-    
+
     // Location and transform
     location?: Vector3;
     rotation?: Rotator;
-    
+
     // Volume extent/size
     extent?: Vector3;
     brushType?: 'Additive' | 'Subtractive';
-    
+
     // Trigger shape parameters
     sphereRadius?: number;
     capsuleRadius?: number;
     capsuleHalfHeight?: number;
     boxExtent?: Vector3;
-    
+
     // Volume-specific properties
     properties?: VolumeProperties;
-    
+
     // Pain Causing Volume specific
     bPainCausing?: boolean;
     damagePerSec?: number;
     damageType?: string;
-    
+
     // Physics Volume specific
     bWaterVolume?: boolean;
     fluidFriction?: number;
     terminalVelocity?: number;
     priority?: number;
-    
+
     // Audio Volume specific
     bEnabled?: boolean;
-    
+
     // Reverb Volume specific
     reverbEffect?: string;
     reverbVolume?: number;
     fadeTime?: number;
-    
+
     // Cull Distance Volume specific
     cullDistances?: Array<{
         size: number;
         cullDistance: number;
     }>;
-    
+
     // Nav Modifier Volume specific
     areaClass?: string;
     bDynamicModifier?: boolean;
-    
+
     // Post Process Volume (basic - full config in Phase 29.5)
     bUnbound?: boolean;
     blendRadius?: number;
     blendWeight?: number;
-    
+
     // Lightmass Importance Volume specific
     bLightmassReplacementPrimitive?: boolean;
-    
+
     // Query parameters
     filter?: string;
     volumeType?: string;
-    
+
     // Save option
     save?: boolean;
 }

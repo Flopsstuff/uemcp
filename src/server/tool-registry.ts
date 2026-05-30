@@ -32,25 +32,25 @@ const KNOWN_DYNAMIC_CLIENT_NAMES = ['cursor', 'cline', 'windsurf', 'kilo', 'open
 // Check if a client supports tools.listChanged based on known client capabilities
 function clientSupportsListChanged(clientName: string | undefined): boolean {
     if (!clientName) return false;
-    
+
     // Normalize client name (lowercase, trim)
     const normalizedName = clientName.toLowerCase().trim();
-    
+
     // Check in the mcp-client-capabilities database
     for (const [key, clientInfo] of Object.entries(mcpClients)) {
-        if (key.toLowerCase() === normalizedName || 
+        if (key.toLowerCase() === normalizedName ||
             (clientInfo.title && clientInfo.title.toLowerCase() === normalizedName)) {
             // Check if tools.listChanged is supported
             const tools = clientInfo.tools as { listChanged?: boolean } | undefined;
             return Boolean(tools?.listChanged);
         }
     }
-    
+
     // Fallback: check for known clients by partial name match
     for (const known of KNOWN_DYNAMIC_CLIENT_NAMES) {
         if (normalizedName.includes(known)) return true;
     }
-    
+
     return false;
 }
 
@@ -77,11 +77,11 @@ export class ToolRegistry {
         private levelResources: LevelResources,
         private ensureConnected: () => Promise<boolean>
     ) { }
-    
+
     private async handleManageToolsCall(args: Record<string, unknown>): Promise<Record<string, unknown>> {
         const action = args.action as string;
         const validCategories: ToolCategory[] = ['core', 'world', 'gameplay', 'utility', 'all'];
-        
+
         // Helper to safely extract string array
         const getStringArray = (key: string): string[] => {
             const val = args[key];
@@ -134,8 +134,8 @@ export class ToolRegistry {
 
             case 'enable_tools': {
                 // Accept both 'tools' and 'toolNames' for flexibility
-                const toolNames = getStringArray('tools').length > 0 
-                    ? getStringArray('tools') 
+                const toolNames = getStringArray('tools').length > 0
+                    ? getStringArray('tools')
                     : getStringArray('toolNames');
                 if (toolNames.length === 0) {
                     return { success: false, error: 'No tools specified. Provide tools array.', errorCode: 'MISSING_TOOLS' };
@@ -145,7 +145,7 @@ export class ToolRegistry {
                     success: true,
                     enabled: result.enabled,
                     notFound: result.notFound,
-                    message: result.notFound.length > 0 
+                    message: result.notFound.length > 0
                         ? `Enabled ${result.enabled.length} tools. ${result.notFound.length} not found.`
                         : `Enabled ${result.enabled.length} tools`
                 };
@@ -153,16 +153,16 @@ export class ToolRegistry {
 
             case 'disable_tools': {
                 // Accept both 'tools' and 'toolNames' for flexibility
-                const toolNames = getStringArray('tools').length > 0 
-                    ? getStringArray('tools') 
+                const toolNames = getStringArray('tools').length > 0
+                    ? getStringArray('tools')
                     : getStringArray('toolNames');
                 if (toolNames.length === 0) {
                     return { success: false, error: 'No tools specified. Provide tools array.', errorCode: 'MISSING_TOOLS' };
                 }
                 const result = dynamicToolManager.disableTools(toolNames);
                 if (result.protected.length > 0 && result.disabled.length === 0) {
-                    return { 
-                        success: false, 
+                    return {
+                        success: false,
                         error: `Cannot disable protected tools: ${result.protected.join(', ')}`,
                         errorCode: 'PROTECTED_TOOLS'
                     };
@@ -186,8 +186,8 @@ export class ToolRegistry {
                     return { success: false, error: 'No category specified.', errorCode: 'MISSING_CATEGORY' };
                 }
                 if (!validCategories.includes(category)) {
-                    return { 
-                        success: false, 
+                    return {
+                        success: false,
                         error: `Invalid category '${category}'. Valid: ${validCategories.join(', ')}`,
                         errorCode: 'INVALID_CATEGORY'
                     };
@@ -210,8 +210,8 @@ export class ToolRegistry {
                     return { success: false, error: 'No category specified.', errorCode: 'MISSING_CATEGORY' };
                 }
                 if (!validCategories.includes(category)) {
-                    return { 
-                        success: false, 
+                    return {
+                        success: false,
                         error: `Invalid category '${category}'. Valid: ${validCategories.join(', ')}`,
                         errorCode: 'INVALID_CATEGORY'
                     };
@@ -221,8 +221,8 @@ export class ToolRegistry {
                     return { success: false, error: `Category '${category}' not found`, errorCode: 'CATEGORY_NOT_FOUND' };
                 }
                 if (result.protected.length > 0 && result.disabled.length === 0) {
-                    return { 
-                        success: false, 
+                    return {
+                        success: false,
                         error: `Cannot fully disable protected category '${category}'. Protected tools: ${result.protected.join(', ')}`,
                         errorCode: 'PROTECTED_CATEGORY'
                     };
@@ -263,8 +263,8 @@ export class ToolRegistry {
             }
 
             default:
-                return { 
-                    success: false, 
+                return {
+                    success: false,
                     error: `Unknown action: ${action}. Available: list_tools, list_categories, enable_tools, disable_tools, enable_category, disable_category, get_status, reset`,
                     errorCode: 'UNKNOWN_ACTION'
                 };
@@ -397,28 +397,28 @@ export class ToolRegistry {
                 : this.currentCategories;
 
             this.logger.info(`Serving tools for categories: ${effectiveCategories.join(', ')} (client=${clientName || 'unknown'}, supportsListChanged=${supportsListChanged})`);
-            
+
             // Use DynamicToolManager for filtering
             const allTools = dynamicToolManager.getAllToolDefinitions();
             const status = dynamicToolManager.getStatus();
-            
+
             // Filter by: 1) tool enabled in DynamicToolManager, 2) category
             const filtered = allTools
                 .filter((t: ToolDefinition) => {
                     // Check if tool is enabled
                     if (!dynamicToolManager.isToolEnabled(t.name)) return false;
-                    
+
                     // Check category filter
                     const category = t.category;
                     if (category && !effectiveCategories.includes(category) && !effectiveCategories.includes('all')) {
                         return false;
                     }
-                    
+
                     return true;
                 });
-            
+
             this.logger.debug(`Tool filtering: ${status.enabledTools}/${status.totalTools} enabled, ${filtered.length} visible`);
-            
+
             const sanitized = filtered.map((t: ToolDefinition) => {
                 const properties: Record<string, unknown> = {};
                 const actionValues = new Set<string>();

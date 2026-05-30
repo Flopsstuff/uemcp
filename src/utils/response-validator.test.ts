@@ -37,6 +37,19 @@ describe('ResponseValidator', () => {
     expect(text).not.toContain('pinType]');
   });
 
+  it('marks already MCP-shaped failure responses as errors', async () => {
+    const validator = new ResponseValidator();
+
+    const wrapped = await validator.wrapResponse('inspect', {
+      success: false,
+      content: [{ type: 'text', text: 'Inspection failed' }],
+      error: 'Object not found'
+    });
+
+    expect(wrapped.isError).toBe(true);
+    expect(wrapped.content).toEqual([{ type: 'text', text: 'Inspection failed' }]);
+  });
+
   it('emits MCP image content for base64 screenshot payloads', async () => {
     const validator = new ResponseValidator();
 

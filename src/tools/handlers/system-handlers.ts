@@ -59,10 +59,10 @@ export async function handleSystemTools(action: string, args: HandlerArgs, tools
   // Security validation: Check all arguments for path traversal before processing
   // This catches malicious parameters even if they're not used by the specific action
   validateArgsSecurity(args);
-  
+
   const argsTyped = args as SystemArgs;
   const sysAction = String(action || '').toLowerCase();
-  
+
   switch (sysAction) {
     case 'show_fps':
       await executeAutomationRequest(tools, 'console_command', { command: argsTyped.enabled !== false ? 'stat fps' : 'stat fps 0' });
@@ -149,14 +149,14 @@ export async function handleSystemTools(action: string, args: HandlerArgs, tools
     case 'create_widget': {
       const name = typeof argsTyped.name === 'string' ? argsTyped.name.trim() : '';
       const widgetPathRaw = typeof argsTyped.widgetPath === 'string' ? argsTyped.widgetPath.trim() : '';
-      const widgetType = typeof (argsTyped as Record<string, unknown>).widgetType === 'string' 
-        ? ((argsTyped as Record<string, unknown>).widgetType as string).trim() 
+      const widgetType = typeof (argsTyped as Record<string, unknown>).widgetType === 'string'
+        ? ((argsTyped as Record<string, unknown>).widgetType as string).trim()
         : undefined;
 
       // If name is missing but widgetPath is provided, try to extract name from path
       let effectiveName = name || `NewWidget_${Date.now()}`;
-      let effectivePath = typeof (argsTyped as Record<string, unknown>).savePath === 'string' 
-        ? ((argsTyped as Record<string, unknown>).savePath as string).trim() 
+      let effectivePath = typeof (argsTyped as Record<string, unknown>).savePath === 'string'
+        ? ((argsTyped as Record<string, unknown>).savePath as string).trim()
         : '';
 
       if (!name && widgetPathRaw) {
@@ -204,8 +204,8 @@ export async function handleSystemTools(action: string, args: HandlerArgs, tools
       }
     }
     case 'show_widget': {
-      const widgetId = typeof (argsTyped as Record<string, unknown>).widgetId === 'string' 
-        ? ((argsTyped as Record<string, unknown>).widgetId as string).trim() 
+      const widgetId = typeof (argsTyped as Record<string, unknown>).widgetId === 'string'
+        ? ((argsTyped as Record<string, unknown>).widgetId as string).trim()
         : '';
 
       if (widgetId.toLowerCase() === 'notification') {
@@ -213,8 +213,8 @@ export async function handleSystemTools(action: string, args: HandlerArgs, tools
           ? ((argsTyped as Record<string, unknown>).message as string).trim()
           : '';
         const text = message.length > 0 ? message : 'Notification';
-        const duration = typeof (argsTyped as Record<string, unknown>).duration === 'number' 
-          ? (argsTyped as Record<string, unknown>).duration as number 
+        const duration = typeof (argsTyped as Record<string, unknown>).duration === 'number'
+          ? (argsTyped as Record<string, unknown>).duration as number
           : undefined;
 
         try {
@@ -254,7 +254,7 @@ export async function handleSystemTools(action: string, args: HandlerArgs, tools
         }
       }
 
-      const widgetPath = (typeof argsTyped.widgetPath === 'string' ? argsTyped.widgetPath.trim() : '') 
+      const widgetPath = (typeof argsTyped.widgetPath === 'string' ? argsTyped.widgetPath.trim() : '')
         || (typeof argsTyped.name === 'string' ? argsTyped.name.trim() : '');
       if (!widgetPath) {
         return {
@@ -324,7 +324,7 @@ export async function handleSystemTools(action: string, args: HandlerArgs, tools
         : '';
       const keyVal = typeof argsTyped.key === 'string' ? argsTyped.key.trim() : '';
       const cmdVal = typeof argsTyped.command === 'string' ? argsTyped.command.trim() : '';
-      
+
       const rawInput = nameVal || cvarVal || keyVal || cmdVal;
 
       // Some callers pass a full "cvar value" command string.
@@ -371,7 +371,7 @@ export async function handleSystemTools(action: string, args: HandlerArgs, tools
       return cleanObject(resp);
     }
     case 'validate_assets': {
-      const paths: string[] = Array.isArray((argsTyped as Record<string, unknown>).paths) 
+      const paths: string[] = Array.isArray((argsTyped as Record<string, unknown>).paths)
         ? (argsTyped as Record<string, unknown>).paths as string[]
         : [];
       if (!paths.length) {
@@ -434,14 +434,14 @@ export async function handleSystemTools(action: string, args: HandlerArgs, tools
       };
     }
     case 'play_sound': {
-      const soundPath = typeof (argsTyped as Record<string, unknown>).soundPath === 'string' 
-        ? ((argsTyped as Record<string, unknown>).soundPath as string).trim() 
+      const soundPath = typeof (argsTyped as Record<string, unknown>).soundPath === 'string'
+        ? ((argsTyped as Record<string, unknown>).soundPath as string).trim()
         : '';
-      const volume = typeof (argsTyped as Record<string, unknown>).volume === 'number' 
-        ? (argsTyped as Record<string, unknown>).volume as number 
+      const volume = typeof (argsTyped as Record<string, unknown>).volume === 'number'
+        ? (argsTyped as Record<string, unknown>).volume as number
         : undefined;
-      const pitch = typeof (argsTyped as Record<string, unknown>).pitch === 'number' 
-        ? (argsTyped as Record<string, unknown>).pitch as number 
+      const pitch = typeof (argsTyped as Record<string, unknown>).pitch === 'number'
+        ? (argsTyped as Record<string, unknown>).pitch as number
         : undefined;
 
       // Volume 0 should behave as a silent, handled no-op
@@ -725,7 +725,7 @@ export async function handleSystemTools(action: string, args: HandlerArgs, tools
       // This requires editor-only functionality
       const assetPath = typeof argsTyped.assetPath === 'string' ? argsTyped.assetPath : '';
       const exportPath = typeof argsTyped.exportPath === 'string' ? argsTyped.exportPath : '';
-      
+
       if (!assetPath) {
         return {
           success: false,
@@ -734,7 +734,7 @@ export async function handleSystemTools(action: string, args: HandlerArgs, tools
           action: 'export_asset'
         };
       }
-      
+
       if (!exportPath) {
         return {
           success: false,
@@ -743,15 +743,15 @@ export async function handleSystemTools(action: string, args: HandlerArgs, tools
           action: 'export_asset'
         };
       }
-      
+
       // Execute via C++ automation bridge
       const res = await executeAutomationRequest(
-        tools, 
-        'system_control', 
+        tools,
+        'system_control',
         { action: 'export_asset', assetPath, exportPath },
         'Export functionality not available - ensure editor is running'
       ) as OperationResponse;
-      
+
       if (res && res.success) {
         return cleanObject({
           success: true,
@@ -762,7 +762,7 @@ export async function handleSystemTools(action: string, args: HandlerArgs, tools
           ...res
         });
       }
-      
+
       // C++ returned an error
       return cleanObject({
         success: false,

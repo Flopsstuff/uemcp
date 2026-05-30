@@ -23,7 +23,7 @@ const testCases = [
 
   // === PLAYBACK / PIE STATE ===
   { scenario: 'PLAYBACK: play', toolName: 'control_editor', arguments: { action: 'play' }, expected: 'success' },
-  { scenario: 'ACTION: possess', toolName: 'control_editor', arguments: { action: 'possess', actorName: PIE_PAWN }, expected: 'success|ACTOR_NOT_FOUND|NOT_IN_PIE' },
+  { scenario: 'ACTION: possess', toolName: 'control_editor', arguments: { action: 'possess', actorName: PIE_PAWN }, expected: 'success|NOT_IN_PIE' },
   { scenario: 'ACTION: eject', toolName: 'control_editor', arguments: { action: 'eject' }, expected: 'success|NO_ACTIVE_SESSION|not active' },
   { scenario: 'PLAYBACK: pause', toolName: 'control_editor', arguments: { action: 'pause' }, expected: 'success' },
   { scenario: 'PLAYBACK: resume', toolName: 'control_editor', arguments: { action: 'resume' }, expected: 'success' },
@@ -44,7 +44,7 @@ const testCases = [
   // === COMMANDS / CAPTURE / RECORDING ===
   { scenario: 'ACTION: console_command', toolName: 'control_editor', arguments: { action: 'console_command', command: 'stat fps' }, expected: 'success' },
   { scenario: 'ACTION: execute_command', toolName: 'control_editor', arguments: { action: 'execute_command', command: 'stat unit' }, expected: 'success' },
-  { scenario: 'ACTION: screenshot', toolName: 'control_editor', arguments: { action: 'screenshot', filename: SCREENSHOT_NAME, resolution: '640x360' }, expected: 'success' },
+  { scenario: 'ACTION: screenshot', toolName: 'control_editor', arguments: { action: 'screenshot', filename: SCREENSHOT_NAME, resolution: '640x360', mode: 'editor_viewport', returnBase64: false, includeMetadata: true, metadata: { source: 'control-editor-suite' } }, expected: 'success' },
   { scenario: 'ACTION: take_screenshot', toolName: 'control_editor', arguments: { action: 'take_screenshot', filename: `${SCREENSHOT_NAME}_Alias`, resolution: '640x360' }, expected: 'success' },
   { scenario: 'ACTION: start_recording', toolName: 'control_editor', arguments: { action: 'start_recording', name: `Recording_${ts}` }, expected: 'success' },
   { scenario: 'PLAYBACK: stop_recording', toolName: 'control_editor', arguments: { action: 'stop_recording' }, expected: 'success' },
