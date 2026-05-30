@@ -330,13 +330,7 @@ export const coreToolDefinitions: ToolDefinition[] = [
         y: commonSchemas.numberProp,
         button: commonSchemas.stringProp
       },
-      required: ['action'],
-      allOf: [
-        {
-          if: { properties: { action: { enum: ['screenshot', 'take_screenshot'] } }, required: ['action'] },
-          then: { properties: { mode: screenshotModeSchema } }
-        }
-      ]
+      required: ['action']
     },
     outputSchema: {
       type: 'object',

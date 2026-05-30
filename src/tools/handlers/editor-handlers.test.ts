@@ -23,6 +23,25 @@ function createConnectedTools() {
 }
 
 describe('handleEditorTools', () => {
+  it('keeps control_editor schemas strict-function compatible', async () => {
+    const { consolidatedToolDefinitions } = await import('../consolidated-tool-definitions.js');
+    const { coreToolDefinitions } = await import('../schemas/core-tools.js');
+    const tools = [
+      consolidatedToolDefinitions.find((tool) => tool.name === 'control_editor'),
+      coreToolDefinitions.find((tool) => tool.name === 'control_editor')
+    ];
+    const forbiddenTopLevelKeywords = ['oneOf', 'anyOf', 'allOf', 'enum', 'not'];
+
+    for (const tool of tools) {
+      const inputSchema = tool?.inputSchema as Record<string, unknown> | undefined;
+
+      expect(inputSchema?.type).toBe('object');
+      for (const keyword of forbiddenTopLevelKeywords) {
+        expect(inputSchema).not.toHaveProperty(keyword);
+      }
+    }
+  });
+
   it('exposes all supported simulate_input parameters in the public schemas', async () => {
     const { consolidatedToolDefinitions } = await import('../consolidated-tool-definitions.js');
     const { coreToolDefinitions } = await import('../schemas/core-tools.js');
