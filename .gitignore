@@ -52,6 +52,11 @@ tests/reports/
 *_backup.*
 *_old.*
 tmp/
+.research/
+.omo/
+.unreal-agent/
+/Saved/
+plugins/*/Saved/
 
 # Cache
 .cache/

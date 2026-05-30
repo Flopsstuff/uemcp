@@ -244,6 +244,19 @@ export async function startStdioServer() {
     });
   });
 
+  process.stdin.once('end', () => {
+    void handleShutdown();
+  });
+
+  process.stdin.once('close', () => {
+    void handleShutdown();
+  });
+
+  process.stdin.once('error', (error) => {
+    log.warn('Stdio input closed with an error', error);
+    void handleShutdown();
+  });
+
   const runLifecycleCleanup = (eventName: 'beforeExit' | 'exit'): void => {
     const runCleanup = (operation: string, cleanup: () => void): void => {
       try {
