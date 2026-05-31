@@ -242,11 +242,11 @@ This document maps the TypeScript tool definitions to their corresponding C++ ha
 
 ## Audio Manager (`manage_audio`)
 
-`manage_audio` exposes 50 public actions. TypeScript routes the 27 graph/asset-authoring actions through the internal native `manage_audio_authoring` action while regular playback, runtime configuration, and base asset creation continue through `HandleAudioAction`.
+`manage_audio` exposes 50 public actions. TypeScript and native MCP route the 30 graph/asset-authoring actions through the internal native `manage_audio_authoring` action while regular playback and runtime configuration continue through `HandleAudioAction`.
 
 | Action | C++ Handler File | C++ Function | Notes |
 | :--- | :--- | :--- | :--- |
-| `create_sound_cue`, `create_sound_class`, `create_sound_mix` | `McpAutomationBridge_AudioHandlers.cpp` | `HandleAudioAction` | Creates base SoundCue/SoundClass/SoundMix assets |
+| `create_sound_cue`, `create_sound_class`, `create_sound_mix` | `McpAutomationBridge_AudioAuthoringHandlers.cpp` | `HandleManageAudioAuthoringAction` | Creates base SoundCue/SoundClass/SoundMix assets without modal editor dialogs |
 | `play_sound_at_location`, `play_sound_2d`, `play_sound_attached`, `spawn_sound_at_location`, `create_ambient_sound`, `prime_sound` | `McpAutomationBridge_AudioHandlers.cpp` | `HandleAudioAction` | Playback, attachment, component spawning, and priming |
 | `create_audio_component`, `create_reverb_zone` | `McpAutomationBridge_AudioHandlers.cpp` | `HandleAudioAction` | Editor actor/component creation |
 | `push_sound_mix`, `pop_sound_mix`, `set_sound_mix_class_override`, `clear_sound_mix_class_override`, `set_base_sound_mix` | `McpAutomationBridge_AudioHandlers.cpp` | `HandleAudioAction` | Runtime SoundMix control |

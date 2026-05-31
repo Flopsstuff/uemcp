@@ -284,7 +284,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 
 ### Phase 20.5: Audio Authoring (`manage_audio`)
 
-`manage_audio` exposes 50 actions. Regular playback/runtime actions route through `HandleAudioAction`; the 27 graph and asset-authoring actions route through the internal native `manage_audio_authoring` bridge action.
+`manage_audio` exposes 50 actions. Regular playback/runtime actions route through `HandleAudioAction`; the 30 graph and asset-authoring actions route through the internal native `manage_audio_authoring` bridge action.
 
 | Action | Status | Notes |
 |--------|--------|-------|

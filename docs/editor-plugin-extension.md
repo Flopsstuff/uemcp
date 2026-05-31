@@ -217,7 +217,7 @@ The MCP Automation Bridge is a production-ready Unreal Editor plugin that enable
 | | `inspect_cdo` | ✅ Native | Inspect any Blueprint CDO without spawning an actor. CDO properties via reflection; for Actor BPs enumerates CDO components with effective overrides. Supports detailed, componentName, propertyNames filters. |
 | | `list` | ✅ Native | Actor/asset listing via subsystems |
 | **manage_audio** | 50 audio actions | ✅ Native | Runtime playback/configuration through `HandleAudioAction`; graph and asset authoring through internal `manage_audio_authoring` |
-| | `create_sound_cue`, `create_sound_class`, `create_sound_mix` | ✅ Native | Base audio asset creation |
+| | `create_sound_cue`, `create_sound_class`, `create_sound_mix` | ✅ Native | Base audio asset creation through UI-safe audio authoring |
 | | `play_sound_at_location`, `play_sound_2d`, `play_sound_attached`, `spawn_sound_at_location` | ✅ Native | 2D/3D playback and attachment |
 | | `add_cue_node`, `connect_cue_nodes`, `create_metasound`, `connect_metasound_nodes` | ✅ Native | Sound Cue and MetaSound graph authoring |
 | | `set_sound_attenuation`, `configure_spatialization`, `configure_occlusion`, `configure_reverb_send` | ✅ Native | Attenuation, spatialization, occlusion, and reverb settings |
