@@ -11,6 +11,10 @@ const VALID_PARAMS_BY_ACTION: Record<string, Set<string>> = {
     create_input_mapping_context: new Set(['action', 'name', 'path', 'priority', 'timeoutMs']),
     add_mapping: new Set(['action', 'contextPath', 'actionPath', 'key', 'triggerType', 'modifierType', 'timeoutMs']),
     remove_mapping: new Set(['action', 'contextPath', 'actionPath', 'key', 'timeoutMs']),
+    add_legacy_action_mapping: new Set(['action', 'name', 'actionName', 'key', 'shift', 'ctrl', 'alt', 'cmd', 'timeoutMs']),
+    remove_legacy_action_mapping: new Set(['action', 'name', 'actionName', 'key', 'shift', 'ctrl', 'alt', 'cmd', 'timeoutMs']),
+    add_legacy_axis_mapping: new Set(['action', 'name', 'axisName', 'key', 'scale', 'timeoutMs']),
+    remove_legacy_axis_mapping: new Set(['action', 'name', 'axisName', 'key', 'scale', 'timeoutMs']),
     map_input_action: new Set(['action', 'contextPath', 'actionPath', 'key', 'timeoutMs']),
     set_input_trigger: new Set(['action', 'actionPath', 'triggerType', 'timeoutMs']),
     set_input_modifier: new Set(['action', 'contextPath', 'actionPath', 'key', 'modifierType', 'timeoutMs']),
@@ -162,6 +166,18 @@ export async function handleInputTools(
 
         case 'remove_mapping':
             return sendRequest('remove_mapping');
+
+        case 'add_legacy_action_mapping':
+            return sendRequest('add_legacy_action_mapping');
+
+        case 'remove_legacy_action_mapping':
+            return sendRequest('remove_legacy_action_mapping');
+
+        case 'add_legacy_axis_mapping':
+            return sendRequest('add_legacy_axis_mapping');
+
+        case 'remove_legacy_axis_mapping':
+            return sendRequest('remove_legacy_axis_mapping');
 
         // New actions - dispatched to C++ via automation bridge
         case 'map_input_action':

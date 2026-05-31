@@ -62,4 +62,26 @@ describe('handleInputTools path normalization', () => {
       expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
+
+  it('forwards legacy axis mappings without path validation', async () => {
+    const { tools, sendAutomationRequest } = createConnectedTools();
+
+    await handleInputTools('add_legacy_axis_mapping', {
+      action: 'add_legacy_axis_mapping',
+      axisName: 'MoveForward',
+      key: 'W',
+      scale: 1
+    }, tools);
+
+    expect(sendAutomationRequest).toHaveBeenCalledWith(
+      'manage_input',
+      expect.objectContaining({
+        subAction: 'add_legacy_axis_mapping',
+        axisName: 'MoveForward',
+        key: 'W',
+        scale: 1
+      }),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
+    );
+  });
 });
