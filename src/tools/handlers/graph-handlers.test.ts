@@ -56,4 +56,25 @@ describe('handleGraphTools behavior tree payload mapping', () => {
       'Automation bridge not available'
     );
   });
+
+  it('forwards Enhanced Input action paths for blueprint node creation', async () => {
+    await handleGraphTools('manage_blueprint', 'create_node', {
+      action: 'create_node',
+      blueprintPath: '/Game/BP_Player',
+      nodeType: 'K2Node_EnhancedInputAction',
+      actionPath: '/Game/Input/IA_Throttle'
+    }, {} as never);
+
+    expect(executeAutomationRequestMock).toHaveBeenCalledWith(
+      {},
+      'manage_blueprint',
+      expect.objectContaining({
+        subAction: 'create_node',
+        blueprintPath: '/Game/BP_Player',
+        nodeType: 'K2Node_EnhancedInputAction',
+        actionPath: '/Game/Input/IA_Throttle'
+      }),
+      'Automation bridge not available'
+    );
+  });
 });

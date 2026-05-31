@@ -91,6 +91,7 @@
 #include "K2Node_Timeline.h"
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
+#include "InputAction.h"
 
 // Blueprint Editor
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -1151,7 +1152,7 @@ bool UMcpAutomationBridgeSubsystem::HandleBlueprintGraphAction(
       }
       FGraphNodeCreator<UK2Node_InputAxisEvent> NodeCreator(*TargetGraph);
       UK2Node_InputAxisEvent *InputNode = NodeCreator.CreateNode(false);
-      InputNode->InputAxisName = FName(*InputAxisName);
+      InputNode->Initialize(FName(*InputAxisName));
       FinalizeAndReport(NodeCreator, InputNode);
       return true;
     }
@@ -1159,6 +1160,99 @@ bool UMcpAutomationBridgeSubsystem::HandleBlueprintGraphAction(
     // ========== DYNAMIC FALLBACK: Create ANY node class by name ==========
     UClass *NodeClass = FindNodeClassByName(NodeType);
     if (NodeClass) {
+      if (NodeClass->GetName().Equals(TEXT("K2Node_EnhancedInputAction"), ESearchCase::IgnoreCase)) {
+        FString InputActionPath;
+        Payload->TryGetStringField(TEXT("inputActionPath"), InputActionPath);
+        if (InputActionPath.IsEmpty()) {
+          Payload->TryGetStringField(TEXT("inputActionAssetPath"), InputActionPath);
+        }
+        if (InputActionPath.IsEmpty()) {
+          Payload->TryGetStringField(TEXT("actionPath"), InputActionPath);
+        }
+        if (InputActionPath.IsEmpty()) {
+          SendAutomationError(RequestingSocket, RequestId,
+                              TEXT("actionPath or inputActionPath required"),
+                              TEXT("INVALID_ARGUMENT"));
+          return true;
+        }
+
+        FString CleanActionPath = InputActionPath;
+        int32 DotIndex = INDEX_NONE;
+        FString PackagePath = CleanActionPath;
+        if (CleanActionPath.FindChar(TEXT('.'), DotIndex)) {
+          PackagePath = CleanActionPath.Left(DotIndex);
+        }
+        FString SanitizedPackagePath = SanitizeProjectRelativePath(PackagePath);
+        if (SanitizedPackagePath.IsEmpty()) {
+          SendAutomationError(RequestingSocket, RequestId,
+                              TEXT("Invalid input action path"),
+                              TEXT("INVALID_PATH"));
+          return true;
+        }
+        CleanActionPath = DotIndex == INDEX_NONE ? SanitizedPackagePath : SanitizedPackagePath + CleanActionPath.Mid(DotIndex);
+
+        UInputAction* InputAction = LoadObject<UInputAction>(nullptr, *CleanActionPath);
+        if (!InputAction && !CleanActionPath.Contains(TEXT("."))) {
+          const FString AssetName = FPackageName::GetShortName(CleanActionPath);
+          const FString ObjectPath = FString::Printf(TEXT("%s.%s"), *CleanActionPath, *AssetName);
+          InputAction = LoadObject<UInputAction>(nullptr, *ObjectPath);
+          if (InputAction) {
+            CleanActionPath = ObjectPath;
+          }
+        }
+        if (!InputAction) {
+          SendAutomationError(RequestingSocket, RequestId,
+                              FString::Printf(TEXT("Input action not found: %s"), *InputActionPath),
+                              TEXT("ASSET_NOT_FOUND"));
+          return true;
+        }
+
+        UEdGraphNode *NewNode = NewObject<UEdGraphNode>(TargetGraph, NodeClass);
+        if (!NewNode) {
+          SendAutomationError(RequestingSocket, RequestId,
+                              TEXT("Failed to instantiate node."),
+                              TEXT("CREATE_FAILED"));
+          return true;
+        }
+
+        FProperty* InputActionProperty = NewNode->GetClass()->FindPropertyByName(FName(TEXT("InputAction")));
+        FObjectProperty* InputActionObjectProperty = CastField<FObjectProperty>(InputActionProperty);
+        if (!InputActionObjectProperty) {
+          SendAutomationError(RequestingSocket, RequestId,
+                              TEXT("Enhanced Input node has no writable InputAction property."),
+                              TEXT("PROPERTY_NOT_FOUND"));
+          return true;
+        }
+
+        TargetGraph->AddNode(NewNode, false, false);
+        NewNode->Modify();
+        InputActionObjectProperty->SetObjectPropertyValue_InContainer(NewNode, InputAction);
+        NewNode->CreateNewGuid();
+        NewNode->PostPlacedNewNode();
+        NewNode->AllocateDefaultPins();
+        if (UK2Node* K2Node = Cast<UK2Node>(NewNode)) {
+          K2Node->ReconstructNode();
+        }
+        NewNode->NodePosX = X;
+        NewNode->NodePosY = Y;
+        if (const UEdGraphSchema* Schema = TargetGraph->GetSchema()) {
+          Schema->ForceVisualizationCacheClear();
+        }
+        TargetGraph->NotifyGraphChanged();
+        FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+        SaveLoadedAssetThrottled(Blueprint);
+
+        TSharedPtr<FJsonObject> Result = McpHandlerUtils::CreateResultObject();
+        Result->SetStringField(TEXT("nodeId"), NewNode->NodeGuid.ToString());
+        Result->SetStringField(TEXT("nodeName"), NewNode->GetName());
+        Result->SetStringField(TEXT("nodeClass"), NodeClass->GetName());
+        Result->SetStringField(TEXT("inputActionPath"), CleanActionPath);
+        McpHandlerUtils::AddVerification(Result, Blueprint);
+        SendAutomationResponse(RequestingSocket, RequestId, true,
+                               TEXT("Enhanced Input node created."), Result);
+        return true;
+      }
+
       UEdGraphNode *NewNode = NewObject<UEdGraphNode>(TargetGraph, NodeClass);
       if (NewNode) {
         TargetGraph->AddNode(NewNode, false, false);
