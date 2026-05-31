@@ -1,4 +1,4 @@
-// McpTool_ManageInput.cpp — manage_input tool definition (10 actions)
+// McpTool_ManageInput.cpp — manage_input tool definition
 
 #include "McpVersionCompatibility.h"
 #include "MCP/McpToolDefinition.h"
@@ -26,6 +26,10 @@ public:
 				TEXT("create_input_mapping_context"),
 				TEXT("add_mapping"),
 				TEXT("remove_mapping"),
+				TEXT("add_legacy_action_mapping"),
+				TEXT("remove_legacy_action_mapping"),
+				TEXT("add_legacy_axis_mapping"),
+				TEXT("remove_legacy_axis_mapping"),
 				TEXT("map_input_action"),
 				TEXT("set_input_trigger"),
 				TEXT("set_input_modifier"),
@@ -37,7 +41,14 @@ public:
 			.String(TEXT("path"), TEXT("Path to a directory."))
 			.String(TEXT("contextPath"), TEXT("Asset path (e.g., /Game/Path/Asset)."))
 			.String(TEXT("actionPath"), TEXT("Asset path (e.g., /Game/Path/Asset)."))
+			.String(TEXT("actionName"), TEXT("Legacy input action mapping name."))
+			.String(TEXT("axisName"), TEXT("Legacy input axis mapping name."))
 			.String(TEXT("key"), TEXT(""))
+			.Number(TEXT("scale"), TEXT("Legacy input axis scale."))
+			.Bool(TEXT("shift"), TEXT("Require Shift for a legacy action mapping."))
+			.Bool(TEXT("ctrl"), TEXT("Require Ctrl for a legacy action mapping."))
+			.Bool(TEXT("alt"), TEXT("Require Alt for a legacy action mapping."))
+			.Bool(TEXT("cmd"), TEXT("Require Cmd for a legacy action mapping."))
 			.String(TEXT("triggerType"), TEXT(""))
 			.String(TEXT("modifierType"), TEXT(""))
 			.String(TEXT("assetPath"), TEXT("Asset path (e.g., /Game/Path/Asset)."))

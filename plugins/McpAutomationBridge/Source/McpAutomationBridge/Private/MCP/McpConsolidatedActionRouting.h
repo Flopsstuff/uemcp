@@ -347,6 +347,8 @@ inline TArray<FString> AnimationPhysics()
 inline const TArray<FString>& AudioAuthoring()
 {
 	static const TArray<FString> Actions = {
+		TEXT("create_sound_cue"), TEXT("create_sound_class"),
+		TEXT("create_sound_mix"),
 		TEXT("add_cue_node"), TEXT("connect_cue_nodes"),
 		TEXT("set_cue_attenuation"), TEXT("set_cue_concurrency"),
 		TEXT("create_metasound"), TEXT("add_metasound_node"),
@@ -434,6 +436,8 @@ inline const TArray<FString>& Input()
 	static const TArray<FString> Actions = {
 		TEXT("create_input_action"), TEXT("create_input_mapping_context"),
 		TEXT("add_mapping"), TEXT("remove_mapping"), TEXT("map_input_action"),
+		TEXT("add_legacy_action_mapping"), TEXT("remove_legacy_action_mapping"),
+		TEXT("add_legacy_axis_mapping"), TEXT("remove_legacy_axis_mapping"),
 		TEXT("set_input_trigger"), TEXT("set_input_modifier"),
 		TEXT("enable_input_mapping"), TEXT("disable_input_action"),
 		TEXT("get_input_info")

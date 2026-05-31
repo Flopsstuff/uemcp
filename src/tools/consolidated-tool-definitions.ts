@@ -132,6 +132,8 @@ export const GAME_FRAMEWORK_ACTIONS = [
 
 export const INPUT_ACTIONS = [
   'create_input_action', 'create_input_mapping_context', 'add_mapping', 'remove_mapping',
+  'add_legacy_action_mapping', 'remove_legacy_action_mapping',
+  'add_legacy_axis_mapping', 'remove_legacy_axis_mapping',
   'map_input_action', 'set_input_trigger', 'set_input_modifier', 'enable_input_mapping',
   'disable_input_action', 'get_input_info'
 ] as const;
@@ -413,6 +415,9 @@ export const consolidatedToolDefinitions: ToolDefinition[] = [
         memberClass: commonSchemas.stringProp,
         targetClass: commonSchemas.stringProp,
         inputAxisName: commonSchemas.stringProp,
+        actionPath: commonSchemas.assetPath,
+        inputActionPath: commonSchemas.assetPath,
+        inputActionAssetPath: commonSchemas.assetPath,
         // Compilation options
         saveAfterCompile: commonSchemas.booleanProp,
         // Timing/async options
@@ -3159,7 +3164,14 @@ export const consolidatedToolDefinitions: ToolDefinition[] = [
         save: commonSchemas.save,
         contextPath: commonSchemas.assetPath,
         actionPath: commonSchemas.assetPath,
+        actionName: { type: 'string', description: 'Legacy input action mapping name.' },
+        axisName: { type: 'string', description: 'Legacy input axis mapping name.' },
         key: commonSchemas.stringProp,
+        scale: { type: 'number', description: 'Legacy input axis scale.' },
+        shift: { type: 'boolean', description: 'Require Shift for a legacy action mapping.' },
+        ctrl: { type: 'boolean', description: 'Require Ctrl for a legacy action mapping.' },
+        alt: { type: 'boolean', description: 'Require Alt for a legacy action mapping.' },
+        cmd: { type: 'boolean', description: 'Require Cmd for a legacy action mapping.' },
         triggerType: commonSchemas.stringProp,
         modifierType: commonSchemas.stringProp,
         assetPath: commonSchemas.assetPath,

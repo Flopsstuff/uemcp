@@ -163,6 +163,10 @@ export const INPUT_ACTIONS = {
   CREATE_INPUT_MAPPING_CONTEXT: 'create_input_mapping_context',
   ADD_MAPPING: 'add_mapping',
   REMOVE_MAPPING: 'remove_mapping',
+  ADD_LEGACY_ACTION_MAPPING: 'add_legacy_action_mapping',
+  REMOVE_LEGACY_ACTION_MAPPING: 'remove_legacy_action_mapping',
+  ADD_LEGACY_AXIS_MAPPING: 'add_legacy_axis_mapping',
+  REMOVE_LEGACY_AXIS_MAPPING: 'remove_legacy_axis_mapping',
 } as const;
 
 // ============================================================================
