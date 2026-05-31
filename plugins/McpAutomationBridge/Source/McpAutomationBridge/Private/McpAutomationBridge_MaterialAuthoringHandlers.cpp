@@ -4783,6 +4783,14 @@ template<typename TExprArray>
 static UMaterialExpression *FindExpressionInArray(TExprArray &Expressions,
                                                    const FString &IdOrName) {
   const FString Needle = IdOrName.TrimStartAndEnd();
+  FString ShortNeedle = Needle;
+  int32 SeparatorIndex = INDEX_NONE;
+  if (ShortNeedle.FindLastChar(TEXT(':'), SeparatorIndex)) {
+    ShortNeedle = ShortNeedle.Mid(SeparatorIndex + 1);
+  }
+  if (ShortNeedle.FindLastChar(TEXT('.'), SeparatorIndex)) {
+    ShortNeedle = ShortNeedle.Mid(SeparatorIndex + 1);
+  }
 
   // 1. expr_N index-based lookup
   if (Needle.StartsWith(TEXT("expr_"))) {
@@ -4797,7 +4805,7 @@ static UMaterialExpression *FindExpressionInArray(TExprArray &Expressions,
   for (int32 i = 0; i < Expressions.Num(); ++i) {
     UMaterialExpression *Expr = static_cast<UMaterialExpression*>(Expressions[i]);
     if (!Expr) continue;
-    if (Expr->GetName() == Needle) return Expr;
+    if (Expr->GetName() == Needle || Expr->GetName() == ShortNeedle) return Expr;
   }
 
   // 3. GUID match (backwards compat) — detect collisions
@@ -4833,13 +4841,13 @@ static UMaterialExpression *FindExpressionInArray(TExprArray &Expressions,
     UMaterialExpression *Expr = static_cast<UMaterialExpression*>(Expressions[i]);
     if (!Expr) continue;
     if (UMaterialExpressionParameter *P = Cast<UMaterialExpressionParameter>(Expr)) {
-      if (P->ParameterName.ToString() == Needle) return Expr;
+      if (P->ParameterName.ToString() == Needle || P->ParameterName.ToString() == ShortNeedle) return Expr;
     }
     if (UMaterialExpressionFunctionInput *In = Cast<UMaterialExpressionFunctionInput>(Expr)) {
-      if (In->InputName.ToString() == Needle) return Expr;
+      if (In->InputName.ToString() == Needle || In->InputName.ToString() == ShortNeedle) return Expr;
     }
     if (UMaterialExpressionFunctionOutput *Out = Cast<UMaterialExpressionFunctionOutput>(Expr)) {
-      if (Out->OutputName.ToString() == Needle) return Expr;
+      if (Out->OutputName.ToString() == Needle || Out->OutputName.ToString() == ShortNeedle) return Expr;
     }
   }
 
