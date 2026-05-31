@@ -113,6 +113,40 @@ describe('consolidated action params compatibility', () => {
     expect(payload).not.toHaveProperty('params');
   });
 
+  it('routes base audio asset creation through audio authoring', async () => {
+    const { tools, sendAutomationRequest } = createConnectedTools();
+
+    await handleConsolidatedToolCall('manage_audio', {
+      action: 'create_sound_mix',
+      name: 'SCM_Test',
+      path: '/Game/Audio'
+    }, tools);
+
+    expect(sendAutomationRequest).toHaveBeenCalledWith('manage_audio_authoring', expect.objectContaining({
+      subAction: 'create_sound_mix',
+      name: 'SCM_Test',
+      path: '/Game/Audio'
+    }), expect.any(Object));
+  });
+
+  it('preserves sound cue aliases when routing through audio authoring', async () => {
+    const { tools, sendAutomationRequest } = createConnectedTools();
+
+    await handleConsolidatedToolCall('manage_audio', {
+      action: 'create_sound_cue',
+      name: 'SC_TestCue',
+      soundPath: '/Engine/VREditor/Sounds/VR_click1',
+      savePath: '/Game/Audio/Cues'
+    }, tools);
+
+    expect(sendAutomationRequest).toHaveBeenCalledWith('manage_audio_authoring', expect.objectContaining({
+      subAction: 'create_sound_cue',
+      name: 'SC_TestCue',
+      path: '/Game/Audio/Cues',
+      wavePath: '/Engine/VREditor/Sounds/VR_click1'
+    }), expect.any(Object));
+  });
+
   it('forwards overwrite for level copy-style actions', async () => {
     const { tools, sendAutomationRequest } = createConnectedTools();
 

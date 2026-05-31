@@ -54,8 +54,20 @@ export async function handleAudioAuthoringTools(
       'reverbEffect',
       'effectPresetPath',
       'parentPath',
-      'path'
+      'path',
+      'savePath',
+      'packagePath',
+      'soundPath',
+      'wavePath'
     ]);
+
+    if ((subAction === 'create_sound_cue' || subAction === 'create_sound_class' || subAction === 'create_sound_mix') && payload.path === undefined) {
+      payload.path = payload.savePath ?? payload.packagePath;
+    }
+
+    if (subAction === 'create_sound_cue' && payload.wavePath === undefined && payload.soundPath !== undefined) {
+      payload.wavePath = payload.soundPath;
+    }
 
     // Normalize asset paths for StaticLoadObject compatibility (needs /Game/Path/Asset.AssetName)
     if (payload.assetPath && typeof payload.assetPath === 'string') {

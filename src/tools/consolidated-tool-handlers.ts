@@ -132,6 +132,7 @@ const animationAuthoringActionSet = new Set<string>([
   'create_control_rig', 'create_ik_rig', 'create_ik_retargeter', 'set_retarget_chain_mapping', 'get_animation_info'
 ]);
 const audioAuthoringActionSet = new Set<string>([
+  'create_sound_cue', 'create_sound_class', 'create_sound_mix',
   'add_cue_node', 'connect_cue_nodes', 'set_cue_attenuation', 'set_cue_concurrency',
   'create_metasound', 'add_metasound_node', 'connect_metasound_nodes',
   'add_metasound_input', 'add_metasound_output', 'set_metasound_default',
