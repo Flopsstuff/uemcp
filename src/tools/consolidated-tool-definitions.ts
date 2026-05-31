@@ -84,7 +84,7 @@ export const PERFORMANCE_ACTIONS = [
 
 export const BEHAVIOR_TREE_ACTIONS = [
   'create', 'add_node', 'connect_nodes', 'remove_node', 'break_connections',
-  'set_node_properties', 'add_subnode'
+  'set_node_properties', 'add_subnode', 'get_tree'
 ] as const;
 
 export const NAVIGATION_ACTIONS = [
@@ -2665,6 +2665,22 @@ export const consolidatedToolDefinitions: ToolDefinition[] = [
             massTraits: commonSchemas.arrayOfStrings
           },
           description: 'AI configuration info (for get_ai_info).'
+        },
+        tree: {
+          type: 'object',
+          properties: {
+            assetPath: commonSchemas.assetPath,
+            // Nullable: serializer emits JSON null when the tree has no BlackboardAsset assigned.
+            blackboardAsset: { type: ['string', 'null'], description: 'Blackboard asset path, or null if the tree has no blackboard assigned.' },
+            hasRootNode: commonSchemas.booleanProp,
+            nodeCount: commonSchemas.integerProp,
+            executionNodeCount: commonSchemas.integerProp,
+            rootDecorators: commonSchemas.arrayOfObjects,
+            rootDecoratorOpsRaw: commonSchemas.arrayOfObjects,
+            // Nullable: serializer emits JSON null for an empty tree (RootNode == nullptr), matching the success + rootNode:null contract.
+            rootNode: { type: ['object', 'null'], description: 'Recursive root node hierarchy, or null for an empty tree (no RootNode).' }
+          },
+          description: 'Navigable Behavior Tree hierarchy (for get_tree): recursive rootNode with ordered children[], per-edge entryDecorators[]/entryDecoratorOpsRaw[], composite/task services[], top-level rootDecorators[]/rootDecoratorOpsRaw[], and per-node keyProperties{}.'
         },
         error: commonSchemas.stringProp
       }
