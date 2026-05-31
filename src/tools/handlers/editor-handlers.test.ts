@@ -151,6 +151,21 @@ describe('handleEditorTools', () => {
     }, {});
   });
 
+  it('maps simulate_input from inputType key plus inputAction', async () => {
+    const { tools, sendAutomationRequest } = createConnectedTools();
+
+    await handleEditorTools('simulate_input', { action: 'simulate_input', inputType: 'key', inputAction: 'release', key: 'K' }, tools);
+
+    expect(sendAutomationRequest).toHaveBeenCalledWith('control_editor', {
+      action: 'simulate_input',
+      type: 'key_up',
+      key: 'K',
+      x: undefined,
+      y: undefined,
+      button: undefined
+    }, {});
+  });
+
   it('rejects simulate_input when only the routing action is present', async () => {
     const { tools, sendAutomationRequest } = createConnectedTools();
 

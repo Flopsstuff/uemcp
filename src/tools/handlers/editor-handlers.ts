@@ -109,8 +109,10 @@ const ACTION_ALLOWED_PARAMS: Record<string, string[]> = {
 };
 
 const INPUT_TYPE_ALIASES: Record<string, string> = {
+  press: 'key_down',
   pressed: 'key_down',
   down: 'key_down',
+  release: 'key_up',
   released: 'key_up',
   up: 'key_up',
   click: 'mouse_click',
@@ -168,6 +170,14 @@ function getInputType(args: EditorArgs): string {
   }
 
   const normalized = inputTypeValue.trim().toLowerCase();
+  if ((normalized === 'key' || normalized === 'keyboard') && typeof args.inputAction === 'string') {
+    const normalizedInputAction = args.inputAction.trim().toLowerCase();
+    const mappedActionType = INPUT_TYPE_ALIASES[normalizedInputAction] ?? normalizedInputAction;
+    if (mappedActionType === 'key_down' || mappedActionType === 'key_up') {
+      return mappedActionType;
+    }
+  }
+
   const mappedType = INPUT_TYPE_ALIASES[normalized] ?? normalized;
   if (!SUPPORTED_INPUT_TYPES.has(mappedType)) {
     throw new Error(`Unknown input type: ${inputTypeValue}. Supported: key_down, key_up, mouse_click, mouse_move`);

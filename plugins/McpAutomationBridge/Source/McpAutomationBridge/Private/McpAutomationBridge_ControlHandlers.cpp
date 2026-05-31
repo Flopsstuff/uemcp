@@ -131,21 +131,26 @@
 #include "Components/PrimitiveComponent.h"
 #include "EditorViewportClient.h"
 #include "Engine/Blueprint.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerInput.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
 #if __has_include("FileHelpers.h")
 #include "FileHelpers.h"
 #endif
 #include "Animation/SkeletalMeshActor.h"
+#include "Components/InputComponent.h"
 #include "Components/ActorComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
+#include "UnrealEngine.h"
 
 // -----------------------------------------------------------------------------
 // Editor-only Includes: Export & Output
@@ -159,6 +164,7 @@
 #include "Misc/Base64.h"
 #include "Misc/FileHelper.h"
 #include "Misc/OutputDevice.h"
+#include "Slate/SceneViewport.h"
 #include "UnrealClient.h" // For FScreenshotRequest
 #include "Widgets/SWindow.h"
 
@@ -4007,15 +4013,22 @@ bool UMcpAutomationBridgeSubsystem::HandleControlEditorSimulateInput(
   if (InputType.IsEmpty()) {
     Payload->TryGetStringField(TEXT("inputType"), InputType);
   }
+  FString InputAction;
+  Payload->TryGetStringField(TEXT("inputAction"), InputAction);
   if (InputType.IsEmpty()) {
-    Payload->TryGetStringField(TEXT("inputAction"), InputType);
+    InputType = InputAction;
   }
 
   // Map action values to C++ expected type values
   InputType = InputType.ToLower();
-  if (InputType == TEXT("pressed") || InputType == TEXT("down")) {
+  InputAction = InputAction.ToLower();
+  if ((InputType == TEXT("key") || InputType == TEXT("keyboard")) && !InputAction.IsEmpty()) {
+    InputType = InputAction;
+  }
+
+  if (InputType == TEXT("press") || InputType == TEXT("pressed") || InputType == TEXT("down")) {
     InputType = TEXT("key_down");
-  } else if (InputType == TEXT("released") || InputType == TEXT("up")) {
+  } else if (InputType == TEXT("release") || InputType == TEXT("released") || InputType == TEXT("up")) {
     InputType = TEXT("key_up");
   } else if (InputType == TEXT("click")) {
     InputType = TEXT("mouse_click");
@@ -4035,7 +4048,7 @@ bool UMcpAutomationBridgeSubsystem::HandleControlEditorSimulateInput(
   auto RouteKeyToPIE = [](const FKey &InputKey, const EInputEvent InputEvent,
                           bool &bOutHandledByPIE) -> bool {
     bOutHandledByPIE = false;
-    if (!GEditor || !GEditor->PlayWorld) {
+    if (!GEditor || !GEditor->PlayWorld || !GEngine) {
       return false;
     }
 
@@ -4045,15 +4058,40 @@ bool UMcpAutomationBridgeSubsystem::HandleControlEditorSimulateInput(
     }
 
     APlayerController *PlayerController = PlayWorld->GetFirstPlayerController();
+    if (PlayerController && PlayerController->PlayerInput) {
+      PlayerController->PlayerInput->ForceRebuildingKeyMaps(true);
+    }
+
+    const float AmountDepressed = InputEvent == IE_Released ? 0.0f : 1.0f;
+    const FInputDeviceId InputDevice = IPlatformInputDeviceMapper::Get().GetDefaultInputDevice();
+    if (UGameViewportClient *GameViewportClient = PlayWorld->GetGameViewport()) {
+      FViewport *GameViewport = GameViewportClient->GetGameViewport();
+      if (GameViewport) {
+        FScopedConditionalWorldSwitcher WorldSwitcher(GameViewportClient);
+        FInputKeyEventArgs KeyArgs(
+            GameViewport,
+            InputDevice,
+            InputKey,
+            InputEvent,
+            AmountDepressed,
+            false,
+            FPlatformTime::Cycles64());
+        bOutHandledByPIE = GameViewportClient->InputKey(KeyArgs);
+        return true;
+      }
+    }
+
     if (!PlayerController) {
       return false;
     }
 
-    const double AmountDepressed = InputEvent == IE_Released ? 0.0 : 1.0;
-    PRAGMA_DISABLE_DEPRECATION_WARNINGS
-    FInputKeyParams KeyParams(InputKey, InputEvent, AmountDepressed, false);
-    bOutHandledByPIE = PlayerController->InputKey(KeyParams);
-    PRAGMA_ENABLE_DEPRECATION_WARNINGS
+    bOutHandledByPIE = PlayerController->InputKey(
+        FInputKeyEventArgs::CreateSimulated(
+            InputKey,
+            InputEvent,
+            AmountDepressed,
+            1,
+            InputDevice));
     return true;
   };
 
@@ -4166,6 +4204,55 @@ bool UMcpAutomationBridgeSubsystem::HandleControlEditorSimulateInput(
   Resp->SetBoolField(TEXT("routedToPIE"), bRoutedToPIE);
   Resp->SetBoolField(TEXT("handledByPIE"), bHandledByPIE);
   Resp->SetBoolField(TEXT("handledBySlate"), bHandledBySlate);
+
+  if (!Key.IsEmpty() && GEditor && GEditor->PlayWorld)
+  {
+    if (UWorld* PlayWorld = GEditor->PlayWorld.Get())
+    {
+      if (APlayerController* PlayerController = PlayWorld->GetFirstPlayerController())
+      {
+        TSharedPtr<FJsonObject> InputDiagnostics = MakeShared<FJsonObject>();
+        InputDiagnostics->SetStringField(TEXT("playerController"), PlayerController->GetName());
+        if (APawn* Pawn = PlayerController->GetPawn())
+        {
+          InputDiagnostics->SetStringField(TEXT("pawn"), Pawn->GetName());
+          InputDiagnostics->SetStringField(TEXT("pendingInputVector"), Pawn->GetPendingMovementInputVector().ToString());
+          InputDiagnostics->SetStringField(TEXT("lastInputVector"), Pawn->GetLastMovementInputVector().ToString());
+
+          if (UInputComponent* PawnInput = Pawn->InputComponent)
+          {
+            TArray<TSharedPtr<FJsonValue>> AxisBindings;
+            for (const FInputAxisBinding& AxisBinding : PawnInput->AxisBindings)
+            {
+              TSharedPtr<FJsonObject> AxisBindingObject = MakeShared<FJsonObject>();
+              AxisBindingObject->SetStringField(TEXT("axisName"), AxisBinding.AxisName.ToString());
+              AxisBindingObject->SetNumberField(TEXT("axisValue"), AxisBinding.AxisValue);
+              AxisBindingObject->SetBoolField(TEXT("delegateBound"), AxisBinding.AxisDelegate.IsBound());
+              AxisBindingObject->SetBoolField(TEXT("consumeInput"), AxisBinding.bConsumeInput);
+              AxisBindingObject->SetBoolField(TEXT("executeWhenPaused"), AxisBinding.bExecuteWhenPaused);
+              AxisBindings.Add(MakeShared<FJsonValueObject>(AxisBindingObject));
+            }
+            InputDiagnostics->SetStringField(TEXT("pawnInputComponent"), PawnInput->GetName());
+            InputDiagnostics->SetStringField(TEXT("pawnInputComponentClass"), PawnInput->GetClass()->GetName());
+            InputDiagnostics->SetNumberField(TEXT("pawnAxisBindingCount"), AxisBindings.Num());
+            InputDiagnostics->SetArrayField(TEXT("pawnAxisBindings"), AxisBindings);
+          }
+        }
+
+        if (PlayerController->PlayerInput)
+        {
+          const FKey DiagnosticKey(*Key);
+          const TArray<FInputAxisKeyMapping>& MoveForwardKeys = PlayerController->PlayerInput->GetKeysForAxis(TEXT("MoveForward"));
+          const TArray<FInputAxisKeyMapping>& MoveRightKeys = PlayerController->PlayerInput->GetKeysForAxis(TEXT("MoveRight"));
+          InputDiagnostics->SetNumberField(TEXT("keyValue"), PlayerController->PlayerInput->GetKeyValue(DiagnosticKey));
+          InputDiagnostics->SetNumberField(TEXT("moveForwardMappingCount"), MoveForwardKeys.Num());
+          InputDiagnostics->SetNumberField(TEXT("moveRightMappingCount"), MoveRightKeys.Num());
+        }
+
+        Resp->SetObjectField(TEXT("inputDiagnostics"), InputDiagnostics);
+      }
+    }
+  }
 
   if (bSuccess) {
     SendAutomationResponse(Socket, RequestId, true, Message, Resp, FString());
