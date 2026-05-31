@@ -48,6 +48,7 @@
 
 #if WITH_EDITOR
 #include "AssetToolsModule.h"
+#include "Editor.h"
 #include "EditorAssetLibrary.h"
 
 // UE 5.1+: EnhancedInputEditorSubsystem
@@ -56,6 +57,11 @@
 #endif
 
 #include "Factories/Factory.h"
+#include "EnhancedInputSubsystems.h"
+#include "Engine/GameInstance.h"
+#include "Engine/LocalPlayer.h"
+#include "GameFramework/InputSettings.h"
+#include "GameFramework/PlayerController.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
 
@@ -68,6 +74,89 @@ namespace
 FKey McpInputKeyFromName(const FString& KeyName)
 {
     return KeyName.IsEmpty() ? FKey() : FKey(FName(*KeyName));
+}
+
+bool IsLegacyInputMappingAction(const FString& SubAction)
+{
+    return SubAction == TEXT("add_legacy_action_mapping") ||
+           SubAction == TEXT("remove_legacy_action_mapping") ||
+           SubAction == TEXT("add_legacy_axis_mapping") ||
+           SubAction == TEXT("remove_legacy_axis_mapping");
+}
+
+FString NormalizeInputAssetPathForLoad(const FString& RawPath)
+{
+    FString CleanPath = RawPath.TrimStartAndEnd();
+    int32 QuoteStart = INDEX_NONE;
+    int32 QuoteEnd = INDEX_NONE;
+    if (CleanPath.FindChar(TEXT('\''), QuoteStart) && CleanPath.FindLastChar(TEXT('\''), QuoteEnd) && QuoteEnd > QuoteStart)
+    {
+        CleanPath = CleanPath.Mid(QuoteStart + 1, QuoteEnd - QuoteStart - 1);
+    }
+
+    int32 DotIndex = INDEX_NONE;
+    FString PackagePath = CleanPath;
+    if (CleanPath.FindChar(TEXT('.'), DotIndex))
+    {
+        PackagePath = CleanPath.Left(DotIndex);
+    }
+
+    FString SanitizedPackagePath = SanitizeProjectRelativePath(PackagePath);
+    if (SanitizedPackagePath.IsEmpty())
+    {
+        return FString();
+    }
+
+    return DotIndex == INDEX_NONE ? SanitizedPackagePath : SanitizedPackagePath + CleanPath.Mid(DotIndex);
+}
+
+template <typename TAsset>
+TAsset* LoadInputAsset(const FString& RawPath, FString& OutNormalizedPath)
+{
+    OutNormalizedPath = NormalizeInputAssetPathForLoad(RawPath);
+    if (OutNormalizedPath.IsEmpty())
+    {
+        return nullptr;
+    }
+
+    if (UObject* Loaded = UEditorAssetLibrary::LoadAsset(OutNormalizedPath))
+    {
+        if (TAsset* Typed = Cast<TAsset>(Loaded))
+        {
+            return Typed;
+        }
+    }
+
+    TArray<FString> Candidates;
+    Candidates.Add(OutNormalizedPath);
+    if (!OutNormalizedPath.Contains(TEXT(".")))
+    {
+        const FString AssetName = FPackageName::GetShortName(OutNormalizedPath);
+        Candidates.Add(FString::Printf(TEXT("%s.%s"), *OutNormalizedPath, *AssetName));
+    }
+
+    for (const FString& Candidate : Candidates)
+    {
+        if (UObject* Loaded = StaticLoadObject(TAsset::StaticClass(), nullptr, *Candidate))
+        {
+            if (TAsset* Typed = Cast<TAsset>(Loaded))
+            {
+                OutNormalizedPath = Candidate;
+                return Typed;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+void AddLegacyModifierFields(FInputActionKeyMapping& Mapping, const TSharedPtr<FJsonObject>& Payload)
+{
+    bool bValue = false;
+    if (Payload->TryGetBoolField(TEXT("shift"), bValue)) Mapping.bShift = bValue;
+    if (Payload->TryGetBoolField(TEXT("ctrl"), bValue)) Mapping.bCtrl = bValue;
+    if (Payload->TryGetBoolField(TEXT("alt"), bValue)) Mapping.bAlt = bValue;
+    if (Payload->TryGetBoolField(TEXT("cmd"), bValue)) Mapping.bCmd = bValue;
 }
 
 /** Adds verified mapping readback for an action after key-specific edits. */
@@ -157,21 +246,6 @@ bool UMcpAutomationBridgeSubsystem::HandleInputAction(
     }
 
 #if WITH_EDITOR
-    // Runtime check: Verify EnhancedInput module is loaded
-    // This handles the case where headers were available at compile time
-    // but the plugin is not enabled in the target project at runtime
-    if (!FModuleManager::Get().IsModuleLoaded(TEXT("EnhancedInput")))
-    {
-        if (!FModuleManager::Get().ModuleExists(TEXT("EnhancedInput")) ||
-            !FModuleManager::Get().LoadModule(TEXT("EnhancedInput")))
-        {
-            SendAutomationError(RequestingSocket, RequestId,
-                TEXT("EnhancedInput plugin is not enabled in this project. Enable the Enhanced Input plugin to use Input features."),
-                TEXT("ENHANCEDINPUT_PLUGIN_NOT_ENABLED"));
-            return true;
-        }
-    }
-
     // Validate payload
     if (!Payload.IsValid())
     {
@@ -191,6 +265,108 @@ bool UMcpAutomationBridgeSubsystem::HandleInputAction(
 
     UE_LOG(LogMcpAutomationBridgeSubsystem, Log,
         TEXT("HandleInputAction: %s"), *SubAction);
+
+    if (!IsLegacyInputMappingAction(SubAction) && !FModuleManager::Get().IsModuleLoaded(TEXT("EnhancedInput")))
+    {
+        if (!FModuleManager::Get().ModuleExists(TEXT("EnhancedInput")) ||
+            !FModuleManager::Get().LoadModule(TEXT("EnhancedInput")))
+        {
+            SendAutomationError(RequestingSocket, RequestId,
+                TEXT("EnhancedInput plugin is not enabled in this project. Enable the Enhanced Input plugin to use Input features."),
+                TEXT("ENHANCEDINPUT_PLUGIN_NOT_ENABLED"));
+            return true;
+        }
+    }
+
+    if (IsLegacyInputMappingAction(SubAction))
+    {
+        FString MappingName;
+        Payload->TryGetStringField(TEXT("name"), MappingName);
+
+        if (SubAction.Contains(TEXT("action")))
+        {
+            FString ActionName;
+            Payload->TryGetStringField(TEXT("actionName"), ActionName);
+            if (!ActionName.IsEmpty())
+            {
+                MappingName = ActionName;
+            }
+        }
+        else
+        {
+            FString AxisName;
+            Payload->TryGetStringField(TEXT("axisName"), AxisName);
+            if (!AxisName.IsEmpty())
+            {
+                MappingName = AxisName;
+            }
+        }
+
+        FString KeyName;
+        Payload->TryGetStringField(TEXT("key"), KeyName);
+        FKey Key = McpInputKeyFromName(KeyName);
+        if (MappingName.IsEmpty() || !Key.IsValid())
+        {
+            SendAutomationError(RequestingSocket, RequestId,
+                TEXT("A non-empty mapping name and valid key are required."),
+                TEXT("INVALID_ARGUMENT"));
+            return true;
+        }
+
+        UInputSettings* InputSettings = UInputSettings::GetInputSettings();
+        if (!InputSettings)
+        {
+            SendAutomationError(RequestingSocket, RequestId,
+                TEXT("Input settings are not available."), TEXT("NOT_AVAILABLE"));
+            return true;
+        }
+
+        InputSettings->Modify();
+        const bool bRemove = SubAction.StartsWith(TEXT("remove_"));
+        const bool bAxis = SubAction.Contains(TEXT("axis"));
+
+        if (bAxis)
+        {
+            double Scale = 1.0;
+            Payload->TryGetNumberField(TEXT("scale"), Scale);
+            FInputAxisKeyMapping Mapping(FName(*MappingName), Key, static_cast<float>(Scale));
+            if (bRemove)
+            {
+                InputSettings->RemoveAxisMapping(Mapping, true);
+            }
+            else
+            {
+                InputSettings->AddAxisMapping(Mapping, true);
+            }
+        }
+        else
+        {
+            FInputActionKeyMapping Mapping(FName(*MappingName), Key);
+            AddLegacyModifierFields(Mapping, Payload);
+            if (bRemove)
+            {
+                InputSettings->RemoveActionMapping(Mapping, true);
+            }
+            else
+            {
+                InputSettings->AddActionMapping(Mapping, true);
+            }
+        }
+
+        InputSettings->SaveKeyMappings();
+        const bool bUpdatedDefaultConfig = InputSettings->TryUpdateDefaultConfigFile();
+        InputSettings->ForceRebuildKeymaps();
+
+        TSharedPtr<FJsonObject> Result = McpHandlerUtils::CreateResultObject();
+        Result->SetStringField(TEXT("name"), MappingName);
+        Result->SetStringField(TEXT("key"), KeyName);
+        Result->SetStringField(TEXT("mappingType"), bAxis ? TEXT("axis") : TEXT("action"));
+        Result->SetBoolField(TEXT("defaultConfigUpdated"), bUpdatedDefaultConfig);
+        Result->SetBoolField(bRemove ? TEXT("removed") : TEXT("added"), true);
+        SendAutomationResponse(RequestingSocket, RequestId, true,
+            bRemove ? TEXT("Legacy input mapping removed.") : TEXT("Legacy input mapping added."), Result);
+        return true;
+    }
 
     // -------------------------------------------------------------------------
     // create_input_action: Create UInputAction asset
@@ -374,22 +550,10 @@ bool UMcpAutomationBridgeSubsystem::HandleInputAction(
         FString KeyName;
         Payload->TryGetStringField(TEXT("key"), KeyName);
 
-        // Validate and sanitize paths
-        FString SanitizedContextPath = SanitizeProjectRelativePath(ContextPath);
-        FString SanitizedActionPath = SanitizeProjectRelativePath(ActionPath);
-
-        if (SanitizedContextPath.IsEmpty() || SanitizedActionPath.IsEmpty())
-        {
-            SendAutomationError(RequestingSocket, RequestId,
-                TEXT("Invalid context or action path: contains traversal or invalid characters."),
-                TEXT("INVALID_PATH"));
-            return true;
-        }
-
-        UInputMappingContext* Context = Cast<UInputMappingContext>(
-            UEditorAssetLibrary::LoadAsset(SanitizedContextPath));
-        UInputAction* InAction = Cast<UInputAction>(
-            UEditorAssetLibrary::LoadAsset(SanitizedActionPath));
+        FString SanitizedContextPath;
+        FString SanitizedActionPath;
+        UInputMappingContext* Context = LoadInputAsset<UInputMappingContext>(ContextPath, SanitizedContextPath);
+        UInputAction* InAction = LoadInputAsset<UInputAction>(ActionPath, SanitizedActionPath);
 
         if (!Context || !InAction || KeyName.IsEmpty())
         {
@@ -438,22 +602,10 @@ bool UMcpAutomationBridgeSubsystem::HandleInputAction(
         FString KeyName;
         Payload->TryGetStringField(TEXT("key"), KeyName);
 
-        // Validate and sanitize paths
-        FString SanitizedContextPath = SanitizeProjectRelativePath(ContextPath);
-        FString SanitizedActionPath = SanitizeProjectRelativePath(ActionPath);
-
-        if (SanitizedContextPath.IsEmpty() || SanitizedActionPath.IsEmpty())
-        {
-            SendAutomationError(RequestingSocket, RequestId,
-                TEXT("Invalid context or action path: contains traversal or invalid characters."),
-                TEXT("INVALID_PATH"));
-            return true;
-        }
-
-        UInputMappingContext* Context = Cast<UInputMappingContext>(
-            UEditorAssetLibrary::LoadAsset(SanitizedContextPath));
-        UInputAction* InAction = Cast<UInputAction>(
-            UEditorAssetLibrary::LoadAsset(SanitizedActionPath));
+        FString SanitizedContextPath;
+        FString SanitizedActionPath;
+        UInputMappingContext* Context = LoadInputAsset<UInputMappingContext>(ContextPath, SanitizedContextPath);
+        UInputAction* InAction = LoadInputAsset<UInputAction>(ActionPath, SanitizedActionPath);
 
         if (!Context || !InAction)
         {
@@ -537,17 +689,8 @@ bool UMcpAutomationBridgeSubsystem::HandleInputAction(
         FString TriggerType;
         Payload->TryGetStringField(TEXT("triggerType"), TriggerType);
 
-        FString SanitizedActionPath = SanitizeProjectRelativePath(ActionPath);
-        if (SanitizedActionPath.IsEmpty())
-        {
-            SendAutomationError(RequestingSocket, RequestId,
-                FString::Printf(TEXT("Invalid action path: '%s' contains traversal or invalid characters."), *ActionPath),
-                TEXT("INVALID_PATH"));
-            return true;
-        }
-
-        UInputAction* InAction = Cast<UInputAction>(
-            UEditorAssetLibrary::LoadAsset(SanitizedActionPath));
+        FString SanitizedActionPath;
+        UInputAction* InAction = LoadInputAsset<UInputAction>(ActionPath, SanitizedActionPath);
 
         if (!InAction)
         {
@@ -652,17 +795,8 @@ bool UMcpAutomationBridgeSubsystem::HandleInputAction(
             return true;
         }
 
-        FString SanitizedActionPath = SanitizeProjectRelativePath(ActionPath);
-        if (SanitizedActionPath.IsEmpty())
-        {
-            SendAutomationError(RequestingSocket, RequestId,
-                FString::Printf(TEXT("Invalid action path: '%s' contains traversal or invalid characters."), *ActionPath),
-                TEXT("INVALID_PATH"));
-            return true;
-        }
-
-        UInputAction* InAction = Cast<UInputAction>(
-            UEditorAssetLibrary::LoadAsset(SanitizedActionPath));
+        FString SanitizedActionPath;
+        UInputAction* InAction = LoadInputAsset<UInputAction>(ActionPath, SanitizedActionPath);
 
         if (!InAction)
         {
@@ -687,16 +821,7 @@ bool UMcpAutomationBridgeSubsystem::HandleInputAction(
                 return true;
             }
 
-            SanitizedContextPath = SanitizeProjectRelativePath(ContextPath);
-            if (SanitizedContextPath.IsEmpty())
-            {
-                SendAutomationError(RequestingSocket, RequestId,
-                    FString::Printf(TEXT("Invalid context path: '%s' contains traversal or invalid characters."), *ContextPath),
-                    TEXT("INVALID_PATH"));
-                return true;
-            }
-
-            Context = Cast<UInputMappingContext>(UEditorAssetLibrary::LoadAsset(SanitizedContextPath));
+            Context = LoadInputAsset<UInputMappingContext>(ContextPath, SanitizedContextPath);
             if (!Context)
             {
                 SendAutomationError(RequestingSocket, RequestId,
@@ -785,17 +910,8 @@ bool UMcpAutomationBridgeSubsystem::HandleInputAction(
         int32 Priority = 0;
         Payload->TryGetNumberField(TEXT("priority"), Priority);
 
-        FString SanitizedContextPath = SanitizeProjectRelativePath(ContextPath);
-        if (SanitizedContextPath.IsEmpty())
-        {
-            SendAutomationError(RequestingSocket, RequestId,
-                FString::Printf(TEXT("Invalid context path: '%s' contains traversal or invalid characters."), *ContextPath),
-                TEXT("INVALID_PATH"));
-            return true;
-        }
-
-        UInputMappingContext* Context = Cast<UInputMappingContext>(
-            UEditorAssetLibrary::LoadAsset(SanitizedContextPath));
+        FString SanitizedContextPath;
+        UInputMappingContext* Context = LoadInputAsset<UInputMappingContext>(ContextPath, SanitizedContextPath);
 
         if (!Context)
         {
@@ -805,15 +921,50 @@ bool UMcpAutomationBridgeSubsystem::HandleInputAction(
             return true;
         }
 
-        // Note: Runtime enabling requires player controller and EnhancedInputSubsystem
         TSharedPtr<FJsonObject> Result = McpHandlerUtils::CreateResultObject();
         Result->SetStringField(TEXT("contextPath"), SanitizedContextPath);
         Result->SetNumberField(TEXT("priority"), Priority);
         Result->SetBoolField(TEXT("enabled"), true);
+        Result->SetBoolField(TEXT("runtimeApplied"), false);
         McpHandlerUtils::AddVerification(Result, Context);
 
+        if (GEditor && GEditor->PlayWorld)
+        {
+            UWorld* PlayWorld = GEditor->PlayWorld.Get();
+            APlayerController* PlayerController = PlayWorld ? PlayWorld->GetFirstPlayerController() : nullptr;
+            ULocalPlayer* LocalPlayer = PlayerController ? PlayerController->GetLocalPlayer() : nullptr;
+            if (!LocalPlayer && PlayWorld && PlayWorld->GetGameInstance())
+            {
+                LocalPlayer = PlayWorld->GetGameInstance()->GetFirstGamePlayer();
+            }
+
+            if (!LocalPlayer)
+            {
+                SendAutomationError(RequestingSocket, RequestId,
+                    TEXT("No local player is available in the active PIE world."),
+                    TEXT("LOCAL_PLAYER_NOT_FOUND"));
+                return true;
+            }
+
+            UEnhancedInputLocalPlayerSubsystem* InputSubsystem =
+                ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer);
+            if (!InputSubsystem)
+            {
+                SendAutomationError(RequestingSocket, RequestId,
+                    TEXT("Enhanced Input local player subsystem is not available."),
+                    TEXT("ENHANCED_INPUT_SUBSYSTEM_NOT_FOUND"));
+                return true;
+            }
+
+            InputSubsystem->AddMappingContext(Context, Priority);
+            Result->SetBoolField(TEXT("runtimeApplied"), true);
+        }
+
         SendAutomationResponse(RequestingSocket, RequestId, true,
-            TEXT("Input mapping context enabled (requires PIE for runtime effect)."), Result);
+            Result->GetBoolField(TEXT("runtimeApplied")) ?
+                TEXT("Input mapping context enabled in PIE.") :
+                TEXT("Input mapping context verified; start PIE to apply it at runtime."),
+            Result);
         return true;
     }
 
@@ -825,17 +976,8 @@ bool UMcpAutomationBridgeSubsystem::HandleInputAction(
         FString ActionPath;
         Payload->TryGetStringField(TEXT("actionPath"), ActionPath);
 
-        FString SanitizedActionPath = SanitizeProjectRelativePath(ActionPath);
-        if (SanitizedActionPath.IsEmpty())
-        {
-            SendAutomationError(RequestingSocket, RequestId,
-                FString::Printf(TEXT("Invalid action path: '%s' contains traversal or invalid characters."), *ActionPath),
-                TEXT("INVALID_PATH"));
-            return true;
-        }
-
-        UInputAction* InAction = Cast<UInputAction>(
-            UEditorAssetLibrary::LoadAsset(SanitizedActionPath));
+        FString SanitizedActionPath;
+        UInputAction* InAction = LoadInputAsset<UInputAction>(ActionPath, SanitizedActionPath);
 
         if (!InAction)
         {
@@ -870,16 +1012,12 @@ bool UMcpAutomationBridgeSubsystem::HandleInputAction(
             return true;
         }
 
-        FString SanitizedAssetPath = SanitizeProjectRelativePath(AssetPath);
-        if (SanitizedAssetPath.IsEmpty())
+        FString SanitizedAssetPath = NormalizeInputAssetPathForLoad(AssetPath);
+        UObject* Asset = SanitizedAssetPath.IsEmpty() ? nullptr : UEditorAssetLibrary::LoadAsset(SanitizedAssetPath);
+        if (!Asset && !SanitizedAssetPath.IsEmpty())
         {
-            SendAutomationError(RequestingSocket, RequestId,
-                FString::Printf(TEXT("Invalid asset path: '%s' contains traversal or invalid characters."), *AssetPath),
-                TEXT("INVALID_PATH"));
-            return true;
+            Asset = StaticLoadObject(UObject::StaticClass(), nullptr, *SanitizedAssetPath);
         }
-
-        UObject* Asset = UEditorAssetLibrary::LoadAsset(SanitizedAssetPath);
         if (!Asset)
         {
             SendAutomationError(RequestingSocket, RequestId,
