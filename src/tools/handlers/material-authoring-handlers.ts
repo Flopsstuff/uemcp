@@ -533,27 +533,31 @@ export async function handleMaterialAuthoringTools(
         const assetPath = extractOptionalString(rawArgs, 'assetPath') ??
                          extractOptionalString(rawArgs, 'materialPath') ?? '';
 
-        // Try both formats: node-based and pin-based
         const sourceNodeId = extractOptionalString(rawArgs, 'sourceNodeId') ??
-                            extractOptionalString(rawArgs, 'fromNode') ?? '';
-        const targetNodeId = extractOptionalString(rawArgs, 'targetNodeId') ??
-                            extractOptionalString(rawArgs, 'toNode') ?? '';
+                            extractOptionalString(rawArgs, 'fromNode') ??
+                            extractOptionalString(rawArgs, 'nodeId') ?? '';
+        let targetNodeId = extractOptionalString(rawArgs, 'targetNodeId') ??
+                           extractOptionalString(rawArgs, 'toNode') ?? '';
         const sourcePin = extractOptionalString(rawArgs, 'sourcePin') ??
                          extractOptionalString(rawArgs, 'fromPin') ?? '';
         const targetPin = extractOptionalString(rawArgs, 'targetPin') ??
-                         extractOptionalString(rawArgs, 'toPin') ??
-                         extractOptionalString(rawArgs, 'inputName') ?? '';
+                          extractOptionalString(rawArgs, 'toPin') ??
+                          extractOptionalString(rawArgs, 'inputName') ?? '';
 
-        // If node IDs not provided, use pin names as identifiers
+        if (!targetNodeId && targetPin) {
+          targetNodeId = 'Main';
+        } else if (targetNodeId.toLowerCase() === 'root') {
+          targetNodeId = 'Main';
+        }
+
         const effectiveSourceId = sourceNodeId || sourcePin;
-        const effectiveTargetId = targetNodeId || targetPin;
 
         const res = (await executeAutomationRequest(tools, TOOL_ACTIONS.MANAGE_MATERIAL_AUTHORING, {
           subAction: 'connect_nodes',
           assetPath,
           sourceNodeId: effectiveSourceId,
           sourcePin,
-          targetNodeId: effectiveTargetId,
+          targetNodeId,
           inputName: targetPin,
         })) as AutomationResponse;
 
