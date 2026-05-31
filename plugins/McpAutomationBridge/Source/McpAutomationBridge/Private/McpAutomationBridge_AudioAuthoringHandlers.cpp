@@ -285,6 +285,46 @@ static FString NormalizeAudioPath(const FString& Path, bool bForLoad = true)
 }
 
 
+static bool BuildAudioCreationPath(const FString& Directory, const FString& Name, FString& OutPackagePath, FString& OutError)
+{
+	if (Name.IsEmpty())
+	{
+		OutError = TEXT("Name is required");
+		return false;
+	}
+
+	const FString TrimmedName = Name.TrimStartAndEnd();
+	if (TrimmedName.IsEmpty() || !FName::IsValidXName(TrimmedName, INVALID_OBJECTNAME_CHARACTERS))
+	{
+		OutError = FString::Printf(TEXT("Invalid asset name: %s"), *Name);
+		return false;
+	}
+
+	const FString SafeDirectory = NormalizeAudioPath(Directory, false);
+	if (SafeDirectory.IsEmpty())
+	{
+		OutError = FString::Printf(TEXT("Invalid asset path: %s"), *Directory);
+		return false;
+	}
+
+	OutPackagePath = SanitizeProjectRelativePath(SafeDirectory / TrimmedName);
+	if (OutPackagePath.IsEmpty())
+	{
+		OutError = FString::Printf(TEXT("Invalid asset path: %s"), *(SafeDirectory / TrimmedName));
+		return false;
+	}
+
+	FText ValidationError;
+	if (!FPackageName::IsValidLongPackageName(OutPackagePath, true, &ValidationError))
+	{
+		OutError = FString::Printf(TEXT("Invalid asset path: %s (%s)"), *OutPackagePath, *ValidationError.ToString());
+		return false;
+	}
+
+	return true;
+}
+
+
 // Helper to save asset - UE 5.7+ Fix: Do not save immediately to avoid modal dialogs.
 // modal progress dialogs that block automation. Instead, just mark dirty and notify registry.
 static bool SaveAudioAsset(UObject* Asset, bool bShouldSave)
@@ -412,10 +452,16 @@ static TSharedPtr<FJsonObject> HandleAudioAuthoringRequest(const TSharedPtr<FJso
             return McpHandlerUtils::BuildErrorResponse(TEXT("MISSING_NAME"), TEXT("Name is required"));
         }
 
+        FString PackagePath;
+        FString PathError;
+        if (!BuildAudioCreationPath(Path, Name, PackagePath, PathError))
+        {
+            return McpHandlerUtils::BuildErrorResponse(TEXT("INVALID_ASSET_PATH"), PathError);
+        }
+
         // Create package and asset directly to avoid UI dialogs
         // AssetToolsModule.CreateAsset() shows "Overwrite Existing Object" dialogs
         // which cause recursive FlushRenderingCommands and D3D12 crashes
-        FString PackagePath = Path / Name;
         UPackage* Package = CreatePackage(*PackagePath);
         if (!Package)
         {
@@ -1387,10 +1433,16 @@ if (SubAction == TEXT("create_metasound"))
             return McpHandlerUtils::BuildErrorResponse(TEXT("MISSING_NAME"), TEXT("Name is required"));
         }
 
+        FString PackagePath;
+        FString PathError;
+        if (!BuildAudioCreationPath(Path, Name, PackagePath, PathError))
+        {
+            return McpHandlerUtils::BuildErrorResponse(TEXT("INVALID_ASSET_PATH"), PathError);
+        }
+
         // Create package and asset directly to avoid UI dialogs
         // AssetToolsModule.CreateAsset() shows "Overwrite Existing Object" dialogs
         // which cause recursive FlushRenderingCommands and D3D12 crashes
-        FString PackagePath = Path / Name;
         UPackage* Package = CreatePackage(*PackagePath);
         if (!Package)
         {
@@ -1510,8 +1562,14 @@ if (SubAction == TEXT("create_metasound"))
             return McpHandlerUtils::BuildErrorResponse(TEXT("MISSING_NAME"), TEXT("Name is required"));
         }
 
+        FString PackagePath;
+        FString PathError;
+        if (!BuildAudioCreationPath(Path, Name, PackagePath, PathError))
+        {
+            return McpHandlerUtils::BuildErrorResponse(TEXT("INVALID_ASSET_PATH"), PathError);
+        }
+
         // Create package and asset directly to avoid UI dialogs
-        FString PackagePath = Path / Name;
         UPackage* Package = CreatePackage(*PackagePath);
         if (!Package)
         {
@@ -1533,6 +1591,7 @@ if (SubAction == TEXT("create_metasound"))
         FString FullPath = NewMix->GetPathName();
         Response->SetStringField(TEXT("assetPath"), FullPath);
         McpHandlerUtils::AddVerification(Response, NewMix);
+        Response->SetBoolField(TEXT("success"), true);
         return Response;
     }
 
