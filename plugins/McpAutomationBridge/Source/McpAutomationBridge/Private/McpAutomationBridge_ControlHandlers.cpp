@@ -70,6 +70,7 @@
 // -----------------------------------------------------------------------------
 #include "EditorAssetLibrary.h"
 #include "EngineUtils.h"
+#include "Engine/LocalPlayer.h"
 #include "Landscape.h"
 #include "LandscapeInfo.h"
 
@@ -134,7 +135,9 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerInput.h"
+#if ENGINE_MAJOR_VERSION > 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 1)
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
+#endif
 
 #if __has_include("FileHelpers.h")
 #include "FileHelpers.h"
@@ -151,6 +154,18 @@
 #include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
 #include "UnrealEngine.h"
+
+#if ENGINE_MAJOR_VERSION > 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 1)
+#define MCP_CONTROL_HAS_INPUT_DEVICE_ID 1
+#else
+#define MCP_CONTROL_HAS_INPUT_DEVICE_ID 0
+#endif
+
+#if ENGINE_MAJOR_VERSION > 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 6)
+#define MCP_CONTROL_HAS_SIMULATED_INPUT_EVENT_ARGS 1
+#else
+#define MCP_CONTROL_HAS_SIMULATED_INPUT_EVENT_ARGS 0
+#endif
 
 // -----------------------------------------------------------------------------
 // Editor-only Includes: Export & Output
@@ -4063,11 +4078,55 @@ bool UMcpAutomationBridgeSubsystem::HandleControlEditorSimulateInput(
     }
 
     const float AmountDepressed = InputEvent == IE_Released ? 0.0f : 1.0f;
+#if MCP_CONTROL_HAS_INPUT_DEVICE_ID
     const FInputDeviceId InputDevice = IPlatformInputDeviceMapper::Get().GetDefaultInputDevice();
+#else
+    const int32 InputControllerId = 0;
+#endif
+
+    auto RouteKeyToPlayerController = [&]() -> bool {
+      if (!PlayerController) {
+        return false;
+      }
+
+#if MCP_CONTROL_HAS_SIMULATED_INPUT_EVENT_ARGS
+      bOutHandledByPIE = PlayerController->InputKey(
+          FInputKeyEventArgs::CreateSimulated(
+              InputKey,
+              InputEvent,
+              AmountDepressed,
+              1,
+              InputDevice));
+#elif MCP_CONTROL_HAS_INPUT_DEVICE_ID
+      bOutHandledByPIE = PlayerController->InputKey(
+          FInputKeyParams(
+              InputKey,
+              InputEvent,
+              static_cast<double>(AmountDepressed),
+              InputKey.IsGamepadKey(),
+              InputDevice));
+#else
+      bOutHandledByPIE = PlayerController->InputKey(
+          FInputKeyParams(
+              InputKey,
+              InputEvent,
+              static_cast<double>(AmountDepressed),
+              InputKey.IsGamepadKey()));
+#endif
+      return true;
+    };
+
     if (UGameViewportClient *GameViewportClient = PlayWorld->GetGameViewport()) {
       FViewport *GameViewport = GameViewportClient->GetGameViewport();
       if (GameViewport) {
+#if MCP_CONTROL_HAS_INPUT_DEVICE_ID
+        ULocalPlayer *TargetPlayer = GEngine->GetLocalPlayerFromInputDevice(GameViewportClient, InputDevice);
+#else
+        ULocalPlayer *TargetPlayer = GEngine->GetLocalPlayerFromControllerId(GameViewportClient, InputControllerId);
+#endif
+        const bool bViewportHadTargetController = TargetPlayer && TargetPlayer->PlayerController;
         FScopedConditionalWorldSwitcher WorldSwitcher(GameViewportClient);
+#if MCP_CONTROL_HAS_SIMULATED_INPUT_EVENT_ARGS
         FInputKeyEventArgs KeyArgs(
             GameViewport,
             InputDevice,
@@ -4076,23 +4135,37 @@ bool UMcpAutomationBridgeSubsystem::HandleControlEditorSimulateInput(
             AmountDepressed,
             false,
             FPlatformTime::Cycles64());
-        bOutHandledByPIE = GameViewportClient->InputKey(KeyArgs);
-        return true;
-      }
-    }
-
-    if (!PlayerController) {
-      return false;
-    }
-
-    bOutHandledByPIE = PlayerController->InputKey(
-        FInputKeyEventArgs::CreateSimulated(
+#elif MCP_CONTROL_HAS_INPUT_DEVICE_ID
+        FInputKeyEventArgs KeyArgs(
+            GameViewport,
+            InputDevice,
             InputKey,
             InputEvent,
             AmountDepressed,
-            1,
-            InputDevice));
-    return true;
+            false);
+#else
+        FInputKeyEventArgs KeyArgs(
+            GameViewport,
+            InputControllerId,
+            InputKey,
+            InputEvent,
+            AmountDepressed,
+            false);
+#endif
+        bOutHandledByPIE = GameViewportClient->InputKey(KeyArgs);
+        if (bOutHandledByPIE) {
+          return true;
+        }
+
+        if (bViewportHadTargetController) {
+          return true;
+        }
+
+        return RouteKeyToPlayerController();
+      }
+    }
+
+    return RouteKeyToPlayerController();
   };
 
   if (InputType == TEXT("key_down") || InputType == TEXT("keydown")) {
