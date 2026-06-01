@@ -53,6 +53,7 @@ tests/reports/
 *_old.*
 tmp/
 .research/
+.lcm/
 .omo/
 .unreal-agent/
 /Saved/
