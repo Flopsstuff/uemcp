@@ -2059,14 +2059,7 @@ bool UMcpAutomationBridgeSubsystem::HandleManageMaterialAuthoringAction(
     NewExpr->MaterialExpressionEditorX = (int32)X;
     NewExpr->MaterialExpressionEditorY = (int32)Y;
 
-#if WITH_EDITORONLY_DATA
-    // UE 5.0: MaterialFunction uses FunctionExpressions, not Expressions
-    #if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 1
-      Func->GetEditorOnlyData()->ExpressionCollection.Expressions.Add(NewExpr);
-    #else
-      Func->FunctionExpressions.Add(NewExpr);
-    #endif
-#endif
+    AddExpressionToContainer(nullptr, Func, NewExpr);
     Func->PostEditChange();
     Func->MarkPackageDirty();
 

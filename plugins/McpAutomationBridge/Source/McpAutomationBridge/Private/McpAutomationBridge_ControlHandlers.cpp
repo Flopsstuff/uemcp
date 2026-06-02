@@ -182,7 +182,8 @@
 #include "Misc/FileHelper.h"
 #include "Misc/OutputDevice.h"
 #include "Slate/SceneViewport.h"
-#include "UnrealClient.h" // For FScreenshotRequest
+#include "RenderingThread.h"
+#include "UnrealClient.h"
 #include "Widgets/SWindow.h"
 
 #endif // WITH_EDITOR
@@ -2643,10 +2644,13 @@ bool UMcpAutomationBridgeSubsystem::HandleControlActorFindByClass(
   if (ClassName.IsEmpty()) {
     Payload->TryGetStringField(TEXT("class"), ClassName);
   }
+  if (ClassName.IsEmpty()) {
+    Payload->TryGetStringField(TEXT("classPath"), ClassName);
+  }
 
   if (ClassName.IsEmpty()) {
     SendStandardErrorResponse(this, Socket, RequestId, TEXT("INVALID_ARGUMENT"),
-                              TEXT("className or class is required"), nullptr);
+                              TEXT("className, class, or classPath is required"), nullptr);
     return true;
   }
 
@@ -3934,34 +3938,103 @@ bool UMcpAutomationBridgeSubsystem::HandleControlEditorScreenshot(
     return true;
   }
 
-  // Get the active viewport
-  FViewport* Viewport = GEditor->GetActiveViewport();
+  FViewport* Viewport = nullptr;
+  if (GEditor->PlayWorld != nullptr && GEditor->GetPIEViewport() != nullptr) {
+    Viewport = GEditor->GetPIEViewport();
+  }
+  if (!Viewport) {
+    Viewport = GEditor->GetActiveViewport();
+  }
   if (!Viewport) {
     SendStandardErrorResponse(this, Socket, RequestId, TEXT("VIEWPORT_NOT_AVAILABLE"),
                               TEXT("No active viewport available"), nullptr);
     return true;
   }
 
-  // Request a screenshot — async, captured on the next rendered viewport frame.
-  // The file will NOT exist immediately; the editor window must be visible and
-  // actively rendering for the capture to complete.
-  FScreenshotRequest::RequestScreenshot(FullPath, false, false);
+  const FIntPoint ViewportSize = Viewport->GetSizeXY();
+  if (ViewportSize.X <= 0 || ViewportSize.Y <= 0) {
+    SendStandardErrorResponse(this, Socket, RequestId, TEXT("VIEWPORT_NOT_READY"),
+                              TEXT("Viewport has zero size"), nullptr);
+    return true;
+  }
+
+  Viewport->Draw();
+  FlushRenderingCommands();
+
+  TArray<FColor> Bitmap;
+  const FReadSurfaceDataFlags ReadFlags(RCM_UNorm);
+  if (!Viewport->ReadPixels(Bitmap, ReadFlags) || Bitmap.Num() == 0) {
+    SendStandardErrorResponse(this, Socket, RequestId, TEXT("CAPTURE_FAILED"),
+                              TEXT("Failed to read pixels from viewport"), nullptr);
+    return true;
+  }
+
+  for (FColor& Pixel : Bitmap) {
+    Pixel.A = 255;
+  }
+
+  TArray64<uint8> PngData;
+  FImageUtils::PNGCompressImageArray(
+      ViewportSize.X,
+      ViewportSize.Y,
+      TArrayView64<const FColor>(Bitmap.GetData(), Bitmap.Num()),
+      PngData);
+  if (PngData.Num() == 0) {
+    SendStandardErrorResponse(this, Socket, RequestId, TEXT("CAPTURE_FAILED"),
+                              TEXT("Failed to encode viewport screenshot as PNG"), nullptr);
+    return true;
+  }
+
+  const bool bSaved = FFileHelper::SaveArrayToFile(PngData, *FullPath);
+
+  bool bReturnBase64 = false;
+  Payload->TryGetBoolField(TEXT("returnBase64"), bReturnBase64);
 
   TSharedPtr<FJsonObject> Resp = McpHandlerUtils::CreateResultObject();
   Resp->SetBoolField(TEXT("success"), true);
   Resp->SetStringField(TEXT("filename"), Filename);
   Resp->SetStringField(TEXT("mode"), Mode);
-  Resp->SetStringField(TEXT("path"), FullPath);
-  Resp->SetBoolField(TEXT("async"), true);
-  Resp->SetStringField(TEXT("message"),
-      TEXT("Screenshot queued. File will be written on the next rendered frame "
-           "(typically within 100-200ms). Poll the file path to confirm availability. "
-           "The editor window must be visible for capture to complete."));
-  Resp->SetStringField(TEXT("expectedDelay"), TEXT("200ms"));
+  Resp->SetBoolField(TEXT("saved"), bSaved);
+  Resp->SetNumberField(TEXT("width"), ViewportSize.X);
+  Resp->SetNumberField(TEXT("height"), ViewportSize.Y);
+  Resp->SetNumberField(TEXT("sizeBytes"), PngData.Num());
+  Resp->SetNumberField(TEXT("fileSizeBytes"), PngData.Num());
+  Resp->SetStringField(TEXT("mimeType"), TEXT("image/png"));
+  if (bSaved) {
+    Resp->SetStringField(TEXT("path"), FullPath);
+    Resp->SetStringField(TEXT("screenshotPath"), FullPath);
+  }
   AddScreenshotMetadataForMcp(Resp, Payload);
 
+  if (!bSaved && !bReturnBase64) {
+    const FString SaveError = FString::Printf(TEXT("Failed to save screenshot to %s"), *FullPath);
+    Resp->SetBoolField(TEXT("success"), false);
+    Resp->SetStringField(TEXT("error"), SaveError);
+    Resp->SetStringField(TEXT("message"), SaveError);
+    SendAutomationResponse(Socket, RequestId, false, SaveError, Resp,
+                           TEXT("SAVE_FAILED"));
+    return true;
+  }
+  if (bReturnBase64 && PngData.Num() > MaxScreenshotPngBytesForBase64ForMcp) {
+    const FString SizeError = MakeScreenshotTooLargeMessageForMcp(static_cast<int32>(PngData.Num()));
+    Resp->SetBoolField(TEXT("success"), false);
+    Resp->SetStringField(TEXT("error"), SizeError);
+    Resp->SetStringField(TEXT("message"), SizeError);
+    SendAutomationResponse(Socket, RequestId, false, SizeError, Resp,
+                           TEXT("IMAGE_TOO_LARGE"));
+    return true;
+  }
+  if (bReturnBase64) {
+    Resp->SetStringField(TEXT("imageBase64"),
+                         FBase64::Encode(PngData.GetData(), static_cast<uint32>(PngData.Num())));
+  }
+  Resp->SetStringField(TEXT("message"),
+      bReturnBase64
+          ? TEXT("Screenshot captured and returned as image/png base64.")
+          : TEXT("Screenshot captured."));
+
   SendAutomationResponse(Socket, RequestId, true,
-                         TEXT("Screenshot queued"), Resp, FString());
+                         TEXT("Screenshot captured"), Resp, FString());
   return true;
 #else
   SendStandardErrorResponse(this, Socket, RequestId, TEXT("NOT_IMPLEMENTED"),
