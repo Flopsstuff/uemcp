@@ -10,6 +10,7 @@ import { sanitizeCommandArgument } from '../../utils/validation.js';
  */
 const EDITOR_ACTION_ALIASES: Record<string, string> = {
   'focus_actor': 'focus',
+  'set_game_view_target': 'set_view_target',
   'set_camera_position': 'set_camera',
   'set_viewport_camera': 'set_camera',
   'take_screenshot': 'screenshot',
@@ -75,6 +76,7 @@ const ACTION_ALLOWED_PARAMS: Record<string, string[]> = {
   'resume': [],
   'eject': [],
   'possess': ['actorName'],
+  'set_view_target': ['actorName', 'name', 'objectPath', 'location', 'rotation', 'blendTime'],
   'open_asset': ['assetPath', 'path'],
   'close_asset': ['assetPath', 'path'],
   'open_level': ['levelPath', 'path', 'assetPath'],
@@ -233,6 +235,18 @@ export async function handleEditorTools(action: string, args: EditorArgs, tools:
       // which checks GEditor->PlayWorld directly before executing the possess command.
       // This prevents the race where PIE stops between TS check and C++ execution.
       return await executeAutomationRequest(tools, 'control_editor', args);
+    }
+    case 'set_view_target': {
+      const actorName = requireNonEmptyString(editorArgs.actorName ?? editorArgs.name ?? editorArgs.objectPath, 'actorName');
+      const res = await executeAutomationRequest(tools, 'control_editor', {
+        action: 'set_view_target',
+        actorName,
+        objectPath: editorArgs.objectPath,
+        location: editorArgs.location,
+        rotation: editorArgs.rotation,
+        blendTime: typeof editorArgs.blendTime === 'number' ? editorArgs.blendTime : undefined
+      }) as Record<string, unknown>;
+      return cleanObject(res);
     }
     case 'pause': {
       const res = await executeAutomationRequest(tools, 'control_editor', { action: 'pause' }) as Record<string, unknown>;

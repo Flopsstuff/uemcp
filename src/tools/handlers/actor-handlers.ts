@@ -88,6 +88,8 @@ const ACTOR_ACTION_ALIASES: Record<string, string> = {
     'remove_component': 'remove_component',
     'set_component_properties': 'set_component_property',
     'set_component_property': 'set_component_property',
+    'set_actor_material': 'set_material',
+    'apply_material': 'set_material',
     'get_component_property': 'get_component_property',
     'call_actor_function': 'call_function',
     'find_actors_by_class': 'find_by_class',
@@ -428,6 +430,27 @@ const handlers: Record<string, ActorActionHandler> = {
             actorName,
             componentName,
             properties
+        }) as Record<string, unknown>;
+    },
+    set_material: async (args, tools) => {
+        const params = normalizeArgs(args, [
+            { key: 'actorName', aliases: ['name', 'actor_name'], required: true },
+            { key: 'materialPath', aliases: ['assetPath', 'material', 'path'], required: true },
+            { key: 'componentName', aliases: ['component_name'] },
+            { key: 'materialSlot', aliases: ['materialIndex', 'slotIndex', 'slot'], default: 0 }
+        ]);
+        const actorName = extractString(params, 'actorName');
+        const materialPath = extractString(params, 'materialPath');
+        const componentName = extractOptionalString(params, 'componentName');
+        const materialSlot = extractOptionalNumber(params, 'materialSlot') ?? 0;
+
+        return await executeAutomationRequest(tools, TOOL_ACTIONS.CONTROL_ACTOR, {
+            action: 'set_material',
+            actorName,
+            materialPath,
+            componentName,
+            materialSlot: Math.trunc(materialSlot),
+            allComponents: typeof args.allComponents === 'boolean' ? args.allComponents : undefined
         }) as Record<string, unknown>;
     },
     remove_component: async (args, tools) => {

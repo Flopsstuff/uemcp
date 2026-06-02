@@ -371,17 +371,37 @@ export async function handleSystemTools(action: string, args: HandlerArgs, tools
       return cleanObject(resp);
     }
     case 'validate_assets': {
-      const paths: string[] = Array.isArray((argsTyped as Record<string, unknown>).paths)
-        ? (argsTyped as Record<string, unknown>).paths as string[]
+      const argsRecord = argsTyped as Record<string, unknown>;
+      const paths: string[] = Array.isArray(argsRecord.paths)
+        ? argsRecord.paths.filter((path): path is string => typeof path === 'string' && path.trim().length > 0)
         : [];
+      const singlePath = typeof argsTyped.assetPath === 'string' && argsTyped.assetPath.trim().length > 0
+        ? argsTyped.assetPath
+        : (typeof argsTyped.path === 'string' && argsTyped.path.trim().length > 0 ? argsTyped.path : undefined);
+      if (singlePath && !paths.includes(singlePath)) {
+        paths.push(singlePath);
+      }
       if (!paths.length) {
         return {
           success: false,
           error: 'INVALID_ARGUMENT',
-          message: 'Please provide array of "paths" to validate assets.',
+          message: 'Please provide "paths", "assetPath", or "path" to validate assets.',
           action: 'validate_assets',
           results: []
         };
+      }
+
+      const response = await executeAutomationRequest(tools, 'system_control', {
+        action: 'validate_assets',
+        paths,
+        recursive: argsTyped.recursive
+      }) as Record<string, unknown>;
+
+      const result = typeof response.result === 'object' && response.result !== null && !Array.isArray(response.result)
+        ? response.result as Record<string, unknown>
+        : undefined;
+      if (Array.isArray(response.results) || Array.isArray(result?.results)) {
+        return cleanObject({ ...response, ...result, action: 'validate_assets' });
       }
 
       const results: AssetValidationResult[] = await Promise.all(
