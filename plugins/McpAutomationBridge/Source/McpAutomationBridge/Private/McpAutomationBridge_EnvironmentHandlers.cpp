@@ -1487,6 +1487,9 @@ bool UMcpAutomationBridgeSubsystem::HandleCreateProceduralTerrain(
         return true;
     }
 
+    TerrainActor->Modify();
+    TerrainActor->SetActorLabel(*ActorName);
+
     // -------------------------------------------------------------------------
     // Add procedural mesh component
     // -------------------------------------------------------------------------
@@ -1500,9 +1503,14 @@ bool UMcpAutomationBridgeSubsystem::HandleCreateProceduralTerrain(
         return true;
     }
 
-    ProcMesh->RegisterComponent();
-    TerrainActor->AddInstanceComponent(ProcMesh);
+    ProcMesh->CreationMethod = EComponentCreationMethod::Instance;
+    ProcMesh->SetMobility(EComponentMobility::Movable);
+    ProcMesh->SetRelativeTransform(FTransform::Identity);
     TerrainActor->SetRootComponent(ProcMesh);
+    TerrainActor->AddInstanceComponent(ProcMesh);
+    ProcMesh->RegisterComponent();
+    TerrainActor->SetActorLocationAndRotation(Location, Rotation, false, nullptr,
+                                             ETeleportType::TeleportPhysics);
 
     // -------------------------------------------------------------------------
     // Generate terrain mesh
@@ -1582,16 +1590,19 @@ bool UMcpAutomationBridgeSubsystem::HandleCreateProceduralTerrain(
     // Build response
     // -------------------------------------------------------------------------
     TSharedPtr<FJsonObject> Resp = McpHandlerUtils::CreateResultObject();
-    Resp->SetStringField(TEXT("actorName"), TerrainActor->GetName());
+    Resp->SetStringField(TEXT("actorName"), TerrainActor->GetActorLabel());
     Resp->SetStringField(TEXT("actorPath"), TerrainActor->GetPathName());
     Resp->SetNumberField(TEXT("vertices"), Vertices.Num());
-    Resp->SetNumberField(TEXT("triangles"), Triangles.Num() / 3);
+    const int32 TriangleCount = Triangles.Num() / 3;
+    Resp->SetNumberField(TEXT("triangles"), TriangleCount);
     Resp->SetNumberField(TEXT("sizeX"), SizeX);
     Resp->SetNumberField(TEXT("sizeY"), SizeY);
     Resp->SetNumberField(TEXT("subdivisions"), Subdivisions);
 
     // Add verification data
     McpHandlerUtils::AddVerification(Resp, TerrainActor);
+    Resp->SetStringField(TEXT("actorName"), TerrainActor->GetActorLabel());
+    Resp->SetStringField(TEXT("actorPath"), TerrainActor->GetPathName());
 
     SendAutomationResponse(RequestingSocket, RequestId, true,
                            TEXT("Procedural terrain created successfully"), Resp, FString());
