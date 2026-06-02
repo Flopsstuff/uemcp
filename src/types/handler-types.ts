@@ -83,6 +83,10 @@ export interface ActorArgs extends HandlerArgs {
     componentName?: string;
     componentType?: string;
     properties?: Record<string, unknown>;
+    materialPath?: string;
+    materialSlot?: number;
+    materialIndex?: number;
+    allComponents?: boolean;
 }
 
 // ============================================================================
@@ -252,6 +256,10 @@ export interface EditorArgs extends HandlerArgs {
     height?: number;
     enabled?: boolean;
     realtime?: boolean;
+    actorName?: string;
+    name?: string;
+    objectPath?: string;
+    blendTime?: number;
     bookmarkName?: string;
     assetPath?: string;
     path?: string;
@@ -626,6 +634,10 @@ export interface SystemArgs extends HandlerArgs {
     widgetPath?: string;
     parentName?: string;
     childClass?: string;
+    assetPath?: string;
+    path?: string;
+    paths?: string[];
+    recursive?: boolean;
     target?: string;
     platform?: string;
     configuration?: string;
