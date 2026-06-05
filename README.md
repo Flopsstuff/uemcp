@@ -128,7 +128,7 @@ Build the plugin once, then distribute the compiled binaries — no IDE or compi
 scripts\package-plugin.bat C:\Path\To\UE_5.6
 ```
 
-This produces a zip like `McpAutomationBridge-v0.1.4-UE5.6-Mac.zip`.
+This produces a zip like `McpAutomationBridge-v0.5.30-UE5.6-Mac.zip`.
 
 **2. Install:** unzip into `YourProject/Plugins/` and open the project. That's it — no compilation step.
 

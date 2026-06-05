@@ -15,7 +15,7 @@ The MCP Automation Bridge is a production-ready Unreal Editor plugin that enable
 - Each elevated command includes a capability token so the plugin can enforce an allow-list (exposed through project settings) and fail gracefully if disabled.
 - Results are serialized back to the MCP server with structured warnings so the client can still prompt the user when manual intervention is required.
 
-## Plugin Architecture (Current: v0.1.4)
+## Plugin Architecture (Current: v0.5.30)
 
 ### Core Components
 - **Plugin Location**: `plugins/McpAutomationBridge/` (source and distribution-ready plugin folder)
@@ -38,7 +38,7 @@ The MCP Automation Bridge is a production-ready Unreal Editor plugin that enable
 - **Error Handling**: Structured error responses with error codes and retry flags
 - **Timeout Management**: Configurable timeouts for long-running operations
 
-## Server Integration (0.1.0)
+## Server Integration (0.5.30)
 - `src/automation-bridge.ts` spins up a lightweight WebSocket server (default `ws://127.0.0.1:8091`) guarded by an optional capability token.
 - Handshake flow: editor sends `bridge_hello` → server validates capability token → server responds with `bridge_ack` and caches the socket for future elevated commands.
 - Environment flags: `MCP_AUTOMATION_HOST`, `MCP_AUTOMATION_PORT`, `MCP_AUTOMATION_CAPABILITY_TOKEN`, and `MCP_AUTOMATION_CLIENT_MODE` allow operators to relocate or disable the listener without code changes.
@@ -231,7 +231,7 @@ The MCP Automation Bridge is a production-ready Unreal Editor plugin that enable
 - 🔧 **Planned** = Designed but not yet implemented
 - ❌ **Removed** = Feature removed (Python execution)
 
-## Current Version Status (v0.1.4)
+## Current Version Status (v0.5.30)
 
 ### ✅ Completed Features
 1. ✔️ **WebSocket Transport** - Custom lightweight WebSocket client with no external dependencies

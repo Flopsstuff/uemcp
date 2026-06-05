@@ -7,52 +7,129 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## 🏷️ [0.5.30] - 2026-06-05
 
-### Added
+> [!IMPORTANT]
+> ### 🚀 Native MCP & Code-Backed Tool Parity Release
+> This release covers the `v0.5.21` to `0.5.30` release diff, including the TypeScript MCP server, native bridge plugin, tests, scripts, docs, workflows, and dependency manifests. The summary below is based on code and test changes, not commit subjects alone.
 
-- **`manage_behavior_tree.add_subnode` action** — authors decorators and services as subnodes attached to root/composite/task graph nodes (rather than as standalone graph nodes). Supports `parentNodeId="root"` sentinel for top-level decorators that populate `UBehaviorTree::RootDecorators` after editor compile. Validates subnode UClass against `UBTDecorator` / `UBTService` and rejects Services on the root graph node (`INVALID_PARENT_FOR_SUBNODE`).
-- **`manage_behavior_tree.set_node_properties` now handles `FBlackboardKeySelector` struct properties** — pass `properties: { BlackboardKey: "<key name>" }` and the handler calls `ResolveSelectedKey` against the BT's assigned blackboard. Returns `BB_KEY_NOT_FOUND` when the resolved selector ID is invalid (silent-failure guard).
-- **`FindGraphNodeByIdOrName` now walks `UAIGraphNode::SubNodes`** — all four BT SubActions (`connect_nodes`, `remove_node`, `break_connections`, `set_node_properties`) gain subnode-aware lookup as a side effect, enabling `set_node_properties` on a decorator/service via its `nodeId`.
-- **Native MCP Streamable HTTP Transport** — built-in HTTP/SSE MCP server directly in the C++ plugin, no TypeScript bridge or Node.js required. AI clients connect via `http://localhost:3000/mcp`. Supports SSE streaming, multiple concurrent sessions, dynamic tool management. Opt-in via `bEnableNativeMCP` project setting.
-- **`execute_python` action** in `system_control` — execute Python code inline or from `.py` files with stdout/stderr capture, execution time tracking, and RAII temp file cleanup. Max code size: 1 MB.
-- **Capability token authentication** for native MCP transport — validates `X-MCP-Capability-Token` header when `bRequireCapabilityToken` is enabled.
-- **Native C++ self-describing tool definitions** with `FMcpSchemaBuilder` fluent API — replaces JSON schema loader. The TypeScript bridge exposes 23 canonical parent MCP tools.
-- **Dynamic tool manager** — enable/disable tools and categories at runtime via `manage_tools`, with protected tools/categories.
-- **Editor status bar indicator** — shows MCP port and active session count.
-- **`animation_physics: force_rebuild_blend_space` action** — explicit rebuild for `UBlendSpace` / `UBlendSpace1D` assets whose `SampleData` or `BlendParameters` UPROPERTY were mutated via a path that bypasses `PostEditChangeProperty` (e.g. raw Python `set_editor_property` or scripted `sample_data` writes), which otherwise leaves the BlendSpace's cached grid stale and causes referencing `AnimBlueprint` compiles to warn `sample out of bounds`. The handler calls `ValidateSampleData()` to drop invalid/out-of-range samples, then `PostEditChangeProperty` against the `SampleData` UPROPERTY to force grid + RuntimeBuilder rebuild. Optional `rebuildBlendParameters: true` triggers an additional event for `BlendParameters` (axis min/max). Optional `compileReferencers: true` (default) cascade-compiles every `AnimBlueprint` referencing the BlendSpace via `IAssetRegistry::GetReferencers`, returning `referencersCompiled` count and `compiledAnimBlueprints` path list. Also adds a `PostEditChange()` call to the existing `add_blend_sample` handler so MCP's own sample additions can no longer leave the grid stale.
-- **`manage_behavior_tree.get_tree` action** — read-only Behavior Tree introspection returning the navigable hierarchy: a recursive `rootNode` with ordered `children[]`, per-edge `entryDecorators[]` + `entryDecoratorOpsRaw[]` (UE postfix logic ops), composite/task `services[]`, top-level `rootDecorators[]` + `rootDecoratorOpsRaw[]`, per-node `keyProperties{}` enumerating ALL `FBlackboardKeySelector` properties, `nodeCount`/`executionNodeCount`, RunBehavior/RunBehaviorDynamic subtree references, and a null-`RootNode` contract (`success` + `rootNode: null` for empty/uninitialized trees). Walks the runtime `UBehaviorTree::RootNode` (asset-load; no PIE, no BehaviorTreeEditor module). `executionIndex` reflects the value baked into the asset at editor compile/save and is omitted when `0` (e.g. the root composite, or an uncompiled tree). The postfix `*DecoratorOpsRaw` arrays are populated only for explicit decorator-logic composition (And/Or/Not grouping); simple AND-stacked decorators leave them empty. Introduces a shared `BehaviorTreeSerializers` module; the `manage_ai.get_ai_info` Blackboard branch is refactored onto its `SerializeBlackboardData`, which additively enriches each key with `baseClass`/`enumClass`/`enumName`/`entryCategory`/`sourceBlackboard`/`inherited` and adds `parentBlackboard` (the existing `name`/`type`/`instanceSynced` fields are unchanged).
+<details>
+<summary><b>✨ Added</b></summary>
 
-### Security
+- **Native MCP Streamable HTTP endpoint** — added an opt-in in-plugin `/mcp` server with JSON-RPC 2.0 initialize/tools/list/tools/call handling, POST/GET/DELETE routing, `Mcp-Session-Id` session tracking, SSE tool-result streaming, progress notifications, persistent notification streams, `notifications/tools/list_changed` broadcasts, CORS handling, loopback-first binding, capability-token checks, and an editor status-bar indicator.
+- **Self-describing native MCP tools** — added C++ `FMcpToolRegistry`, `FMcpSchemaBuilder`, `MCP_REGISTER_TOOL`, canonical native tool filtering, cached schema generation, and native dynamic tool/category enablement for the 23 canonical parent tools.
+- **PCG automation** — added `manage_pcg` TypeScript/native schemas and handlers for graph/subgraph creation, PCG node aliases, pin connections, reflected node settings, component/world execution, partition grid configuration, save/overwrite behavior, and PCG plugin availability errors.
+- **Environment systems automation** — added build-environment coverage for heightmap import/export, landscape layer info/material/splines/LOD/streaming proxies, foliage type configuration/paint/remove flows, sky and volumetric-cloud setup, weather/wind/time-of-day systems, water bodies, water waves/material/collision, and buoyancy components.
+- **Behavior Tree authoring and introspection** — added `add_subnode`, root-sentinel decorators, decorator/service validation, subnode-aware lookup, `FBlackboardKeySelector` assignment, and `get_tree` runtime hierarchy serialization with root decorators, edge decorators, decorator ops, services, key properties, subtree references, and a success-with-null-root contract for graphless trees.
+- **Blueprint, property, and inspection tools** — added `inspect_cdo`, Class Default Object component/property export, SCS and inherited SCS component classification, typed Blueprint custom-event pins, Enhanced Input graph nodes, inherited variable/member-class graph node lookup, and property access for Blueprint-added SCS component templates.
+- **Editor, world, and input capabilities** — added full editor-window screenshots, game viewport screenshot routing, image content responses, simulated keyboard/mouse input aliases, active camera reporting, PIE runtime inspection, native `get_current_level`, actor material/view-target native actions, spawn scale support, and create-plane height handling.
+- **Material, audio, animation, and system actions** — added Material Function creation/editing/calls/info, FunctionInput/FunctionOutput graph support, source-effect chains and source-effect presets, `force_rebuild_blend_space`, legacy/per-key input mapping edits, project setting writes, native asset validation, and `execute_python` for inline or project-local Python files.
 
-- **Symlink escape prevention** in `execute_python` file path validation — resolves symlinks and re-validates against project directory.
-- **Code size limit** — `execute_python` enforces 1 MB maximum for inline code payloads.
-- **Explicit request origin tracking** (`ERequestOrigin`) — routes HTTP vs WebSocket responses by explicit origin instead of inferring from `TargetSocket==nullptr`.
-- **Tool registry thread safety** — `Register()` holds `CacheMutex` for entire body; `GetAllTools()` returns copy.
-- **Dynamic tool manager protection** — `EnableCategory("all")` respects protected categories and initial state.
+</details>
 
-### Changed
+<details>
+<summary><b>🛡️ Security</b></summary>
 
-- Tool categories now use four groups: `core`, `world`, `gameplay`, and `utility`. The singleton `authoring` category was removed, and `manage_blueprint` moved into `core`.
-- `manage_blueprint` schema: `location`, `rotation`, `scale` changed from flat number arrays to structured objects with named sub-fields — matches TypeScript schema.
-- `system_control` schema: removed `export_asset` action (not in TS) and `additionalArgs` parameter.
-- `control_editor` schema: added `set_editor_mode` action.
-- `ScanPathsSynchronous` removed from asset query/workflow handlers to prevent GameThread blocking. Documented limitation: newly-added assets may not appear until editor rescan.
-- Screenshot handler now returns `async: true` with `expectedDelay` field and timing guidance.
+- **GraphQL attack surface removed** — deleted the GraphQL server, schema/resolver/loaders, GraphQL docs, GraphQL unit tests, and direct GraphQL runtime dependencies.
+- **Native MCP exposure controls** — default native MCP binding stays loopback-only unless explicitly allowed; non-loopback hosts warn, sessions are validated, stale requests/streams are cleaned up, and native HTTP requests use explicit request-origin routing instead of socket inference.
+- **Capability-token and dynamic-tool protections** — native MCP validates `X-MCP-Capability-Token` when required, while both TypeScript and native dynamic tool managers protect `manage_tools`/`inspect` and protected categories from accidental disablement.
+- **Python execution hardening** — `execute_python` enforces code/file exclusivity, a 1 MB inline code limit, project-root path normalization, symlink escape checks, `__file__` setup for file execution, temp-file cleanup, and direct `PythonScriptPlugin` execution.
+- **Path, command, log, and workflow hardening** — tightened UE path normalization, console-command validation, snapshot/log path handling, level save/load flows, image/log redaction, safe `tmp/` cleanup, sync-script argument parsing, and GitHub Actions interpolation by moving untrusted values into environment variables.
 
-- **`inspect_cdo` sub-action** for the `inspect` tool – inspect any Blueprint's Class Default Object without spawning an actor. Reads CDO property values via reflection. For Actor BPs, enumerates all components: native CDO components with effective override values, plus Blueprint SCS components from node templates (full parent chain). Includes parent attachment info for SCS components. Source classified as Native, SCS, or SCS_Inherited. Key fields (mesh, animClass, transform) included in summary; full property export via detailed or propertyNames filter.
+</details>
 
-### Fixed
+<details>
+<summary><b>🔧 Changed</b></summary>
 
-- **Game Feature Plugin path validation** – `SanitizeProjectRelativePath` now uses `FPackageName::IsValidLongPackageName` instead of a manual `/Content/` heuristic, correctly recognizing all registered engine mount points (game feature plugins like `/MyGameFeature/`, `/ShooterCore/`, `/ALS/`, etc.).
-- **`manage_level: get_level_info` no longer requires the level to be loaded** – previously returned `LEVEL_NOT_FOUND` for any map asset path that hadn't already been `load_level`'d. Now falls back to `IAssetRegistry::GetAssetByObjectPath` and returns `objectPath`, `assetName`, `packageName`, `assetClass`, and the asset's `tagsAndValues` map alongside `loaded: false`. The loaded case is unchanged but now also includes `loaded: true`. Does not auto-load the level.
-- **`inspect: set_property` refreshes stale node title cache for `K2Node_EnhancedInputAction`** – `HandleSetObjectProperty` writes any UObject's UPROPERTY by reflection, which includes K2Node subobjects when `objectPath` resolves to one. For K2Node types whose `GetNodeTitle` derives from a written property (e.g. `K2Node_EnhancedInputAction::InputAction`), the editor's `FNodeTextCache` is keyed off the schema's visualization cache ID, which `PostEditChange` does not bump. The result: the title kept rendering its prior value ("`EnhancedInputAction None`") until the user manually clicked the node, even though the binding had taken. After `PostEditChange`, if `RootObject` is a `UK2Node` whose class name is in a narrow whitelist (currently only `K2Node_EnhancedInputAction`), the handler now calls `K2Node::ReconstructNode()` and `Schema::ForceVisualizationCacheClear()` on the owning graph, followed by `NotifyGraphChanged()`, so the cached title is invalidated and the next render computes a fresh one. Other K2Node classes are unaffected (no `ReconstructNode` invoked outside the whitelist), and non-K2Node writes follow the unchanged path.
-- **`manage_blueprint: create_node nodeType=VariableSet/VariableGet` now supports inherited UPROPERTY via `memberClass`** – previously the handler only consulted `Blueprint->NewVariables` and `Blueprint->GeneratedClass->FindPropertyByName`, so any attempt to reference a UPROPERTY that lives on a parent or SCS component class (e.g. `UCharacterMovementComponent::MaxWalkSpeed` from a `Character` Blueprint) returned `VARIABLE_NOT_FOUND`. Adds `McpFindPropertyRecursive` (walks the `UClass` parent chain) and accepts an optional `memberClass` payload field, supporting both short names (`"CharacterMovementComponent"`) and full paths (`"/Script/Engine.CharacterMovementComponent"`). Uses `IsChildOf` to classify self- vs external-context: properties on the Blueprint's own ancestor chain still use `SetSelfMember`; properties on an unrelated owner class use `SetFromField<FProperty>` so the K2Node exposes a `Target` pin the caller wires to a component reference. This makes generated graphs compile cleanly instead of failing with "Get CharacterMovement uses an invalid target".
-- **`manage_blueprint`: AnimBP graph discovery actions now route to the correct handler** – `list_animbp_graphs` and `get_transition_rule_graph` are implemented in `HandleBlueprintGraphAction` (`McpAutomationBridge_BlueprintGraphHandlers.cpp`) but were missing from the dispatcher's `GraphSubActions` set in `McpAutomationBridgeSubsystem.cpp`, so requests fell through to `HandleBlueprintAction` and returned `UNKNOWN_ACTION`. Adds both actions to the routing set. No handler changes required.
+- **Release metadata** — updated `package.json`, `package-lock.json`, `server.json`, the `src/index.ts` fallback, and `McpAutomationBridge.uplugin` to `0.5.30`.
+- **Canonical TypeScript tool surface** — kept the 23 parent tools but moved action lists into shared constants, grouped tools into `core`, `world`, `gameplay`, and `utility`, merged nested `params` into top-level arguments for constrained clients, centralized handler routing, and removed legacy per-domain tool files.
+- **Dynamic tool listing** — `tools/list` now checks known client support for `tools.listChanged`; dynamic clients can receive category-filtered tools, while clients without dynamic loading still see the full compatible tool surface.
+- **Automation bridge lifecycle** — refactored host/port parsing, multi-port WebSocket connection attempts, handshake metadata, request queueing, progress timeout extension, stale-progress detection, absolute timeout caps, rate/message-size boundaries, disconnect/error tracking, and image-payload redaction.
+- **Native bridge runtime** — split request dispatch out of the subsystem, added explicit `ERequestOrigin`, queued requests through the game thread, converted captured engine errors into failed responses, pumped GameThread tasks during native transport shutdown, and exposed native transport session/tool counts to UI.
+- **Response and schema handling** — improved response validation, summary text generation, image response content, scalar result promotion, safe JSON cleanup, schema reuse, action-specific parameter descriptions, and stricter error context on tool failures.
+- **Plugin compatibility** — updated bridge metadata for UE 5.8 Preview and added PythonScriptPlugin, StructUtils, Synthesis, and PCG plugin declarations where the new handlers need them.
+- **Scripts and workflows** — made smoke tests run through SDK `InMemoryTransport`, added native parity/parameter audit npm scripts, changed `clean` to remove `tsconfig.tsbuildinfo`, added Linux/macOS/Windows plugin packaging scripts, strengthened sync/cleanup scripts, and made CI/publish/release gates stricter.
 
-### Tests
+</details>
 
-- Added characterization integration test for `manage_ai.get_ai_info(blackboardPath)` BB key serialization shape. Pins `assignedBlackboard`, `keyCount`, and `blackboardKeys[].{name,type,instanceSynced}` so future BB serializer refactors cannot silently regress callers.
+<details>
+<summary><b>🛠️ Fixed</b></summary>
+
+#### Routing & Native Tool Parity
+
+- Fixed native/consolidated action routing for validation, audio creation, material graph pins, editor simulation, `add_widget_child`, `get_current_level`, AnimBP graph discovery, lighting, SCS edits, native actor/editor actions, exact action matching, and nested `params` payloads.
+
+#### Blueprint, Graph & Property Handling
+
+- Fixed inherited UPROPERTY lookup for VariableGet/VariableSet with `memberClass`, stale `K2Node_EnhancedInputAction` title cache refresh, Blueprint SCS component introspection, SCS template get/set paths, typed custom-event pin reconstruction, transaction ordering, null pin checks, case-insensitive pin connections, graph allocation fallback, and Blueprint busy-state cleanup.
+
+#### Editor, World & Gameplay Behavior
+
+- Fixed PIE/game viewport screenshots, full editor screenshot capture, simulated input dispatch, active camera view-state reporting, PIE runtime inspection, spawn scale application, plane height fields, landscape bounds fallback, prompt-save return codes, actor list response handling, editor/world handler stability, and native actor/editor contract alignment.
+
+#### Asset, Level, Animation, Niagara & Audio
+
+- Fixed unloaded level info via AssetRegistry fallback, classNames-only recursive asset search, normalized level path validation, source audio persistence, source-effect routing, audio authoring saves, material expression aliases, material pin routing to main inputs, UMaterialFunction graph details, animation notify validation, BlendSpace grid rebuilds, Niagara crash paths, hollow getters, parameter aliases, FText and FText-array property serialization, and `execute_python` file mode/output capture.
+
+#### Plugin Stability & Compatibility
+
+- Fixed native plugin compatibility across UE versions, macOS Clang audio literal builds, plugin package output detection, bridge socket/runtime handling, JSON key normalization, request telemetry, native MCP session validation, safe operations includes, handler review findings, and optional module/plugin availability paths.
+
+</details>
+
+<details>
+<summary><b>🧪 Tests</b></summary>
+
+- Added/expanded Vitest coverage for automation bridge connection, handshake, message schema, request tracking, config defaults, resources, health/metrics services, response validation, command validation, log reading/redaction, safe JSON, type coercion, normalization, queues, elicitation, and consolidated handler routing.
+- Expanded MCP integration suites across core/world/gameplay/utility tools, including PCG, Behavior Tree subnodes/get-tree, networking/sessions/input, control-editor screenshots/input, actor list handling, audio/source effects, assets/material functions, Blueprints/SCS, levels, geometry, GAS, combat, inventory, interaction, sequence, environment, and system-control Python/project-setting flows.
+- Added static native MCP action parity auditing and strict parameter-combination auditing that compare TypeScript schemas, native C++ tool definitions, native canonical registration, and test coverage.
+- Hardened the custom test runner with richer assertions, captured variables, live/static reports, fake-success detection, progress output, expectation utilities, and deterministic parameter audit behavior.
+
+</details>
+
+<details>
+<summary><b>🧰 Maintenance</b></summary>
+
+- Refreshed AGENTS/project guidance, README/setup content, handler maps, testing guide, native automation progress notes, Roadmap, MCP coverage notes, UE 5.8 support notes, native audio routing notes, plugin READMEs, issue templates, labels, gitignore rules, production env defaults, Context7 config, and release metadata.
+- Removed obsolete GraphQL API docs and GraphQL security tests with the GraphQL implementation.
+- Trimmed unused plugin helpers/includes, streamlined bridge build settings, normalized Node built-in imports, simplified startup cleanup, optimized server utilities/build caching, and improved package/sync/cleanup script safety.
+
+</details>
+
+<details>
+<summary><b>🔄 Dependencies</b></summary>
+
+- Removed direct runtime dependencies for `@graphql-tools/schema`, `dataloader`, `graphql`, and `graphql-yoga`.
+- Refreshed the lockfile across npm dependency groups, including security/maintenance updates for transitive runtime and dev packages.
+- Updated pinned GitHub Actions used by checkout, setup-node, CodeQL, Release Drafter, github-script, action-gh-release, stale, labeler, and dependency-review workflows.
+
+</details>
+
+<details>
+<summary><b>📚 Documentation</b></summary>
+
+- Refreshed root and plugin README content, MCP/native transport setup, handler mapping, editor plugin extension notes, Roadmap, testing guide, native automation progress, MCP coverage notes, UE 5.8 support, and native audio routing notes.
+- Added and updated repository guidance files for root, TypeScript server/tools/handlers/automation/utils/tests, native MCP internals, and McpAutomationBridge areas.
+- Removed obsolete GraphQL API documentation.
+
+</details>
+
+<details>
+<summary><b>👥 Contributors</b></summary>
+
+Special thanks to the contributors in this release window, with obvious author aliases collapsed.
+
+- **GitHub Actions command-injection hardening:** @google-labs-jules[bot]
+- **Dependency and workflow version updates:** @dependabot[bot]
+- **Editor/runtime behavior fixes:** @xqdd for native `get_current_level` routing, spawn scale, create-plane height, lighting routing, Blueprint SCS verification, PIE runtime reporting, active camera state, per-key input mapping edits, and prompt-save return handling.
+- **Behavior Tree and Blueprint introspection:** @kalihman for `get_tree`, decorator/service subnodes, Blackboard key selector assignment, inherited Blueprint/SCS introspection, and classNames-only asset search behavior.
+- **Blueprint graph and animation reliability:** @VictorZhang01 for inherited UPROPERTY graph nodes, stale K2 node title refresh, AnimBP graph routing, and `force_rebuild_blend_space`.
+- **Material and Blueprint component support:** @nekwo for Material Function authoring support and Blueprint-added component template property get/set coverage.
+- **Plugin packaging and inspection:** @azwjp for Windows plugin packaging fixes, and @6r0m for `inspect_cdo` Blueprint CDO inspection.
+- **Platform/build and routing fixes:** @jenniferied for macOS Clang audio-handler build fixes, @Miriam-R-coder for exact Blueprint action routing, and @spencer-zaid for screenshot, Niagara, hollow getter, and parameter-alias fixes.
+- **Python and level metadata fixes:** @zmarx for `execute_python` file-mode handling and Python plugin initialization guards, and @codeman101 for unloaded `get_level_info` AssetRegistry fallback.
+
+</details>
 
 ---
 

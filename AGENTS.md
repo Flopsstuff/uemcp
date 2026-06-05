@@ -5,7 +5,7 @@
 **Branch:** AgentPanel
 
 ## OVERVIEW
-MCP tooling for Unreal Engine 5.0-5.8 Preview. Server package version `0.5.21`; bridge plugin version `0.1.4`; Unreal Agent plugin version `0.1.0`. The repo has three user-facing surfaces: a TypeScript stdio MCP server that talks to Unreal over WebSocket, an optional native plugin MCP HTTP/SSE endpoint at `/mcp`, and an experimental in-editor OpenCode ACP panel.
+MCP tooling for Unreal Engine 5.0-5.8 Preview. Server package version `0.5.30`; bridge plugin version `0.5.30`. The repo has two user-facing surfaces for this release: a TypeScript stdio MCP server that talks to Unreal over WebSocket, and an optional native plugin MCP HTTP/SSE endpoint at `/mcp`.
 
 ## STRUCTURE
 ```
@@ -20,8 +20,6 @@ MCP tooling for Unreal Engine 5.0-5.8 Preview. Server package version `0.5.21`; 
 |   `-- Source/McpAutomationBridge/
 |       |-- Public/              # settings, subsystem, connection manager API
 |       `-- Private/             # WS bridge, native MCP, domain handlers
-|-- plugins/UnrealAgent/         # in-editor OpenCode ACP assistant panel
-|   `-- Source/UnrealAgent/Private/{Acp,UI}/
 |-- tests/                       # Vitest unit tests and custom MCP integration runner
 |-- scripts/                     # plugin packaging, sync, smoke, cleanup helpers
 |-- docs/                        # handler maps, testing, and plugin extension notes
@@ -39,11 +37,8 @@ MCP tooling for Unreal Engine 5.0-5.8 Preview. Server package version `0.5.21`; 
 | Add Unreal bridge behavior | `plugins/McpAutomationBridge/.../Private/McpAutomationBridge_*Handlers.cpp` | Register in `UMcpAutomationBridgeSubsystem::InitializeHandlers()` |
 | Add native MCP schema/tool metadata | `plugins/McpAutomationBridge/.../Private/MCP/` | Self-register with `MCP_REGISTER_TOOL`; keep canonical names only |
 | Fix UE save/load crashes | `McpSafeOperations.h`, `McpAutomationBridgeHelpers.h` | Use project safe wrappers and path guards |
-| Add Unreal Agent ACP behavior | `plugins/UnrealAgent/Source/UnrealAgent/Private/Acp/` | OpenCode process lifecycle, JSON-RPC, model/agent/permission handling |
-| Change Unreal Agent panel UI | `plugins/UnrealAgent/Source/UnrealAgent/Private/UI/` | Slate layout, stable widget tags, transcript rendering |
 | Path and command security | `src/utils/path-security.ts`, `src/utils/command-validator.ts` | Enforce UE roots and console-command block lists |
 | Integration tests | `tests/test-runner.mjs`, `tests/mcp-tools/` | Pipe-separated expectations; Unreal-dependent unless mocked |
-| Unreal Agent tests | `plugins/UnrealAgent/Source/UnrealAgent/Private/UnrealAgentAutomationTests.cpp` | Slate tag/layout and ACP protocol smoke coverage |
 | Version bump | `.github/workflows/bump-version.yml` | Updates server files; plugin `.uplugin` versions are separate |
 | Plugin packaging | `scripts/package-plugin.*`, `scripts/sync-mcp-plugin.js` | RunUAT packaging and Engine/Project plugin sync |
 
@@ -56,22 +51,18 @@ MCP tooling for Unreal Engine 5.0-5.8 Preview. Server package version `0.5.21`; 
 | `AutomationBridge` | TS class | `src/automation/bridge.ts` | high | WebSocket connect/handshake/request queue |
 | `UMcpAutomationBridgeSubsystem` | C++ class | `plugins/McpAutomationBridge/.../Public/McpAutomationBridgeSubsystem.h` | high | Plugin request queue, native MCP startup, handler map |
 | `FMcpNativeTransport` | C++ class | `plugins/McpAutomationBridge/.../Private/MCP/McpNativeTransport.*` | medium | Native `/mcp` HTTP/SSE JSON-RPC endpoint |
-| `FOpenCodeAcpClient` | C++ class | `plugins/UnrealAgent/.../Private/Acp/McpOpenCodeAcpClient.*` | medium | OpenCode ACP process and protocol client |
-| `SUnrealAgentPanel` | Slate widget | `plugins/UnrealAgent/.../Private/UI/SUnrealAgentPanel.*` | medium | In-editor chat panel surface |
 
 ## CONVENTIONS
 ### Transport Surfaces
 1. **TypeScript stdio MCP**: `src/index.ts` creates the SDK server, keeps stdout JSON-only, and connects to Unreal through `src/automation/`.
 2. **WebSocket bridge**: Plugin listen sockets default to loopback ports `8090,8091`; TS sends automation requests through the negotiated bridge.
 3. **Native MCP**: Optional plugin HTTP/SSE endpoint under `Private/MCP/`; `GET /mcp` opens SSE, `POST /mcp` handles JSON-RPC, `DELETE /mcp` tears down sessions.
-4. **Unreal Agent ACP**: `plugins/UnrealAgent` starts `opencode acp` from the editor and may attach the configured `unreal-engine` MCP server; runtime prompt guidance lives in the plugin README and ACP client.
 
 ### Security Boundaries
 - Loopback-only is the default. Non-loopback requires `MCP_AUTOMATION_ALLOW_NON_LOOPBACK=true` in TS or `bAllowNonLoopback` in plugin settings.
 - Capability-token auth uses `X-MCP-Capability-Token` for native MCP and `bridge_hello.capabilityToken` for WebSocket when enabled.
 - Metrics are separate: non-loopback metrics require both `MCP_METRICS_ALLOW_NON_LOOPBACK=true` and `MCP_METRICS_TOKEN`.
 - Paths are limited to `/Game`, `/Engine`, `/Script`, `/Temp`, `/Niagara`, plus sanitized `MCP_ADDITIONAL_PATH_PREFIXES`.
-- Unreal Agent must resolve `opencode` from `OPENCODE_ACP_COMMAND`, `~/.opencode/bin/opencode`, or absolute PATH entries outside the current project directory.
 
 ### UE Safety
 - Do not call `UPackage::SavePackage()` directly. Use `McpSafeAssetSave`, `McpSafeLevelSave`, or `McpSafeLoadMap` wrappers.
@@ -88,7 +79,6 @@ MCP tooling for Unreal Engine 5.0-5.8 Preview. Server package version `0.5.21`; 
 - Raw WebSocket calls from tools: use `executeAutomationRequest()` and the automation bridge queue.
 - Unvalidated external input: command strings go through `CommandValidator`; paths go through normalization/security helpers.
 - LAN exposure by accident: do not bind to `0.0.0.0` or non-loopback without explicit opt-in and token planning.
-- Unreal Agent overclaiming: quick prompts may use source/config/docs/log context, but not live editor state unless ACP is configured with MCP tools.
 - Generated knowledge bases: do not place AGENTS files in `dist/`, `build/`, `coverage/`, `tests/reports/`, `tmp/`, plugin `Binaries/`, plugin `Intermediate/`, or uppercase staging mirrors such as `Plugins/`.
 
 ## UNIQUE STYLES
@@ -96,7 +86,6 @@ MCP tooling for Unreal Engine 5.0-5.8 Preview. Server package version `0.5.21`; 
 - Dynamic tool management exists in both TS and native MCP; `manage_tools` and `inspect` are protected.
 - The native plugin has self-describing MCP tool definitions in C++ separate from TS JSON schemas.
 - Test expectations use string grammar such as `success|error|timeout`; first token is the primary intent.
-- Unreal Agent uses stable Slate widget tags (`UnrealAgent.*`) as its automation-test contract.
 
 ## COMMANDS
 ```bash
@@ -112,6 +101,6 @@ npm run clean:tmp       # Safe cleanup of repo tmp/ artifacts
 
 ## NOTES
 - Engine reference path: `/data/UnrealEngine/Engine/`.
-- Server version sources: `package.json`, `package-lock.json`, `server.json`, `src/index.ts` fallback. Plugin version sources: `plugins/McpAutomationBridge/McpAutomationBridge.uplugin` and `plugins/UnrealAgent/UnrealAgent.uplugin`.
+- Server version sources: `package.json`, `package-lock.json`, `server.json`, `src/index.ts` fallback. Plugin version source: `plugins/McpAutomationBridge/McpAutomationBridge.uplugin`.
 - External GitHub Actions are expected to be pinned to full commit SHAs.
 - `tests/reports/`, root `build/`, root `tmp/`, root `Public/`, uppercase `Plugins/`, and package/plugin build outputs are not instruction targets.
