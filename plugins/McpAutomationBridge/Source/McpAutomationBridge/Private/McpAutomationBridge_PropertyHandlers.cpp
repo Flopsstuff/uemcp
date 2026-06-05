@@ -824,7 +824,7 @@ bool UMcpAutomationBridgeSubsystem::HandleArrayAppend(
   FProperty *Inner = ArrayProp->Inner;
 
   FString ConversionError;
-  if (!ApplyJsonValueToProperty(TargetContainer, Inner, ValueField,
+  if (!ApplyJsonValueToProperty(ElemPtr, Inner, ValueField,
                                 ConversionError)) {
     // Try direct assignment to element memory
     bool bSuccess = false;
@@ -1201,38 +1201,42 @@ bool UMcpAutomationBridgeSubsystem::HandleArrayInsert(
   void *ElemPtr = Helper.GetRawPtr(Index);
   FProperty *Inner = ArrayProp->Inner;
 
-  // Try to set the value using helper
-  bool bSuccess = false;
-  if (FStrProperty *StrInner = CastField<FStrProperty>(Inner)) {
-    *reinterpret_cast<FString *>(ElemPtr) =
-        (ValueField->Type == EJson::String)
-            ? ValueField->AsString()
-            : FString::Printf(TEXT("%g"), ValueField->AsNumber());
-    bSuccess = true;
-  } else if (FIntProperty *IntInner = CastField<FIntProperty>(Inner)) {
-    *reinterpret_cast<int32 *>(ElemPtr) =
-        (ValueField->Type == EJson::Number)
-            ? (int32)ValueField->AsNumber()
-            : FCString::Atoi(*ValueField->AsString());
-    bSuccess = true;
-  } else if (FFloatProperty *FloatInner = CastField<FFloatProperty>(Inner)) {
-    *reinterpret_cast<float *>(ElemPtr) =
-        (ValueField->Type == EJson::Number)
-            ? (float)ValueField->AsNumber()
-            : (float)FCString::Atod(*ValueField->AsString());
-    bSuccess = true;
-  } else if (FBoolProperty *BoolInner = CastField<FBoolProperty>(Inner)) {
-    *reinterpret_cast<uint8 *>(ElemPtr) =
-        (ValueField->Type == EJson::Boolean)
-            ? (ValueField->AsBool() ? 1 : 0)
-            : (ValueField->AsNumber() != 0.0 ? 1 : 0);
-    bSuccess = true;
+  FString ConversionError;
+  bool bSuccess = ApplyJsonValueToProperty(ElemPtr, Inner, ValueField,
+                                           ConversionError);
+  if (!bSuccess) {
+    if (FStrProperty *StrInner = CastField<FStrProperty>(Inner)) {
+      *reinterpret_cast<FString *>(ElemPtr) =
+          (ValueField->Type == EJson::String)
+              ? ValueField->AsString()
+              : FString::Printf(TEXT("%g"), ValueField->AsNumber());
+      bSuccess = true;
+    } else if (FIntProperty *IntInner = CastField<FIntProperty>(Inner)) {
+      *reinterpret_cast<int32 *>(ElemPtr) =
+          (ValueField->Type == EJson::Number)
+              ? (int32)ValueField->AsNumber()
+              : FCString::Atoi(*ValueField->AsString());
+      bSuccess = true;
+    } else if (FFloatProperty *FloatInner = CastField<FFloatProperty>(Inner)) {
+      *reinterpret_cast<float *>(ElemPtr) =
+          (ValueField->Type == EJson::Number)
+              ? (float)ValueField->AsNumber()
+              : (float)FCString::Atod(*ValueField->AsString());
+      bSuccess = true;
+    } else if (FBoolProperty *BoolInner = CastField<FBoolProperty>(Inner)) {
+      *reinterpret_cast<uint8 *>(ElemPtr) =
+          (ValueField->Type == EJson::Boolean)
+              ? (ValueField->AsBool() ? 1 : 0)
+              : (ValueField->AsNumber() != 0.0 ? 1 : 0);
+      bSuccess = true;
+    }
   }
 
   if (!bSuccess) {
-    SendAutomationError(RequestingSocket, RequestId,
-                        TEXT("Failed to insert value: unsupported type"),
-                        TEXT("CONVERSION_FAILED"));
+    SendAutomationError(
+        RequestingSocket, RequestId,
+        FString::Printf(TEXT("Failed to insert value: %s"), *ConversionError),
+        TEXT("CONVERSION_FAILED"));
     return true;
   }
 
@@ -1342,21 +1346,8 @@ bool UMcpAutomationBridgeSubsystem::HandleArrayGetElement(
   void *ElemPtr = Helper.GetRawPtr(Index);
   FProperty *Inner = ArrayProp->Inner;
 
-  // Export the element value
-  TSharedPtr<FJsonValue> ElemValue;
-  if (FStrProperty *StrInner = CastField<FStrProperty>(Inner)) {
-    ElemValue =
-        MakeShared<FJsonValueString>(*reinterpret_cast<FString *>(ElemPtr));
-  } else if (FIntProperty *IntInner = CastField<FIntProperty>(Inner)) {
-    ElemValue = MakeShared<FJsonValueNumber>(
-        (double)*reinterpret_cast<int32 *>(ElemPtr));
-  } else if (FFloatProperty *FloatInner = CastField<FFloatProperty>(Inner)) {
-    ElemValue = MakeShared<FJsonValueNumber>(
-        (double)*reinterpret_cast<float *>(ElemPtr));
-  } else if (FBoolProperty *BoolInner = CastField<FBoolProperty>(Inner)) {
-    ElemValue = MakeShared<FJsonValueBoolean>(
-        (*reinterpret_cast<uint8 *>(ElemPtr)) != 0);
-  } else {
+  TSharedPtr<FJsonValue> ElemValue = ExportPropertyToJsonValue(ElemPtr, Inner);
+  if (!ElemValue.IsValid()) {
     SendAutomationError(RequestingSocket, RequestId,
                         TEXT("Unsupported array element type."),
                         TEXT("UNSUPPORTED_TYPE"));
@@ -1477,38 +1468,43 @@ bool UMcpAutomationBridgeSubsystem::HandleArraySetElement(
   void *ElemPtr = Helper.GetRawPtr(Index);
   FProperty *Inner = ArrayProp->Inner;
 
-  // Set the element value
-  bool bSuccess = false;
-  if (FStrProperty *StrInner = CastField<FStrProperty>(Inner)) {
-    *reinterpret_cast<FString *>(ElemPtr) =
-        (ValueField->Type == EJson::String)
-            ? ValueField->AsString()
-            : FString::Printf(TEXT("%g"), ValueField->AsNumber());
-    bSuccess = true;
-  } else if (FIntProperty *IntInner = CastField<FIntProperty>(Inner)) {
-    *reinterpret_cast<int32 *>(ElemPtr) =
-        (ValueField->Type == EJson::Number)
-            ? (int32)ValueField->AsNumber()
-            : FCString::Atoi(*ValueField->AsString());
-    bSuccess = true;
-  } else if (FFloatProperty *FloatInner = CastField<FFloatProperty>(Inner)) {
-    *reinterpret_cast<float *>(ElemPtr) =
-        (ValueField->Type == EJson::Number)
-            ? (float)ValueField->AsNumber()
-            : (float)FCString::Atod(*ValueField->AsString());
-    bSuccess = true;
-  } else if (FBoolProperty *BoolInner = CastField<FBoolProperty>(Inner)) {
-    *reinterpret_cast<uint8 *>(ElemPtr) =
-        (ValueField->Type == EJson::Boolean)
-            ? (ValueField->AsBool() ? 1 : 0)
-            : (ValueField->AsNumber() != 0.0 ? 1 : 0);
-    bSuccess = true;
+  FString ConversionError;
+  bool bSuccess = ApplyJsonValueToProperty(ElemPtr, Inner, ValueField,
+                                           ConversionError);
+  if (!bSuccess) {
+    if (FStrProperty *StrInner = CastField<FStrProperty>(Inner)) {
+      *reinterpret_cast<FString *>(ElemPtr) =
+          (ValueField->Type == EJson::String)
+              ? ValueField->AsString()
+              : FString::Printf(TEXT("%g"), ValueField->AsNumber());
+      bSuccess = true;
+    } else if (FIntProperty *IntInner = CastField<FIntProperty>(Inner)) {
+      *reinterpret_cast<int32 *>(ElemPtr) =
+          (ValueField->Type == EJson::Number)
+              ? (int32)ValueField->AsNumber()
+              : FCString::Atoi(*ValueField->AsString());
+      bSuccess = true;
+    } else if (FFloatProperty *FloatInner = CastField<FFloatProperty>(Inner)) {
+      *reinterpret_cast<float *>(ElemPtr) =
+          (ValueField->Type == EJson::Number)
+              ? (float)ValueField->AsNumber()
+              : (float)FCString::Atod(*ValueField->AsString());
+      bSuccess = true;
+    } else if (FBoolProperty *BoolInner = CastField<FBoolProperty>(Inner)) {
+      *reinterpret_cast<uint8 *>(ElemPtr) =
+          (ValueField->Type == EJson::Boolean)
+              ? (ValueField->AsBool() ? 1 : 0)
+              : (ValueField->AsNumber() != 0.0 ? 1 : 0);
+      bSuccess = true;
+    }
   }
 
   if (!bSuccess) {
-    SendAutomationError(RequestingSocket, RequestId,
-                        TEXT("Unsupported array element type."),
-                        TEXT("UNSUPPORTED_TYPE"));
+    SendAutomationError(
+        RequestingSocket, RequestId,
+        FString::Printf(TEXT("Failed to set array element: %s"),
+                        *ConversionError),
+        TEXT("UNSUPPORTED_TYPE"));
     return true;
   }
 
