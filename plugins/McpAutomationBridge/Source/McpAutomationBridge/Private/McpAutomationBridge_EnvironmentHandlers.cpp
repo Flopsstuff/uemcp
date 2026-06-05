@@ -72,6 +72,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/PlatformMemory.h"
 #include "Misc/App.h"
+#include "UObject/UnrealType.h"
 
 #include <initializer_list>
 
@@ -438,14 +439,15 @@ static int32 McpApplyPayloadSettings(UObject *Target, const TSharedPtr<FJsonObje
             TEXT("curvePath"), TEXT("settings"), TEXT("location"), TEXT("rotation"), TEXT("direction"), TEXT("points")
         };
 
-        for (const TPair<FString, TSharedPtr<FJsonValue>> &Pair : ObjectToApply->Values)
+        for (const auto &Pair : ObjectToApply->Values)
         {
-            if (IgnoredFields.Contains(Pair.Key) || !Pair.Value.IsValid())
+            const FString FieldName(Pair.Key.Len(), *Pair.Key);
+            if (IgnoredFields.Contains(FieldName) || !Pair.Value.IsValid())
             {
                 continue;
             }
 
-            FProperty *Property = McpFindPropertyCaseInsensitive(Target, Pair.Key);
+            FProperty *Property = McpFindPropertyCaseInsensitive(Target, FieldName);
             if (!Property)
             {
                 continue;
@@ -459,7 +461,7 @@ static int32 McpApplyPayloadSettings(UObject *Target, const TSharedPtr<FJsonObje
             }
             else
             {
-                FailedProperties.Add(FString::Printf(TEXT("%s: %s"), *Pair.Key, *ApplyError));
+                FailedProperties.Add(FString::Printf(TEXT("%s: %s"), *FieldName, *ApplyError));
             }
         }
         return AppliedCount;
@@ -1537,6 +1539,40 @@ static bool McpReadLandscapeSplinePoint(const TSharedPtr<FJsonValue> &PointValue
     return TryReadVector(*PointObject, OutPoint);
 }
 
+static TArray<TObjectPtr<ULandscapeSplineSegment>> *McpGetLandscapeSplineSegments(ULandscapeSplinesComponent *SplinesComponent)
+{
+    if (!SplinesComponent)
+    {
+        return nullptr;
+    }
+
+#if ENGINE_MAJOR_VERSION > 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3)
+    return &SplinesComponent->GetSegments();
+#else
+    FArrayProperty *SegmentsProperty = FindFProperty<FArrayProperty>(SplinesComponent->GetClass(), TEXT("Segments"));
+    return SegmentsProperty
+               ? SegmentsProperty->ContainerPtrToValuePtr<TArray<TObjectPtr<ULandscapeSplineSegment>>>(SplinesComponent)
+               : nullptr;
+#endif
+}
+
+static TArray<TObjectPtr<ULandscapeSplineControlPoint>> *McpGetLandscapeSplineControlPoints(ULandscapeSplinesComponent *SplinesComponent)
+{
+    if (!SplinesComponent)
+    {
+        return nullptr;
+    }
+
+#if ENGINE_MAJOR_VERSION > 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3)
+    return &SplinesComponent->GetControlPoints();
+#else
+    FArrayProperty *ControlPointsProperty = FindFProperty<FArrayProperty>(SplinesComponent->GetClass(), TEXT("ControlPoints"));
+    return ControlPointsProperty
+               ? ControlPointsProperty->ContainerPtrToValuePtr<TArray<TObjectPtr<ULandscapeSplineControlPoint>>>(SplinesComponent)
+               : nullptr;
+#endif
+}
+
 static void McpClearLandscapeSplines(ULandscapeSplinesComponent *SplinesComponent)
 {
     if (!SplinesComponent)
@@ -1544,7 +1580,14 @@ static void McpClearLandscapeSplines(ULandscapeSplinesComponent *SplinesComponen
         return;
     }
 
-    for (TObjectPtr<ULandscapeSplineSegment> &SegmentPtr : SplinesComponent->GetSegments())
+    TArray<TObjectPtr<ULandscapeSplineSegment>> *Segments = McpGetLandscapeSplineSegments(SplinesComponent);
+    TArray<TObjectPtr<ULandscapeSplineControlPoint>> *ControlPoints = McpGetLandscapeSplineControlPoints(SplinesComponent);
+    if (!Segments || !ControlPoints)
+    {
+        return;
+    }
+
+    for (TObjectPtr<ULandscapeSplineSegment> &SegmentPtr : *Segments)
     {
         if (ULandscapeSplineSegment *Segment = SegmentPtr.Get())
         {
@@ -1552,7 +1595,7 @@ static void McpClearLandscapeSplines(ULandscapeSplinesComponent *SplinesComponen
             Segment->DeleteSplinePoints();
         }
     }
-    for (TObjectPtr<ULandscapeSplineControlPoint> &ControlPointPtr : SplinesComponent->GetControlPoints())
+    for (TObjectPtr<ULandscapeSplineControlPoint> &ControlPointPtr : *ControlPoints)
     {
         if (ULandscapeSplineControlPoint *ControlPoint = ControlPointPtr.Get())
         {
@@ -1561,8 +1604,8 @@ static void McpClearLandscapeSplines(ULandscapeSplinesComponent *SplinesComponen
         }
     }
 
-    SplinesComponent->GetSegments().Empty();
-    SplinesComponent->GetControlPoints().Empty();
+    Segments->Empty();
+    ControlPoints->Empty();
 }
 
 static ULandscapeSplineSegment *McpAddLandscapeSplineSegment(ULandscapeSplinesComponent *SplinesComponent,
@@ -1574,13 +1617,19 @@ static ULandscapeSplineSegment *McpAddLandscapeSplineSegment(ULandscapeSplinesCo
         return nullptr;
     }
 
+    TArray<TObjectPtr<ULandscapeSplineSegment>> *Segments = McpGetLandscapeSplineSegments(SplinesComponent);
+    if (!Segments)
+    {
+        return nullptr;
+    }
+
     ULandscapeSplineSegment *Segment = NewObject<ULandscapeSplineSegment>(SplinesComponent, NAME_None, RF_Transactional);
     if (!Segment)
     {
         return nullptr;
     }
 
-    SplinesComponent->GetSegments().Add(Segment);
+    Segments->Add(Segment);
     Segment->Connections[0].ControlPoint = Start;
     Segment->Connections[1].ControlPoint = End;
     Segment->Connections[0].SocketName = Start->GetBestConnectionTo(End->Location);
@@ -1694,10 +1743,17 @@ static bool McpConfigureLandscapeSplines(const TSharedPtr<FJsonObject> &Payload,
     Landscape->Modify();
     SplinesComponent->Modify();
     McpClearLandscapeSplines(SplinesComponent);
+    TArray<TObjectPtr<ULandscapeSplineControlPoint>> *SplineControlPoints = McpGetLandscapeSplineControlPoints(SplinesComponent);
+    if (!SplineControlPoints)
+    {
+        OutMessage = TEXT("Landscape splines component control points are unavailable");
+        OutErrorCode = TEXT("COMPONENT_UNAVAILABLE");
+        return false;
+    }
     for (ULandscapeSplineControlPoint *ControlPoint : ControlPoints)
     {
         ControlPoint->Modify();
-        SplinesComponent->GetControlPoints().Add(ControlPoint);
+        SplineControlPoints->Add(ControlPoint);
     }
 
     TArray<ULandscapeSplineSegment *> Segments;
@@ -1730,7 +1786,11 @@ static bool McpConfigureLandscapeSplines(const TSharedPtr<FJsonObject> &Payload,
 
     for (ULandscapeSplineControlPoint *ControlPoint : ControlPoints)
     {
+#if ENGINE_MAJOR_VERSION > 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 4)
         ControlPoint->AutoCalcRotation(false);
+#else
+        ControlPoint->AutoCalcRotation();
+#endif
         ControlPoint->UpdateSplinePoints(false, true, false);
     }
     for (ULandscapeSplineSegment *Segment : Segments)
@@ -1795,10 +1855,17 @@ static bool McpCreateLandscapeStreamingProxy(const TSharedPtr<FJsonObject> &Payl
     Landscape->Modify();
     Proxy->Modify();
     Proxy->SetActorLocationAndRotation(Location, Rotation, false, nullptr, ETeleportType::TeleportPhysics);
+#if ENGINE_MAJOR_VERSION > 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3)
     Proxy->SetLandscapeGuid(Landscape->GetLandscapeGuid(), false);
     Proxy->SetLandscapeActor(Landscape);
     Proxy->CopySharedProperties(Landscape);
     Proxy->CreateLandscapeInfo(false, false);
+#else
+    Proxy->SetLandscapeGuid(Landscape->GetLandscapeGuid());
+    Proxy->LandscapeActor = Landscape;
+    Proxy->GetSharedProperties(Landscape);
+    Proxy->CreateLandscapeInfo(false);
+#endif
     Proxy->MarkPackageDirty();
     Proxy->PostEditChange();
 

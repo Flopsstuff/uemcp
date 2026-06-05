@@ -507,7 +507,11 @@ bool UMcpAutomationBridgeSubsystem::HandleUiAction(
             }
             if (APlayerCameraManager *CameraManager = PlayerController->PlayerCameraManager) {
               CameraManager->UpdateCamera(0.0f);
+#if ENGINE_MAJOR_VERSION > 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3)
               const FMinimalViewInfo &CameraView = CameraManager->GetCameraCacheView();
+#else
+              const FMinimalViewInfo CameraView = CameraManager->GetCameraCachePOV();
+#endif
               ActiveCameraLocation = CameraView.Location;
               ActiveCameraRotation = CameraView.Rotation;
               ActiveCameraFov = CameraView.FOV;

@@ -97,11 +97,20 @@ bool UMcpAutomationBridgeSubsystem::HandleInsightsAction(
             }
         }
 
+        bool bTraceAlreadyActive = false;
+#if ENGINE_MAJOR_VERSION > 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3)
+        bTraceAlreadyActive = FTraceAuxiliary::IsConnected();
+#endif
+#if ENGINE_MAJOR_VERSION > 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 5)
         const FTraceAuxiliary::ETraceSystemStatus TraceStatus = FTraceAuxiliary::GetTraceSystemStatus();
-        const bool bTraceAlreadyActive = FTraceAuxiliary::IsConnected() ||
+        bTraceAlreadyActive = bTraceAlreadyActive ||
             TraceStatus == FTraceAuxiliary::ETraceSystemStatus::TracingToServer ||
-            TraceStatus == FTraceAuxiliary::ETraceSystemStatus::TracingToFile ||
+            TraceStatus == FTraceAuxiliary::ETraceSystemStatus::TracingToFile;
+#if ENGINE_MAJOR_VERSION > 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 7)
+        bTraceAlreadyActive = bTraceAlreadyActive ||
             TraceStatus == FTraceAuxiliary::ETraceSystemStatus::TracingToCustomRelay;
+#endif
+#endif
         if (bTraceAlreadyActive)
         {
             TSharedPtr<FJsonObject> Result = McpHandlerUtils::CreateResultObject();
@@ -109,7 +118,9 @@ bool UMcpAutomationBridgeSubsystem::HandleInsightsAction(
             Result->SetStringField(TEXT("subAction"), TEXT("start_session"));
             Result->SetStringField(TEXT("traceAction"), TEXT("start_trace"));
             Result->SetStringField(TEXT("status"), TEXT("already_started"));
+#if ENGINE_MAJOR_VERSION > 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3)
             Result->SetStringField(TEXT("destination"), FTraceAuxiliary::GetTraceDestinationString());
+#endif
             if (bHasChannels)
             {
                 Result->SetStringField(TEXT("channels"), Channels);
