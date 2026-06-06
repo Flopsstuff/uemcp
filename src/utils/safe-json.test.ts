@@ -49,13 +49,12 @@ describe('cleanObject', () => {
     });
 
     it('respects max depth limit', () => {
-        // Create deeply nested object
-        let deep: any = { value: 'deep' };
+        type NestedValue = { value?: string; nested?: NestedValue };
+        let deep: NestedValue = { value: 'deep' };
         for (let i = 0; i < 15; i++) {
             deep = { nested: deep };
         }
 
-        // Should not throw when hitting depth limit
         expect(() => cleanObject(deep, 10)).not.toThrow();
     });
 
@@ -67,10 +66,9 @@ describe('cleanObject', () => {
     });
 
     it('handles circular reference prevention at max depth', () => {
-        const obj: any = { a: 1 };
-        obj.self = obj; // circular reference
+        const obj: Record<string, unknown> = { a: 1 };
+        obj.self = obj;
 
-        // Should not throw - depth limiting should prevent infinite recursion
         expect(() => cleanObject(obj, 5)).not.toThrow();
     });
 

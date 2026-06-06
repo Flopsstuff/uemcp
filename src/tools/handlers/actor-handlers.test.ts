@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AutomationBridge } from '../../automation/index.js';
 import type { ITools } from '../../types/tool-interfaces.js';
 import { handleActorTools } from './actor-handlers.js';
 
@@ -16,7 +15,7 @@ function createConnectedTools(result: Record<string, unknown>) {
     automationBridge: {
       isConnected: () => true,
       sendAutomationRequest
-    } as unknown as AutomationBridge
+    }
   };
 
   return { tools, sendAutomationRequest };

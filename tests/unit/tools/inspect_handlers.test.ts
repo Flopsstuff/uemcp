@@ -15,11 +15,18 @@ describe('Inspect Handlers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockTools = {
+      systemTools: {
+        executeConsoleCommand: vi.fn(async () => ({ success: true })),
+        getProjectSettings: vi.fn(async () => ({}))
+      },
+      assetResources: {
+        list: vi.fn(async () => ({}))
+      },
       automationBridge: {
         isConnected: vi.fn().mockReturnValue(true),
         sendAutomationRequest: vi.fn()
       }
-    } as unknown as ITools;
+    };
   });
 
   it('routes get_blueprint_details through blueprint_get', async () => {

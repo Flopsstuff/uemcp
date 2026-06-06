@@ -132,7 +132,8 @@ async function findLatestLogInDir(dir: string): Promise<string | undefined> {
       return cachedLogPath;
     }
   } catch (error) {
-    log.debug('Unable to scan log directory', { dir, error });
+    const message = error instanceof Error ? error.message : String(error);
+    log.debug('Unable to scan log directory', { dir, error: message });
   }
   return undefined;
 }
@@ -169,7 +170,8 @@ async function tailFile(filePath: string, maxLines: number): Promise<string> {
     try {
       await handle.close();
     } catch (error) {
-      log.debug('Failed to close log file handle', { filePath, error });
+      const message = error instanceof Error ? error.message : String(error);
+      log.debug('Failed to close log file handle', { filePath, error: message });
     }
   }
 }
@@ -216,8 +218,8 @@ export async function readOutputLog(params: ReadLogParams) {
   try {
     text = await tailFile(target, maxLines);
   } catch (error: unknown) {
-    const errObj = error as Record<string, unknown> | null;
-    return { success: false, error: String(errObj?.message || error) };
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: message };
   }
   const parsed = text.split(/\r?\n/).filter(line => line.length > 0).map(line => parseLine(line));
   const mappedLevel = params.filterLevel || 'All';

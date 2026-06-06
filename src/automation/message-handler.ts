@@ -155,8 +155,9 @@ export class MessageHandler {
 
                     this.log.info(`automation_event resolved pending request ${reqId} (event=${String(evt.event || '')})`);
                     this.requestTracker.resolveRequest(reqId, synthetic);
-                } catch (e) {
-                    this.log.warn(`Failed to resolve pending automation request from automation_event ${reqId}: ${String(e)}`);
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    this.log.warn(`Failed to resolve pending automation request from automation_event ${reqId}: ${message}`);
                 }
                 return;
             }

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AssetResources } from './assets.js';
-import type { AutomationBridge } from '../automation/index.js';
-import type { UnrealBridge } from '../unreal-bridge.js';
+import { AutomationBridge } from '../automation/index.js';
+import { UnrealBridge } from '../unreal-bridge.js';
 
 function createAssetResources(assets: Array<Record<string, unknown>> = []) {
   const sendAutomationRequest = vi.fn(async () => ({
@@ -12,15 +12,11 @@ function createAssetResources(assets: Array<Record<string, unknown>> = []) {
     }
   }));
 
-  const automationBridge = {
-    isConnected: () => true,
-    sendAutomationRequest
-  } as unknown as AutomationBridge;
-
-  const unrealBridge = {
-    isConnected: true,
-    getAutomationBridge: () => automationBridge
-  } as unknown as UnrealBridge;
+  const automationBridge = new AutomationBridge({ enabled: false });
+  vi.spyOn(automationBridge, 'isConnected').mockReturnValue(true);
+  vi.spyOn(automationBridge, 'sendAutomationRequest').mockImplementation(sendAutomationRequest);
+  const unrealBridge = new UnrealBridge();
+  unrealBridge.setAutomationBridge(automationBridge);
 
   return { resources: new AssetResources(unrealBridge), sendAutomationRequest };
 }

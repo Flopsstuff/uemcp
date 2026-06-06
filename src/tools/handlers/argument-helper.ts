@@ -2,181 +2,8 @@ import { ITools } from '../../types/tool-interfaces.js';
 import type { HandlerArgs } from '../../types/handler-types.js';
 import { executeAutomationRequest } from './common-handlers.js';
 import { TOOL_ACTIONS } from '../../utils/action-constants.js';
-export interface ArgConfig {
-  /** The primary key to store the normalized value in. */
-  key: string;
-  /** A list of alternative keys (aliases) to look for in the input args. */
-  aliases?: string[];
-  /** If true, the value must be a non-empty string. Throws an error if missing or empty. */
-  required?: boolean;
-  /** If provided, uses this default value if no valid input is found. */
-  default?: unknown;
-  /** If provided, maps the input string using this dictionary (e.g. for friendly class names). */
-  map?: Record<string, string>;
-  /** Custom validation function. Throws or returns invalid message string if check fails. */
-  validator?: (val: unknown) => void | string;
-}
-
-/**
- * Normalizes a raw arguments object based on a list of configurations.
- * Handles aliasing, defaults, required checks, and value mapping.
- *
- * @param args The raw arguments object from the tool call.
- * @param configs A list of configuration objects for each expected argument.
- * @returns A new object containing the normalized arguments.
- * @throws Error if a required argument is missing or validation fails.
- */
-/**
- * Typed result from normalizeArgs that provides type-safe accessors.
- */
-export interface NormalizedArgs {
-  /** Get a string value, throwing if not a string */
-  getString(key: string): string;
-  /** Get a string value or undefined */
-  getOptionalString(key: string): string | undefined;
-  /** Get a number value, throwing if not a number */
-  getNumber(key: string): number;
-  /** Get a number value or undefined */
-  getOptionalNumber(key: string): number | undefined;
-  /** Get a boolean value, throwing if not a boolean */
-  getBoolean(key: string): boolean;
-  /** Get a boolean value or undefined */
-  getOptionalBoolean(key: string): boolean | undefined;
-  /** Get raw value (unknown type) */
-  get(key: string): unknown;
-  /** Get the raw normalized object */
-  raw(): Record<string, unknown>;
-}
-
-function createNormalizedArgs(data: Record<string, unknown>): NormalizedArgs {
-  return {
-    getString(key: string): string {
-      const val = data[key];
-      if (typeof val !== 'string') {
-        throw new Error(`Expected string for '${key}', got ${typeof val}`);
-      }
-      return val;
-    },
-    getOptionalString(key: string): string | undefined {
-      const val = data[key];
-      if (val === undefined || val === null) return undefined;
-      if (typeof val !== 'string') {
-        throw new Error(`Expected string for '${key}', got ${typeof val}`);
-      }
-      return val;
-    },
-    getNumber(key: string): number {
-      const val = data[key];
-      if (typeof val !== 'number') {
-        throw new Error(`Expected number for '${key}', got ${typeof val}`);
-      }
-      return val;
-    },
-    getOptionalNumber(key: string): number | undefined {
-      const val = data[key];
-      if (val === undefined || val === null) return undefined;
-      if (typeof val !== 'number') {
-        throw new Error(`Expected number for '${key}', got ${typeof val}`);
-      }
-      return val;
-    },
-    getBoolean(key: string): boolean {
-      const val = data[key];
-      if (typeof val !== 'boolean') {
-        throw new Error(`Expected boolean for '${key}', got ${typeof val}`);
-      }
-      return val;
-    },
-    getOptionalBoolean(key: string): boolean | undefined {
-      const val = data[key];
-      if (val === undefined || val === null) return undefined;
-      if (typeof val !== 'boolean') {
-        throw new Error(`Expected boolean for '${key}', got ${typeof val}`);
-      }
-      return val;
-    },
-    get(key: string): unknown {
-      return data[key];
-    },
-    raw(): Record<string, unknown> {
-      return data;
-    }
-  };
-}
-
-/**
- * Legacy return type - returns Record for backward compatibility.
- * Use normalizeArgsTyped for new code.
- */
-export function normalizeArgs(args: HandlerArgs, configs: ArgConfig[]): Record<string, unknown> {
-  return normalizeArgsInternal(args, configs);
-}
-
-/**
- * Type-safe version that returns NormalizedArgs with accessor methods.
- */
-export function normalizeArgsTyped(args: HandlerArgs, configs: ArgConfig[]): NormalizedArgs {
-  return createNormalizedArgs(normalizeArgsInternal(args, configs));
-}
-
-function normalizeArgsInternal(args: HandlerArgs, configs: ArgConfig[]): Record<string, unknown> {
-  const normalized: Record<string, unknown> = { ...args }; // Start with a shallow copy to preserve extra args
-
-  for (const config of configs) {
-    let val: unknown = undefined;
-
-    // 1. Check primary key
-    if (args[config.key] !== undefined && args[config.key] !== null && args[config.key] !== '') {
-      val = args[config.key];
-    }
-
-    // 2. Check aliases if primary not found
-    if (val === undefined && config.aliases) {
-      for (const alias of config.aliases) {
-        if (args[alias] !== undefined && args[alias] !== null && args[alias] !== '') {
-          val = args[alias];
-          break;
-        }
-      }
-    }
-
-    // 3. Apply default if still undefined
-    if (val === undefined && config.default !== undefined) {
-      val = config.default;
-    }
-
-    // 4. Validate 'required'
-    if (config.required) {
-      if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
-        const aliasStr = config.aliases ? ` (or ${config.aliases.join(', ')})` : '';
-        throw new Error(`Missing required argument: ${config.key}${aliasStr}`);
-      }
-    }
-
-    // 5. Apply map
-    if (config.map && typeof val === 'string') {
-      // Check for exact match first
-      if (config.map[val]) {
-        val = config.map[val];
-      }
-    }
-
-    // 6. Custom validator
-    if (config.validator && val !== undefined) {
-      const err = config.validator(val);
-      if (typeof err === 'string') {
-        throw new Error(`Invalid argument '${config.key}': ${err}`);
-      }
-    }
-
-    // 7. Store result (only if we found something or used a default)
-    if (val !== undefined) {
-      normalized[config.key] = val;
-    }
-  }
-
-  return normalized;
-}
+export type { ArgConfig, NormalizedArgs } from './argument-normalization.js';
+export { normalizeArgs, normalizeArgsTyped } from './argument-normalization.js';
 
 // ============================================================================
 // Type-safe extraction helpers for handler use
@@ -360,8 +187,10 @@ export async function resolveObjectPath(
           return resolvedPath.trim();
         }
       }
-    } catch {
-      // Ignore lookup errors
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
     }
     // Fallback to the name itself
     if (fallback) return potentialName;

@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { startMetricsServer } from './metrics-server.js';
 import { HealthMonitor } from './health-monitor.js';
 import { Logger } from '../utils/logger.js';
-import type { AutomationBridge } from '../automation/index.js';
 
 const originalMetricsPort = process.env.MCP_METRICS_PORT;
 const originalPrometheusPort = process.env.PROMETHEUS_PORT;
@@ -54,7 +53,7 @@ function createOptions() {
         maxPendingRequests: 10,
         maxConcurrentConnections: 1
       })
-    } as unknown as AutomationBridge,
+    },
     logger: new Logger('MetricsServerTest', 'error')
   };
 }

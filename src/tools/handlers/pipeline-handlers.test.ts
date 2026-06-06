@@ -6,7 +6,15 @@ import type { ITools } from '../../types/tool-interfaces.js';
 import type { PipelineArgs } from '../../types/handler-types.js';
 import { handlePipelineTools } from './pipeline-handlers.js';
 
-const tools = {} as unknown as ITools;
+const tools: ITools = {
+  systemTools: {
+    executeConsoleCommand: async () => ({ success: true }),
+    getProjectSettings: async () => ({})
+  },
+  assetResources: {
+    list: async () => ({})
+  }
+};
 
 function runUbt(args: Partial<PipelineArgs>) {
   return handlePipelineTools('run_ubt', {

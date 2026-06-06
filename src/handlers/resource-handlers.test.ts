@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { UnrealBridge } from '../unreal-bridge.js';
-import type { AutomationBridge, AutomationBridgeStatus } from '../automation/index.js';
+import type { AutomationBridgeStatus } from '../automation/index.js';
 import type { AssetResources } from '../resources/assets.js';
 import type { ActorResources } from '../resources/actors.js';
 import type { LevelResources } from '../resources/levels.js';
@@ -27,12 +26,11 @@ function createRegisteredHandler(
     }
   } as ResourceServer;
 
-  const bridge = bridgeStub as unknown as UnrealBridge;
-  const automationBridge = { getStatus: () => status } as unknown as AutomationBridge;
+  const automationBridge = { getStatus: () => status };
 
   new ResourceHandler(
     server,
-    bridge,
+    bridgeStub,
     automationBridge,
     {} as AssetResources,
     {} as ActorResources,

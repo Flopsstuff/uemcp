@@ -33,7 +33,7 @@ describe('HandshakeHandler', () => {
 
     it('sends but does not log capability tokens', async () => {
         const socket = new FakeSocket();
-        const promise = new HandshakeHandler('secret-token').initiateHandshake(socket as unknown as WebSocket, 1000);
+        const promise = new HandshakeHandler('secret-token').initiateHandshake(socket, 1000);
 
         await vi.advanceTimersByTimeAsync(500);
 
@@ -51,7 +51,7 @@ describe('HandshakeHandler', () => {
 
     it('cancels the delayed bridge hello when the socket closes first', async () => {
         const socket = new FakeSocket();
-        const promise = new HandshakeHandler('secret-token').initiateHandshake(socket as unknown as WebSocket, 1000);
+        const promise = new HandshakeHandler('secret-token').initiateHandshake(socket, 1000);
         const assertion = expect(promise).rejects.toThrow('Socket closed during handshake');
 
         socket.emit('close');
@@ -64,7 +64,7 @@ describe('HandshakeHandler', () => {
 
     it('settles timeout failures once and removes listeners', async () => {
         const socket = new FakeSocket();
-        const promise = new HandshakeHandler().initiateHandshake(socket as unknown as WebSocket, 1000);
+        const promise = new HandshakeHandler().initiateHandshake(socket, 1000);
         const assertion = expect(promise).rejects.toThrow('Handshake timeout');
 
         await vi.advanceTimersByTimeAsync(1000);

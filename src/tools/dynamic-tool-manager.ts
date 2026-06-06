@@ -1,325 +1,126 @@
-/**
- * Dynamic Tool Manager
- *
- * Manages MCP tool visibility and enablement at runtime.
- * Allows enabling/disabling individual tools or entire categories.
- */
-
 import { Logger } from '../utils/logger.js';
 import { consolidatedToolDefinitions, type ToolDefinition } from './consolidated-tool-definitions.js';
+import { countEnabledTools, isToolStateEnabled, listCategoryStates } from './dynamic-tool-queries.js';
+import {
+  disableCategoryState,
+  disableToolStates,
+  enableCategoryState,
+  enableToolStates,
+  resetToolStates
+} from './dynamic-tool-state-operations.js';
+import type {
+  CategoryDisableResult,
+  CategoryEnableResult,
+  CategoryState,
+  DisableToolsResult,
+  EnableToolsResult,
+  ToolCategory,
+  ToolState
+} from './dynamic-tool-types.js';
+
+export type { ToolCategory } from './dynamic-tool-types.js';
 
 const log = new Logger('DynamicToolManager');
 
-export type ToolCategory = 'core' | 'world' | 'gameplay' | 'utility' | 'all';
-const PROTECTED_TOOL_NAMES = new Set(['manage_tools', 'inspect']);
-
-interface ToolState {
-  name: string;
-  category: ToolCategory;
-  enabled: boolean;
-  description: string;
-}
-
-interface CategoryState {
-  name: ToolCategory;
-  enabled: boolean;
-  toolCount: number;
-  enabledCount: number;
+function logInfoForNames(message: string, names: readonly string[]): void {
+  if (names.length > 0) {
+    log.info(`${message}: ${names.join(', ')}`);
+  }
 }
 
 class DynamicToolManager {
-  private toolStates = new Map<string, ToolState>();
-  private categoryStates = new Map<ToolCategory, CategoryState>();
+  private readonly toolStates = new Map<string, ToolState>();
+  private readonly categoryStates = new Map<ToolCategory, CategoryState>();
   private initialized = false;
 
-  /**
-   * Initialize the manager with all tools from definitions
-   */
   initialize(): void {
     if (this.initialized) {
       log.warn('DynamicToolManager already initialized');
       return;
     }
 
-    // Initialize all tools from definitions
     for (const def of consolidatedToolDefinitions) {
-      const category = (def.category as ToolCategory) || 'utility';
-      this.toolStates.set(def.name, {
-        name: def.name,
-        category,
-        enabled: true,
-        description: def.description
-      });
-
-      // Track category stats
-      let catState = this.categoryStates.get(category);
-      if (!catState) {
-        catState = {
-          name: category,
-          enabled: true,
-          toolCount: 0,
-          enabledCount: 0
-        };
-        this.categoryStates.set(category, catState);
-      }
-      catState.toolCount++;
-      catState.enabledCount++;
+      this.addToolDefinition(def);
     }
 
     this.initialized = true;
     log.info(`Initialized with ${this.toolStates.size} tools across ${this.categoryStates.size} categories`);
   }
 
-  /**
-   * Get all tool definitions filtered by enabled state
-   */
   getEnabledToolDefinitions(): ToolDefinition[] {
     this.ensureInitialized();
     return consolidatedToolDefinitions.filter(def => {
       const state = this.toolStates.get(def.name);
-      // Also check if the category is enabled
-      const catState = state ? this.categoryStates.get(state.category) : null;
-      return state?.enabled && (catState?.enabled ?? true);
+      if (state === undefined) return false;
+      return isToolStateEnabled(this.toolStates, this.categoryStates, state.name);
     });
   }
 
-  /**
-   * Get all tool definitions (unfiltered)
-   */
   getAllToolDefinitions(): ToolDefinition[] {
     return consolidatedToolDefinitions;
   }
 
-  /**
-   * List all tools with their status
-   */
   listTools(): ToolState[] {
     this.ensureInitialized();
     return Array.from(this.toolStates.values());
   }
 
-  /**
-   * List all categories with their status
-   */
   listCategories(): CategoryState[] {
     this.ensureInitialized();
-    const states = Array.from(this.toolStates.values());
-    return Array.from(this.categoryStates.values()).map(catState => {
-      const categoryTools = states.filter(tool => tool.category === catState.name);
-      const enabledCount = categoryTools.filter(tool => this.isToolEnabled(tool.name)).length;
-      return {
-        ...catState,
-        toolCount: categoryTools.length,
-        enabledCount
-      };
-    });
+    return listCategoryStates(this.toolStates, this.categoryStates);
   }
 
-  /**
-   * Enable specific tools
-   */
-  enableTools(toolNames: string[]): { success: boolean; enabled: string[]; notFound: string[] } {
+  enableTools(toolNames: string[]): EnableToolsResult {
     this.ensureInitialized();
-    const enabled: string[] = [];
-    const notFound: string[] = [];
+    const result = enableToolStates(this.toolStates, this.categoryStates, toolNames);
 
-    for (const name of toolNames) {
-      const state = this.toolStates.get(name);
-      if (state) {
-        const catState = this.categoryStates.get(state.category);
-        if (catState) catState.enabled = true;
-        if (!state.enabled) {
-          state.enabled = true;
-          // Update category enabled count
-          if (catState) catState.enabledCount++;
-        }
-        enabled.push(name);
-      } else {
-        notFound.push(name);
-      }
+    logInfoForNames('Enabled tools', result.enabled);
+    if (result.notFound.length > 0) {
+      log.warn(`Tools not found: ${result.notFound.join(', ')}`);
     }
 
-    if (enabled.length > 0) {
-      log.info(`Enabled tools: ${enabled.join(', ')}`);
-    }
-    if (notFound.length > 0) {
-      log.warn(`Tools not found: ${notFound.join(', ')}`);
-    }
-
-    return { success: true, enabled, notFound };
+    return result;
   }
 
-  /**
-   * Disable specific tools
-   */
-  disableTools(toolNames: string[]): { success: boolean; disabled: string[]; notFound: string[]; protected: string[] } {
+  disableTools(toolNames: string[]): DisableToolsResult {
     this.ensureInitialized();
-    const disabled: string[] = [];
-    const notFound: string[] = [];
-    const protected_: string[] = [];
+    const result = disableToolStates(this.toolStates, this.categoryStates, toolNames);
 
-    for (const name of toolNames) {
-      if (PROTECTED_TOOL_NAMES.has(name)) {
-        protected_.push(name);
-        continue;
-      }
-
-      const state = this.toolStates.get(name);
-      if (state) {
-        if (state.enabled) {
-          state.enabled = false;
-          // Update category enabled count
-          const catState = this.categoryStates.get(state.category);
-          if (catState && catState.enabledCount > 0) catState.enabledCount--;
-        }
-        disabled.push(name);
-      } else {
-        notFound.push(name);
-      }
+    logInfoForNames('Disabled tools', result.disabled);
+    if (result.protected.length > 0) {
+      log.warn(`Cannot disable protected tools: ${result.protected.join(', ')}`);
     }
 
-    if (disabled.length > 0) {
-      log.info(`Disabled tools: ${disabled.join(', ')}`);
-    }
-    if (protected_.length > 0) {
-      log.warn(`Cannot disable protected tools: ${protected_.join(', ')}`);
-    }
-
-    return { success: true, disabled, notFound, protected: protected_ };
+    return result;
   }
 
-  /**
-   * Enable all tools in a category
-   */
-  enableCategory(category: ToolCategory): { success: boolean; enabled: string[]; notFound: boolean } {
+  enableCategory(category: ToolCategory): CategoryEnableResult {
     this.ensureInitialized();
-    const enabled: string[] = [];
+    const result = enableCategoryState(this.toolStates, this.categoryStates, category);
 
-    // Handle 'all' category - enable all categories
-    if (category === 'all') {
-      for (const catState of this.categoryStates.values()) {
-        catState.enabled = true;
-        catState.enabledCount = catState.toolCount;
-      }
-      for (const state of this.toolStates.values()) {
-        if (!state.enabled) {
-          state.enabled = true;
-          enabled.push(state.name);
-        }
-      }
-      if (enabled.length > 0) {
-        log.info(`Enabled all categories: ${enabled.length} tools`);
-      }
-      return { success: true, enabled, notFound: false };
+    if (result.enabled.length > 0) {
+      const target = category === 'all' ? 'all categories' : `category '${category}'`;
+      log.info(`Enabled ${target}: ${result.enabled.length} tools`);
     }
 
-    const catState = this.categoryStates.get(category);
-    if (!catState) {
-      return { success: false, enabled: [], notFound: true };
-    }
-
-    catState.enabled = true;
-
-    for (const state of this.toolStates.values()) {
-      if (state.category === category && !state.enabled) {
-        state.enabled = true;
-        enabled.push(state.name);
-      }
-    }
-
-    // Recount enabled
-    catState.enabledCount = catState.toolCount;
-
-    if (enabled.length > 0) {
-      log.info(`Enabled category '${category}': ${enabled.length} tools`);
-    }
-
-    return { success: true, enabled, notFound: false };
+    return result;
   }
 
-  /**
-   * Disable all tools in a category
-   */
-  disableCategory(category: ToolCategory): { success: boolean; disabled: string[]; notFound: boolean; protected: string[] } {
+  disableCategory(category: ToolCategory): CategoryDisableResult {
     this.ensureInitialized();
-    const disabled: string[] = [];
-    const protected_: string[] = [];
-
-    // Handle 'all' category - disable all non-protected tools
-    if (category === 'all') {
-      for (const catState of this.categoryStates.values()) {
-        if (catState.name === 'core') {
-          catState.enabled = true; // core stays enabled due to protected tools
-        } else {
-          catState.enabled = false;
-          catState.enabledCount = 0;
-        }
-      }
-      for (const state of this.toolStates.values()) {
-        if (PROTECTED_TOOL_NAMES.has(state.name)) {
-          protected_.push(state.name);
-        } else if (state.enabled) {
-          state.enabled = false;
-          disabled.push(state.name);
-        }
-      }
-      // Update core category enabled count for protected tools
-      const coreCatState = this.categoryStates.get('core');
-      if (coreCatState) {
-        coreCatState.enabledCount = protected_.filter(p => {
-          const toolState = this.toolStates.get(p);
-          return toolState?.category === 'core';
-        }).length;
-      }
-      if (disabled.length > 0) {
-        log.info(`Disabled all categories: ${disabled.length} tools`);
-      }
-      return { success: true, disabled, notFound: false, protected: protected_ };
-    }
-
-    // Categories that cannot be fully disabled
-    const protectedCategories: ToolCategory[] = ['core'];
-
-    const catState = this.categoryStates.get(category);
-    if (!catState) {
-      return { success: false, disabled: [], notFound: true, protected: [] };
-    }
-
-    if (protectedCategories.includes(category)) {
+    const result = disableCategoryState(this.toolStates, this.categoryStates, category);
+    if (category === 'core' && !result.notFound) {
       log.warn(`Cannot disable protected category: ${category}`);
-      // Still allow disabling individual non-protected tools
     }
 
-    catState.enabled = protectedCategories.includes(category);
-
-    for (const state of this.toolStates.values()) {
-      if (state.category === category && !PROTECTED_TOOL_NAMES.has(state.name)) {
-        if (state.enabled) {
-          state.enabled = false;
-          disabled.push(state.name);
-        }
-      } else if (state.category === category && PROTECTED_TOOL_NAMES.has(state.name)) {
-        protected_.push(state.name);
-      }
+    if (result.disabled.length > 0) {
+      const target = category === 'all' ? 'all categories' : `category '${category}'`;
+      log.info(`Disabled ${target}: ${result.disabled.length} tools`);
     }
 
-    // Update enabled count
-    if (!protectedCategories.includes(category)) {
-      catState.enabledCount = 0;
-    } else {
-      catState.enabledCount = protected_.length;
-    }
-
-    if (disabled.length > 0) {
-      log.info(`Disabled category '${category}': ${disabled.length} tools`);
-    }
-
-    return { success: true, disabled, notFound: false, protected: protected_ };
+    return result;
   }
 
-  /**
-   * Get current status summary
-   */
   getStatus(): {
     totalTools: number;
     enabledTools: number;
@@ -328,10 +129,7 @@ class DynamicToolManager {
   } {
     this.ensureInitialized();
     const visibleTools = this.listTools();
-    let enabledCount = 0;
-    for (const state of visibleTools) {
-      if (this.isToolEnabled(state.name)) enabledCount++;
-    }
+    const enabledCount = countEnabledTools(this.toolStates, this.categoryStates);
 
     return {
       totalTools: visibleTools.length,
@@ -341,49 +139,40 @@ class DynamicToolManager {
     };
   }
 
-  /**
-   * Reset all tools to enabled state
-   */
   reset(): { enabled: number } {
     this.ensureInitialized();
-
-    let count = 0;
-    for (const state of this.toolStates.values()) {
-      if (!state.enabled) {
-        state.enabled = true;
-        count++;
-      }
-    }
-
-    // Reset categories
-    for (const catState of this.categoryStates.values()) {
-      catState.enabled = true;
-      catState.enabledCount = catState.toolCount;
-    }
+    const count = resetToolStates(this.toolStates, this.categoryStates);
 
     log.info(`Reset ${count} tools to enabled state`);
     return { enabled: count };
   }
 
-  /**
-   * Check if a tool is enabled
-   */
   isToolEnabled(toolName: string): boolean {
     this.ensureInitialized();
-    const state = this.toolStates.get(toolName);
-    if (!state) return false;
-
-    // Also check category
-    const catState = this.categoryStates.get(state.category);
-    return state.enabled && (catState?.enabled ?? true);
+    return isToolStateEnabled(this.toolStates, this.categoryStates, toolName);
   }
 
-  /**
-   * Get tool state
-   */
   getToolState(toolName: string): ToolState | undefined {
     this.ensureInitialized();
     return this.toolStates.get(toolName);
+  }
+
+  private addToolDefinition(def: ToolDefinition): void {
+    const category: ToolCategory = def.category ?? 'utility';
+    this.toolStates.set(def.name, {
+      name: def.name,
+      category,
+      enabled: true,
+      description: def.description
+    });
+
+    let catState = this.categoryStates.get(category);
+    if (catState === undefined) {
+      catState = { name: category, enabled: true, toolCount: 0, enabledCount: 0 };
+      this.categoryStates.set(category, catState);
+    }
+    catState.toolCount++;
+    catState.enabledCount++;
   }
 
   private ensureInitialized(): void {
@@ -393,8 +182,5 @@ class DynamicToolManager {
   }
 }
 
-// Global instance
 export const dynamicToolManager = new DynamicToolManager();
-
-// Initialize on load
 dynamicToolManager.initialize();

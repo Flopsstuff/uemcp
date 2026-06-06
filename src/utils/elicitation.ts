@@ -57,7 +57,7 @@ export function createElicitationHelper(server: ElicitCapableServer, log: Logger
     });
   }
 
-  function isSafeSchema(schema: ElicitSchema): boolean {
+  function isSafeSchema(schema: unknown): schema is ElicitSchema {
     if (!isRecord(schema) || schema.type !== 'object' || !isRecord(schema.properties)) return false;
 
     const properties: Record<string, unknown> = schema.properties;
@@ -90,7 +90,7 @@ export function createElicitationHelper(server: ElicitCapableServer, log: Logger
     });
   }
 
-  async function elicit(message: string, requestedSchema: ElicitSchema, opts: ElicitOptions = {}) {
+  async function elicit(message: string, requestedSchema: unknown, opts: ElicitOptions = {}) {
     if (!supported || !isSafeSchema(requestedSchema)) {
       if (opts.alternate) return opts.alternate();
       return { ok: false, error: 'elicitation-unsupported' };
@@ -126,7 +126,7 @@ export function createElicitationHelper(server: ElicitCapableServer, log: Logger
       return { ok: false, error: 'unexpected-response' };
     } catch (e: unknown) {
       const errObj = isRecord(e) ? e : null;
-      const msg = String(errObj?.message || e);
+      const msg = e instanceof Error ? e.message : String(errObj?.message || e);
       const nestedError = isRecord(errObj?.error) ? errObj.error : null;
       const code = errObj?.code ?? nestedError?.code;
       // If client doesn't support it, don’t try again this session

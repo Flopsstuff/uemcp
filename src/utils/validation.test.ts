@@ -8,7 +8,8 @@ import {
     validatePathLength,
     validateAssetParams,
     ensureVector3,
-    ensureRotation
+    ensureRotation,
+    resolveSkeletalMeshPath
 } from './validation.js';
 import { sanitizePath } from './path-security.js';
 
@@ -166,5 +167,23 @@ describe('ensureRotation', () => {
 
     it('throws on invalid input', () => {
         expect(() => ensureRotation('invalid', 'rotation')).toThrow();
+    });
+});
+
+describe('resolveSkeletalMeshPath', () => {
+    it('maps known skeleton paths to their mesh paths', () => {
+        expect(resolveSkeletalMeshPath('/Game/Mannequin/Character/Mesh/UE4_Mannequin_Skeleton')).toBe(
+            '/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple'
+        );
+    });
+
+    it('converts common skeleton names to skeletal mesh names', () => {
+        expect(resolveSkeletalMeshPath('/Game/Characters/UE5_Quinn_Skeleton')).toBe(
+            '/Game/Characters/SKM_Quinn'
+        );
+    });
+
+    it('returns null for path traversal attempts', () => {
+        expect(resolveSkeletalMeshPath('/Game/../Bad_Skeleton')).toBeNull();
     });
 });

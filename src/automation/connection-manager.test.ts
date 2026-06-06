@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
-import { ConnectionManager } from './connection-manager.js';
+import { ConnectionManager, type AutomationSocket } from './connection-manager.js';
 
 class MockSocket extends EventEmitter {
   protocol = '';
@@ -11,8 +11,8 @@ class MockSocket extends EventEmitter {
   close = vi.fn();
 }
 
-function createSocket(): WebSocket {
-  return new MockSocket() as unknown as WebSocket;
+function createSocket(): AutomationSocket {
+  return new MockSocket();
 }
 
 describe('ConnectionManager rate limiting', () => {

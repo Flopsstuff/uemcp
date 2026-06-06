@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { HealthMonitor } from './health-monitor.js';
 import { Logger } from '../utils/logger.js';
-import type { UnrealBridge } from '../unreal-bridge.js';
 
 function createLogger(): Logger {
   return new Logger('HealthMonitorTest', 'error');
@@ -15,7 +14,7 @@ describe('HealthMonitor', () => {
     const bridge = {
       isConnected: false,
       executeConsoleCommand
-    } as unknown as UnrealBridge;
+    };
 
     const healthy = await monitor.performHealthCheck(bridge);
 

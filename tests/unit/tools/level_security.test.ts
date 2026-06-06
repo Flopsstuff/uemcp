@@ -7,12 +7,9 @@ describe('LevelTools Injection Security', () => {
     let levelTools: LevelTools;
 
     beforeEach(() => {
-        bridge = {
-            executeConsoleCommand: vi.fn().mockResolvedValue({ success: true, message: 'OK' }),
-            executeConsoleCommands: vi.fn().mockResolvedValue({ success: true, message: 'OK' }),
-            sendAutomationRequest: vi.fn().mockRejectedValue(new Error('Automation unavailable')),
-            isConnected: false
-        } as unknown as UnrealBridge;
+        bridge = new UnrealBridge();
+        vi.spyOn(bridge, 'executeConsoleCommand').mockResolvedValue({ success: true, message: 'OK' });
+        vi.spyOn(bridge, 'executeConsoleCommands').mockResolvedValue({ success: true, message: 'OK' });
         levelTools = new LevelTools(bridge);
     });
 
@@ -23,13 +20,6 @@ describe('LevelTools Injection Security', () => {
         const executeCommandMock = vi.mocked(bridge.executeConsoleCommand);
         expect(executeCommandMock).toHaveBeenCalled();
         const command = executeCommandMock.mock.calls[0][0];
-
-        // Expectation: The command should either be sanitized (no ;) or quoted such that it doesn't execute 'Quit'
-        // OR the function should throw before executing.
-        // Currently it does: `CreateSubLevel ${params.name} ...`
-
-        // If vulnerable: "CreateSubLevel MyLevel;Quit Persistent None"
-        // If secured: "CreateSubLevel MyLevel_Quit Persistent None" (if we use replace)
 
         expect(command).not.toContain(';Quit');
     });

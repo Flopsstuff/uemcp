@@ -3,6 +3,7 @@
  */
 
 import { toRotTuple, toVec3Tuple } from './normalize.js';
+import { resolveNormalizedSkeletalMeshPath } from './skeletal-mesh-paths.js';
 import { getAdditionalPathPrefixes } from '../config.js';
 
 /**
@@ -50,27 +51,6 @@ function getAssetRoots(): Set<string> {
   }
   return cachedAssetRoots;
 }
-
-const SKELETON_TO_MESH_MAP: Record<string, string> = {
-  '/Game/Mannequin/Character/Mesh/UE4_Mannequin_Skeleton': '/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple',
-  '/Game/Characters/Mannequins/Meshes/SK_Mannequin': '/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple',
-  '/Game/Mannequin/Character/Mesh/SK_Mannequin': '/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple',
-  '/Game/Characters/Mannequin_UE4/Meshes/UE4_Mannequin_Skeleton': '/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple',
-  '/Game/Characters/Mannequins/Skeletons/UE5_Mannequin_Skeleton': '/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple',
-  '/Game/Characters/Mannequins/Skeletons/UE5_Female_Mannequin_Skeleton': '/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple',
-  '/Game/Characters/Mannequins/Skeletons/UE5_Manny_Skeleton': '/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple',
-  '/Game/Characters/Mannequins/Skeletons/UE5_Quinn_Skeleton': '/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple'
-};
-
-const SKELETAL_MESH_REPLACEMENTS: Record<string, string> = {
-  '/SK_': '/SKM_',
-  'UE4_Mannequin': 'SKM_Manny',
-  'UE5_Mannequin': 'SKM_Manny',
-  'UE5_Manny': 'SKM_Manny',
-  'UE5_Quinn': 'SKM_Quinn'
-};
-
-const SKELETAL_MESH_REPLACEMENT_PATTERN = /\/SK_|UE4_Mannequin|UE5_Mannequin|UE5_Manny|UE5_Quinn/g;
 
 /**
  * Sanitize a command argument to prevent injection attacks
@@ -336,26 +316,5 @@ export function resolveSkeletalMeshPath(input: string): string | null {
     }
   }
 
-  // Check if this is a known skeleton path
-  if (SKELETON_TO_MESH_MAP[normalizedInput]) {
-    return SKELETON_TO_MESH_MAP[normalizedInput];
-  }
-
-  // If it contains _Skeleton, try to convert to mesh name
-  if (normalizedInput.includes('_Skeleton')) {
-    // Try common replacements
-    let meshPath = normalizedInput.replace('_Skeleton', '');
-    meshPath = meshPath.replace(
-      SKELETAL_MESH_REPLACEMENT_PATTERN,
-      match => SKELETAL_MESH_REPLACEMENTS[match]
-    );
-    return meshPath;
-  }
-
-  // Generic fallback: convert any /SK_ prefix to /SKM_ for skeletal mesh paths
-  if (normalizedInput.includes('/SK_')) {
-    return normalizedInput.replace('/SK_', '/SKM_');
-  }
-
-  return normalizedInput;
+  return resolveNormalizedSkeletalMeshPath(normalizedInput);
 }

@@ -19,7 +19,7 @@ const packageInfo: { name?: string; version?: string } = (() => {
     return require('../package.json');
   } catch (error) {
     const log = new Logger('UE-MCP');
-    log.debug('Unable to read package.json for server metadata', error);
+    log.debug('Unable to read package.json for server metadata', error instanceof Error ? error : String(error));
     return {};
   }
 })();
@@ -145,7 +145,13 @@ export function createServer() {
   const serverSetup = new ServerSetup(server, bridge, automationBridge, log, healthMonitor);
   serverSetup.setup(); // Register tools, resources, and prompts
 
-  return { server, bridge, automationBridge, metricsServer };
+  return {
+    server,
+    bridge,
+    automationBridge,
+    healthMonitor,
+    metricsServer,
+  };
 }
 
 // Export configuration schema for session UI and runtime validation
@@ -162,8 +168,8 @@ export default function createServerDefault({ config }: { config?: Record<string
       if (typeof config.projectPath === 'string' && (config.projectPath as string).trim()) process.env.UE_PROJECT_PATH = config.projectPath as string;
     }
   } catch (e) {
-    const errObj = e as Record<string, unknown> | null;
-    log.debug('[createServerDefault] Failed to apply config to environment:', errObj?.message ? String(errObj.message) : String(e));
+    const message = e instanceof Error ? e.message : String(e);
+    log.debug('[createServerDefault] Failed to apply config to environment:', message);
   }
 
   const { server } = createServer();
@@ -171,7 +177,13 @@ export default function createServerDefault({ config }: { config?: Record<string
 }
 
 export async function startStdioServer() {
-  const { server, bridge, automationBridge, metricsServer } = createServer();
+  const {
+    server,
+    bridge,
+    automationBridge,
+    healthMonitor,
+    metricsServer,
+  } = createServer();
   const transport = new StdioServerTransport();
   let shuttingDown = false;
 
@@ -192,7 +204,7 @@ export async function startStdioServer() {
       } catch (error) {
         const errorCode = getErrorCode(error);
         if (errorCode !== 'ERR_SERVER_NOT_RUNNING') {
-          log.warn('Failed to close metrics server cleanly', error);
+          log.warn('Failed to close metrics server cleanly', error instanceof Error ? error : String(error));
         }
         resolve();
       }
@@ -207,21 +219,27 @@ export async function startStdioServer() {
     const reason = signal ? ` due to ${signal}` : '';
     log.info(`Shutting down MCP server${reason}`);
     try {
-      automationBridge.stop();
+      healthMonitor.stopHealthChecks();
     } catch (error) {
-      log.warn('Failed to stop automation bridge cleanly', error);
+      log.warn('Failed to stop health checks cleanly', error instanceof Error ? error : String(error));
     }
 
     try {
       bridge.dispose();
     } catch (error) {
-      log.warn('Failed to dispose Unreal bridge cleanly', error);
+      log.warn('Failed to dispose Unreal bridge cleanly', error instanceof Error ? error : String(error));
+    }
+
+    try {
+      automationBridge.stop();
+    } catch (error) {
+      log.warn('Failed to stop automation bridge cleanly', error instanceof Error ? error : String(error));
     }
 
     try {
       await closeMetricsServer();
     } catch (error) {
-      log.warn('Failed to close metrics server cleanly', error);
+      log.warn('Failed to close metrics server cleanly', error instanceof Error ? error : String(error));
     }
 
     try {
@@ -230,7 +248,7 @@ export async function startStdioServer() {
         await closeServer.call(server);
       }
     } catch (error) {
-      log.warn('Failed to close MCP server transport cleanly', error);
+      log.warn('Failed to close MCP server transport cleanly', error instanceof Error ? error : String(error));
     }
 
     if (signal) {
@@ -262,12 +280,13 @@ export async function startStdioServer() {
       try {
         cleanup();
       } catch (error) {
-        log.debug(`Failed to ${operation} during ${eventName}`, error);
+        log.debug(`Failed to ${operation} during ${eventName}`, error instanceof Error ? error : String(error));
       }
     };
 
-    runCleanup('stop automation bridge', () => automationBridge.stop());
+    runCleanup('stop health checks', () => healthMonitor.stopHealthChecks());
     runCleanup('dispose Unreal bridge', () => bridge.dispose());
+    runCleanup('stop automation bridge', () => automationBridge.stop());
     runCleanup('close metrics server', () => { metricsServer?.close(); });
   };
 

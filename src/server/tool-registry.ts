@@ -4,63 +4,30 @@ import { UnrealBridge } from '../unreal-bridge.js';
 import { AutomationBridge } from '../automation/index.js';
 import { Logger } from '../utils/logger.js';
 import { HealthMonitor } from '../services/health-monitor.js';
-import { consolidatedToolDefinitions, ToolDefinition } from '../tools/consolidated-tool-definitions.js';
 import { handleConsolidatedToolCall } from '../tools/consolidated-tool-handlers.js';
+import { mergeActionParams } from '../tools/consolidated-call-utils.js';
 import { responseValidator } from '../utils/response-validator.js';
 import { ErrorHandler } from '../utils/error-handler.js';
 import { cleanObject } from '../utils/safe-json.js';
 import { isRecord } from '../utils/type-guards.js';
 import { redactImagePayloadForLog } from '../utils/log-redaction.js';
-import { createElicitationHelper, PrimitiveSchema } from '../utils/elicitation.js';
+import { createElicitationHelper } from '../utils/elicitation.js';
 import { AssetResources } from '../resources/assets.js';
 import { ActorResources } from '../resources/actors.js';
 import { LevelResources } from '../resources/levels.js';
 import { getProjectSetting } from '../utils/ini-reader.js';
-import { config } from '../config.js';
-import { mcpClients } from 'mcp-client-capabilities';
-import { dynamicToolManager, type ToolCategory } from '../tools/dynamic-tool-manager.js';
-
-// Parse default categories from config
-function parseDefaultCategories(): string[] {
-    const raw = config.MCP_DEFAULT_CATEGORIES || 'all';
-    const cats = raw.split(',').map(c => c.trim().toLowerCase()).filter(c => c.length > 0);
-    return cats.length > 0 ? cats : ['all'];
-}
-
-const KNOWN_DYNAMIC_CLIENT_NAMES = ['cursor', 'cline', 'windsurf', 'kilo', 'opencode', 'vscode', 'visual studio code'];
-
-// Check if a client supports tools.listChanged based on known client capabilities
-function clientSupportsListChanged(clientName: string | undefined): boolean {
-    if (!clientName) return false;
-
-    // Normalize client name (lowercase, trim)
-    const normalizedName = clientName.toLowerCase().trim();
-
-    // Check in the mcp-client-capabilities database
-    for (const [key, clientInfo] of Object.entries(mcpClients)) {
-        if (key.toLowerCase() === normalizedName ||
-            (clientInfo.title && clientInfo.title.toLowerCase() === normalizedName)) {
-            // Check if tools.listChanged is supported
-            const tools = clientInfo.tools as { listChanged?: boolean } | undefined;
-            return Boolean(tools?.listChanged);
-        }
-    }
-
-    // Fallback: check for known clients by partial name match
-    for (const known of KNOWN_DYNAMIC_CLIENT_NAMES) {
-        if (normalizedName.includes(known)) return true;
-    }
-
-    return false;
-}
-
-function mergeActionParams(args: Record<string, unknown>): Record<string, unknown> {
-    if (!isRecord(args.params)) return args;
-
-    const merged = { ...args.params, ...args };
-    delete merged.params;
-    return merged;
-}
+import { dynamicToolManager } from '../tools/dynamic-tool-manager.js';
+import {
+    clientSupportsListChanged,
+    getEffectiveCategories,
+    parseDefaultCategories
+} from './tool-registry-client.js';
+import {
+    handleManageToolsCall as handleManageToolsAction,
+    TOOL_LIST_CHANGED_ACTIONS
+} from './tool-registry-manage-tools.js';
+import { buildSanitizedToolList } from './tool-registry-listing.js';
+import { maybeElicitMissingArgs } from './tool-registry-elicitation.js';
 
 export class ToolRegistry {
     private defaultElicitationTimeoutMs = 60000;
@@ -78,221 +45,38 @@ export class ToolRegistry {
         private ensureConnected: () => Promise<boolean>
     ) { }
 
-    private async handleManageToolsCall(args: Record<string, unknown>): Promise<Record<string, unknown>> {
-        const action = args.action as string;
-        const validCategories: ToolCategory[] = ['core', 'world', 'gameplay', 'utility', 'all'];
+    private async readProjectSettingsFromDisk(category: string): Promise<Record<string, unknown> | undefined> {
+        if (!process.env.UE_PROJECT_PATH) return undefined;
 
-        // Helper to safely extract string array
-        const getStringArray = (key: string): string[] => {
-            const val = args[key];
-            if (Array.isArray(val)) {
-                return val.filter((v): v is string => typeof v === 'string');
-            }
-            return [];
-        };
-
-        // Helper to safely extract string
-        const getString = (key: string): string | undefined => {
-            const val = args[key];
-            return typeof val === 'string' ? val : undefined;
-        };
-
-        switch (action) {
-            case 'list_tools': {
-                const toolStates = dynamicToolManager.listTools();
-                const tools = toolStates.map(state => ({
-                    name: state.name,
-                    enabled: dynamicToolManager.isToolEnabled(state.name),
-                    category: state.category,
-                    description: state.description.substring(0, 100) + (state.description.length > 100 ? '...' : '')
-                }));
-                const status = dynamicToolManager.getStatus();
-                return {
-                    success: true,
-                    tools,
-                    totalTools: status.totalTools,
-                    enabledCount: status.enabledTools,
-                    disabledCount: status.disabledTools,
-                    message: `Listed ${tools.length} tools (${status.enabledTools} enabled, ${status.disabledTools} disabled)`
-                };
-            }
-
-            case 'list_categories': {
-                const categories = dynamicToolManager.listCategories();
-                return {
-                    success: true,
-                    categories: categories.map(cat => ({
-                        name: cat.name,
-                        enabled: cat.enabled,
-                        toolCount: cat.toolCount,
-                        enabledCount: cat.enabledCount
-                    })),
-                    totalCategories: categories.length,
-                    message: `Listed ${categories.length} categories`
-                };
-            }
-
-            case 'enable_tools': {
-                // Accept both 'tools' and 'toolNames' for flexibility
-                const toolNames = getStringArray('tools').length > 0
-                    ? getStringArray('tools')
-                    : getStringArray('toolNames');
-                if (toolNames.length === 0) {
-                    return { success: false, error: 'No tools specified. Provide tools array.', errorCode: 'MISSING_TOOLS' };
-                }
-                const result = dynamicToolManager.enableTools(toolNames);
-                return {
-                    success: true,
-                    enabled: result.enabled,
-                    notFound: result.notFound,
-                    message: result.notFound.length > 0
-                        ? `Enabled ${result.enabled.length} tools. ${result.notFound.length} not found.`
-                        : `Enabled ${result.enabled.length} tools`
-                };
-            }
-
-            case 'disable_tools': {
-                // Accept both 'tools' and 'toolNames' for flexibility
-                const toolNames = getStringArray('tools').length > 0
-                    ? getStringArray('tools')
-                    : getStringArray('toolNames');
-                if (toolNames.length === 0) {
-                    return { success: false, error: 'No tools specified. Provide tools array.', errorCode: 'MISSING_TOOLS' };
-                }
-                const result = dynamicToolManager.disableTools(toolNames);
-                if (result.protected.length > 0 && result.disabled.length === 0) {
-                    return {
-                        success: false,
-                        error: `Cannot disable protected tools: ${result.protected.join(', ')}`,
-                        errorCode: 'PROTECTED_TOOLS'
-                    };
-                }
-                const messages: string[] = [];
-                if (result.disabled.length > 0) messages.push(`Disabled ${result.disabled.length} tools`);
-                if (result.notFound.length > 0) messages.push(`${result.notFound.length} not found`);
-                if (result.protected.length > 0) messages.push(`${result.protected.length} protected`);
-                return {
-                    success: true,
-                    disabled: result.disabled,
-                    notFound: result.notFound,
-                    protected: result.protected,
-                    message: messages.join('. ')
-                };
-            }
-
-            case 'enable_category': {
-                const category = getString('category') as ToolCategory | undefined;
-                if (!category) {
-                    return { success: false, error: 'No category specified.', errorCode: 'MISSING_CATEGORY' };
-                }
-                if (!validCategories.includes(category)) {
-                    return {
-                        success: false,
-                        error: `Invalid category '${category}'. Valid: ${validCategories.join(', ')}`,
-                        errorCode: 'INVALID_CATEGORY'
-                    };
-                }
-                const result = dynamicToolManager.enableCategory(category);
-                if (result.notFound) {
-                    return { success: false, error: `Category '${category}' not found`, errorCode: 'CATEGORY_NOT_FOUND' };
-                }
-                return {
-                    success: true,
-                    category,
-                    enabled: result.enabled,
-                    message: `Enabled category '${category}' (${result.enabled.length} tools)`
-                };
-            }
-
-            case 'disable_category': {
-                const category = getString('category') as ToolCategory | undefined;
-                if (!category) {
-                    return { success: false, error: 'No category specified.', errorCode: 'MISSING_CATEGORY' };
-                }
-                if (!validCategories.includes(category)) {
-                    return {
-                        success: false,
-                        error: `Invalid category '${category}'. Valid: ${validCategories.join(', ')}`,
-                        errorCode: 'INVALID_CATEGORY'
-                    };
-                }
-                const result = dynamicToolManager.disableCategory(category);
-                if (result.notFound) {
-                    return { success: false, error: `Category '${category}' not found`, errorCode: 'CATEGORY_NOT_FOUND' };
-                }
-                if (result.protected.length > 0 && result.disabled.length === 0) {
-                    return {
-                        success: false,
-                        error: `Cannot fully disable protected category '${category}'. Protected tools: ${result.protected.join(', ')}`,
-                        errorCode: 'PROTECTED_CATEGORY'
-                    };
-                }
-                return {
-                    success: true,
-                    category,
-                    disabled: result.disabled,
-                    protected: result.protected,
-                    message: `Disabled category '${category}' (${result.disabled.length} tools disabled)`
-                };
-            }
-
-            case 'get_status': {
-                const status = dynamicToolManager.getStatus();
-                return {
-                    success: true,
-                    totalTools: status.totalTools,
-                    enabledTools: status.enabledTools,
-                    disabledTools: status.disabledTools,
-                    categories: status.categories.map(cat => ({
-                        name: cat.name,
-                        enabled: cat.enabled,
-                        toolCount: cat.toolCount,
-                        enabledCount: cat.enabledCount
-                    })),
-                    message: `${status.enabledTools}/${status.totalTools} tools enabled`
-                };
-            }
-
-            case 'reset': {
-                const result = dynamicToolManager.reset();
-                return {
-                    success: true,
-                    enabled: result.enabled,
-                    message: `Reset complete. ${result.enabled} tools re-enabled.`
-                };
-            }
-
-            default:
-                return {
-                    success: false,
-                    error: `Unknown action: ${action}. Available: list_tools, list_categories, enable_tools, disable_tools, enable_category, disable_category, get_status, reset`,
-                    errorCode: 'UNKNOWN_ACTION'
-                };
+        try {
+            const settings = await getProjectSetting(process.env.UE_PROJECT_PATH, category, '');
+            return {
+                success: true as const,
+                section: category,
+                settings: settings || {},
+                source: 'disk'
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.debug('Disk project settings fallback failed', { error: message, section: category });
+            return undefined;
         }
     }
 
     register() {
-        // Lightweight system tools facade
         const systemTools = {
             executeConsoleCommand: (command: string) => this.bridge.executeConsoleCommand(command),
             getProjectSettings: async (section?: string) => {
                 const category = typeof section === 'string' && section.trim().length > 0 ? section.trim() : 'Project';
                 if (!this.automationBridge || !this.automationBridge.isConnected()) {
-                    // Fallback to reading from disk
-                    if (process.env.UE_PROJECT_PATH) {
-                        try {
-                            const settings = await getProjectSetting(process.env.UE_PROJECT_PATH, category, '');
-                            return {
-                                success: true as const,
-                                section: category,
-                                settings: settings || {},
-                                source: 'disk'
-                            };
-                        } catch (_diskErr) {
-                            return { success: false as const, error: 'Automation bridge not connected and disk read failed', section: category };
-                        }
+                    const diskSettings = await this.readProjectSettingsFromDisk(category);
+                    if (diskSettings) {
+                        return diskSettings;
                     }
-                    return { success: false as const, error: 'Automation bridge not connected', section: category };
+                    const error = process.env.UE_PROJECT_PATH
+                        ? 'Automation bridge not connected and disk read failed'
+                        : 'Automation bridge not connected';
+                    return { success: false as const, error, section: category };
                 }
                 try {
                     const resp = await this.automationBridge.sendAutomationRequest('system_control', {
@@ -307,19 +91,9 @@ export class ToolRegistry {
 
                     if (!resp || resp.success === false) {
                         if (isNotImplemented) {
-                            // Fallback to reading from disk
-                            if (process.env.UE_PROJECT_PATH) {
-                                try {
-                                    const settings = await getProjectSetting(process.env.UE_PROJECT_PATH, category, '');
-                                    return {
-                                        success: true as const,
-                                        section: category,
-                                        settings: settings || {},
-                                        source: 'disk'
-                                    };
-                                } catch (_diskErr) {
-                                    // Ignore and fall through to an explicit unavailable response
-                                }
+                            const diskSettings = await this.readProjectSettingsFromDisk(category);
+                            if (diskSettings) {
+                                return diskSettings;
                             }
 
                             return {
@@ -350,19 +124,9 @@ export class ToolRegistry {
                         settings
                     };
                 } catch (e) {
-                    // Fallback to reading from disk on error
-                    if (process.env.UE_PROJECT_PATH) {
-                        try {
-                            const settings = await getProjectSetting(process.env.UE_PROJECT_PATH, category, '');
-                            return {
-                                success: true as const,
-                                section: category,
-                                settings: settings || {},
-                                source: 'disk'
-                            };
-                        } catch (_diskErr) {
-                            // Ignore
-                        }
+                    const diskSettings = await this.readProjectSettingsFromDisk(category);
+                    if (diskSettings) {
+                        return diskSettings;
                     }
                     return {
                         success: false as const,
@@ -376,93 +140,19 @@ export class ToolRegistry {
         const elicitation = createElicitationHelper(this.server, this.logger);
 
         this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-            // Check if client supports listChanged based on client name from initialization
-            let supportsListChanged = false;
-            let clientName: string | undefined;
-            try {
-                // Get client info - the server stores this from the initialize request
-                // Note: _clientVersion is a private SDK property (fragile but necessary)
-                const clientInfo = Reflect.get(this.server, '_clientVersion');
-                clientName = isRecord(clientInfo) && typeof clientInfo.name === 'string' ? clientInfo.name : undefined;
-                supportsListChanged = clientSupportsListChanged(clientName);
-                this.logger.debug(`Client detection: name=${clientName}, supportsListChanged=${supportsListChanged}`);
-            } catch (_e) {
-                supportsListChanged = false;
-            }
+            const clientInfo = Reflect.get(this.server, '_clientVersion');
+            const clientName = isRecord(clientInfo) && typeof clientInfo.name === 'string' ? clientInfo.name : undefined;
+            const supportsListChanged = clientSupportsListChanged(clientName);
+            this.logger.debug(`Client detection: name=${clientName}, supportsListChanged=${supportsListChanged}`);
 
-            // If client doesn't support dynamic loading, show ALL tools (backward compatibility)
-            // If client supports it AND categories don't include 'all', apply filtering
-            const effectiveCategories = (!supportsListChanged || this.currentCategories.includes('all'))
-                ? ['all']
-                : this.currentCategories;
+            const effectiveCategories = getEffectiveCategories(supportsListChanged, this.currentCategories);
 
             this.logger.info(`Serving tools for categories: ${effectiveCategories.join(', ')} (client=${clientName || 'unknown'}, supportsListChanged=${supportsListChanged})`);
 
-            // Use DynamicToolManager for filtering
-            const allTools = dynamicToolManager.getAllToolDefinitions();
             const status = dynamicToolManager.getStatus();
+            const sanitized = buildSanitizedToolList(effectiveCategories);
 
-            // Filter by: 1) tool enabled in DynamicToolManager, 2) category
-            const filtered = allTools
-                .filter((t: ToolDefinition) => {
-                    // Check if tool is enabled
-                    if (!dynamicToolManager.isToolEnabled(t.name)) return false;
-
-                    // Check category filter
-                    const category = t.category;
-                    if (category && !effectiveCategories.includes(category) && !effectiveCategories.includes('all')) {
-                        return false;
-                    }
-
-                    return true;
-                });
-
-            this.logger.debug(`Tool filtering: ${status.enabledTools}/${status.totalTools} enabled, ${filtered.length} visible`);
-
-            const sanitized = filtered.map((t: ToolDefinition) => {
-                const properties: Record<string, unknown> = {};
-                const actionValues = new Set<string>();
-                let actionDescription = 'Action to perform.';
-                const sourceProperties = isRecord(t.inputSchema.properties) ? t.inputSchema.properties : {};
-                for (const [name, schema] of Object.entries(sourceProperties)) {
-                    if (properties[name] === undefined) properties[name] = schema;
-                }
-                const sourceAction = isRecord(sourceProperties.action) ? sourceProperties.action : undefined;
-                if (typeof sourceAction?.description === 'string') actionDescription = sourceAction.description;
-                if (Array.isArray(sourceAction?.enum)) {
-                    for (const value of sourceAction.enum) {
-                        if (typeof value === 'string') actionValues.add(value);
-                    }
-                }
-                const actionSchema: Record<string, unknown> = {
-                    type: 'string',
-                    description: actionDescription
-                };
-                if (actionValues.size > 0) {
-                    actionSchema.enum = Array.from(actionValues);
-                }
-                properties.action = actionSchema;
-                const parameterNames = Object.keys(properties).filter(name => name !== 'action');
-                const parameterSummary = parameterNames.length > 0 ? ` Params by action: ${parameterNames.join(', ')}.` : '';
-                const actionGuidance = ' Required: action. Select one enum value, then provide only parameters relevant to that action.';
-                const sourceRequired = Array.isArray(t.inputSchema.required)
-                    ? t.inputSchema.required.filter((name): name is string => typeof name === 'string')
-                    : ['action'];
-                const required = sourceRequired.includes('action') ? sourceRequired : ['action', ...sourceRequired];
-
-                return {
-                    name: t.name,
-                    description: `${t.description}${actionGuidance}${parameterSummary}`,
-                    category: t.category,
-                    inputSchema: {
-                        ...t.inputSchema,
-                        type: 'object',
-                        properties,
-                        required,
-                        additionalProperties: t.inputSchema.additionalProperties ?? true
-                    }
-                };
-            });
+            this.logger.debug(`Tool filtering: ${status.enabledTools}/${status.totalTools} enabled, ${sanitized.length} visible`);
             return { tools: sanitized };
         });
 
@@ -470,16 +160,16 @@ export class ToolRegistry {
             const { name } = request.params;
             let args: Record<string, unknown> = mergeActionParams(request.params.arguments || {});
 
-            // Handle manage_tools for dynamic tool management
             if (name === 'manage_tools') {
-                const result = await this.handleManageToolsCall(args);
-                // Trigger list_changed notification if tools were modified
+                const result = await handleManageToolsAction(args);
                 const action = args.action as string;
-                if (['enable_tools', 'disable_tools', 'enable_category', 'disable_category', 'reset'].includes(action || '')) {
+                if (TOOL_LIST_CHANGED_ACTIONS.has(action)) {
                     this.server.notification({
                         method: 'notifications/tools/list_changed',
                         params: {}
-                    }).catch(err => this.logger.error('Failed to send list_changed notification', err));
+                    }).catch((error: unknown) => {
+                        this.logger.error('Failed to send list_changed notification', error instanceof Error ? error : String(error));
+                    });
                 }
                 return { content: [{ type: 'text', text: JSON.stringify(result) }] };
             }
@@ -502,17 +192,13 @@ export class ToolRegistry {
             const startTime = Date.now();
 
             const connected = await this.ensureConnected();
-            if (!connected) {
-                // Allow certain tools (pipeline, system checks) to run without connection
-                if (name === 'system_control' && args.action === 'get_project_settings') {
-                    // Allowed
-                } else {
-                    this.healthMonitor.trackPerformance(startTime, false);
-                    return {
-                        content: [{ type: 'text', text: `Cannot execute tool '${name}': Unreal Engine is not connected.` }],
-                        isError: true
-                    };
-                }
+            const canRunWithoutConnection = name === 'system_control' && args.action === 'get_project_settings';
+            if (!connected && !canRunWithoutConnection) {
+                this.healthMonitor.trackPerformance(startTime, false);
+                return {
+                    content: [{ type: 'text', text: `Cannot execute tool '${name}': Unreal Engine is not connected.` }],
+                    isError: true
+                };
             }
 
             const tools = {
@@ -530,66 +216,13 @@ export class ToolRegistry {
             try {
                 this.logger.debug(`Executing tool: ${name}`);
 
-                // ... Elicitation logic ...
-                try {
-                    const toolDef = (consolidatedToolDefinitions as Array<Record<string, unknown>>).find(t => t.name === name) as Record<string, unknown> | undefined;
-                    const inputSchema = toolDef?.inputSchema as Record<string, unknown> | undefined;
-                    const elicitFn = tools.elicit;
-                    if (inputSchema && typeof elicitFn === 'function') {
-                        const props = (inputSchema.properties || {}) as Record<string, Record<string, unknown>>;
-                        const required: string[] = Array.isArray(inputSchema.required) ? inputSchema.required as string[] : [];
-                        const missing = required.filter((k: string) => {
-                            const v = (args as Record<string, unknown>)[k];
-                            if (v === undefined || v === null) return true;
-                            if (typeof v === 'string' && v.trim() === '') return true;
-                            return false;
-                        });
-
-                        const primitiveProps: Record<string, PrimitiveSchema> = {};
-                        for (const k of missing) {
-                            const p = props[k];
-                            if (!p || typeof p !== 'object') continue;
-                            const t = (p.type || '').toString();
-                            const isEnum = Array.isArray(p.enum);
-                            if (t === 'string' || t === 'number' || t === 'integer' || t === 'boolean' || isEnum) {
-                                // Build schema with proper type casting
-                                const schemaType = (isEnum ? 'string' : t) as 'string' | 'number' | 'integer' | 'boolean';
-                                primitiveProps[k] = {
-                                    type: schemaType,
-                                    title: typeof p.title === 'string' ? p.title : undefined,
-                                    description: typeof p.description === 'string' ? p.description : undefined,
-                                    enum: Array.isArray(p.enum) ? (p.enum as string[]) : undefined,
-                                    enumNames: Array.isArray(p.enumNames) ? (p.enumNames as string[]) : undefined,
-                                    minimum: typeof p.minimum === 'number' ? p.minimum : undefined,
-                                    maximum: typeof p.maximum === 'number' ? p.maximum : undefined,
-                                    minLength: typeof p.minLength === 'number' ? p.minLength : undefined,
-                                    maxLength: typeof p.maxLength === 'number' ? p.maxLength : undefined,
-                                    pattern: typeof p.pattern === 'string' ? p.pattern : undefined,
-                                    format: typeof p.format === 'string' ? (p.format as 'email' | 'uri' | 'date' | 'date-time') : undefined,
-                                    default: (typeof p.default === 'string' || typeof p.default === 'number' || typeof p.default === 'boolean') ? p.default : undefined
-                                } as PrimitiveSchema;
-                            }
-                        }
-
-                        if (Object.keys(primitiveProps).length > 0) {
-                            const elicitOptions: Record<string, unknown> = { fallback: async () => ({ ok: false, error: 'missing-params' }) };
-                            if (typeof tools.elicitationTimeoutMs === 'number' && Number.isFinite(tools.elicitationTimeoutMs)) {
-                                elicitOptions.timeoutMs = tools.elicitationTimeoutMs;
-                            }
-                            const elicitRes = await elicitFn(
-                                `Provide missing parameters for ${name}`,
-                                { type: 'object', properties: primitiveProps, required: Object.keys(primitiveProps) },
-                                elicitOptions
-                            );
-                            if (elicitRes && elicitRes.ok && elicitRes.value) {
-                                args = { ...args, ...elicitRes.value };
-                            }
-                        }
-                    }
-                } catch (e) {
-                    const errObj = e as Record<string, unknown> | null;
-                    this.logger.debug('Generic elicitation prefill skipped', { err: errObj?.message ? String(errObj.message) : String(e) });
-                }
+                args = await maybeElicitMissingArgs(
+                    name,
+                    args,
+                    tools.elicit,
+                    this.defaultElicitationTimeoutMs,
+                    this.logger
+                );
 
                 let result = await handleConsolidatedToolCall(name, args, tools);
                 this.logger.debug(`Tool ${name} returned result`);
@@ -626,7 +259,8 @@ export class ToolRegistry {
                 return wrappedResult;
             } catch (error) {
                 this.healthMonitor.trackPerformance(startTime, false);
-                const errorResponse = ErrorHandler.createErrorResponse(error, name, { ...args, scope: `tool-call/${name}` });
+                const normalizedError = error instanceof Error || isRecord(error) ? error : String(error);
+                const errorResponse = ErrorHandler.createErrorResponse(normalizedError, name, { ...args, scope: `tool-call/${name}` });
                 this.logger.error(`Tool execution failed: ${name}`, errorResponse);
                 if (isRecord(errorResponse)) {
                     this.healthMonitor.recordError(errorResponse);
