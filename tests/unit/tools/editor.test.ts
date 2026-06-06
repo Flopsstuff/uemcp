@@ -7,9 +7,8 @@ describe('EditorTools Security', () => {
     let editorTools: EditorTools;
 
     beforeEach(() => {
-        bridge = {
-            executeConsoleCommand: vi.fn().mockResolvedValue({ success: true, message: 'OK' })
-        } as unknown as UnrealBridge;
+        bridge = new UnrealBridge();
+        vi.spyOn(bridge, 'executeConsoleCommand').mockResolvedValue({ success: true, message: 'OK' });
         editorTools = new EditorTools(bridge);
     });
 
@@ -22,13 +21,10 @@ describe('EditorTools Security', () => {
         expect(executeCommandMock).toHaveBeenCalled();
 
         const command = executeCommandMock.mock.calls[0][0];
-        // Expect the command to NOT contain traversal characters
         expect(command).not.toContain('..');
         expect(command).not.toContain('/');
         expect(command).not.toContain('\\');
 
-        // It should have stripped the path and kept only the basename (sanitized)
-        // basename of '../../../../Windows/System32/drivers/etc/hosts' is 'hosts'
         expect(command).toContain('filename="hosts"');
     });
 
@@ -47,7 +43,6 @@ describe('EditorTools Security', () => {
 
         const executeCommandMock = vi.mocked(bridge.executeConsoleCommand);
         const command = executeCommandMock.mock.calls[0][0];
-        // : and ? should be replaced by _
         expect(command).toContain('filename="My_Screenshot_.png"');
     });
 

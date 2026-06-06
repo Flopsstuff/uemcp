@@ -7,24 +7,17 @@ describe('LevelTools Security', () => {
     let levelTools: LevelTools;
 
     beforeEach(() => {
-        bridge = {
-            executeConsoleCommand: vi.fn().mockImplementation((cmd: string) => {
-                // GetLevelPath returns valid path for existing levels
-                if (cmd.startsWith('GetLevelPath')) {
-                    return Promise.resolve({ success: true, message: '/Game/Maps/MyMap' });
-                }
-                return Promise.resolve({ success: true, message: 'OK' });
-            }),
-            sendAutomationRequest: vi.fn().mockRejectedValue(new Error('Automation unavailable')),
-            isConnected: false
-        } as unknown as UnrealBridge;
+        bridge = new UnrealBridge();
+        vi.spyOn(bridge, 'executeConsoleCommand').mockImplementation((cmd: string) => {
+            if (cmd.startsWith('GetLevelPath')) {
+                return Promise.resolve({ success: true, message: '/Game/Maps/MyMap' });
+            }
+            return Promise.resolve({ success: true, message: 'OK' });
+        });
         levelTools = new LevelTools(bridge);
     });
 
     it('should use sanitized path in console fallback for loadLevel', async () => {
-        // Input that needs sanitization/normalization
-        // sanitizePath allows /Game/..., but we want to check if normalizer changes it.
-        // normalizeLevelPath changes backslashes to slashes.
         const rawPath = '\\Game\\Maps\\MyMap';
         const expectedPath = '/Game/Maps/MyMap';
 
@@ -33,9 +26,8 @@ describe('LevelTools Security', () => {
         const executeCommandMock = vi.mocked(bridge.executeConsoleCommand);
         expect(executeCommandMock).toHaveBeenCalled();
 
-        // First call is GetLevelPath validation, second is Open
         const calls = executeCommandMock.mock.calls;
-        const openCall = calls.find((call: string[]) => call[0].startsWith('Open'));
+        const openCall = calls.find((call) => call[0].startsWith('Open'));
         expect(openCall).toBeDefined();
         expect(openCall?.[0]).toBe(`Open ${expectedPath}`);
     });
@@ -43,7 +35,6 @@ describe('LevelTools Security', () => {
     it('should validate level path before falling back to console', async () => {
         const maliciousPath = '../../Secret/Map';
 
-        // sanitizePath should throw on '..'
         await expect(levelTools.loadLevel({ levelPath: maliciousPath }))
             .rejects.toThrow(/Security validation failed/);
 
@@ -52,7 +43,6 @@ describe('LevelTools Security', () => {
     });
 
     it('should return error when level not found via GetLevelPath', async () => {
-        // Override mock to simulate level not found
         vi.mocked(bridge.executeConsoleCommand).mockResolvedValueOnce({
             success: false,
             message: 'Level not found: /Game/Maps/NonExistent'

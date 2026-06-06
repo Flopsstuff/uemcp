@@ -1,5 +1,5 @@
 import { UnrealBridge } from '../unreal-bridge.js';
-import { AutomationBridge } from '../automation/index.js';
+import type { AutomationRequestBridge } from '../types/tool-interfaces.js';
 import { coerceString } from '../utils/result-helpers.js';
 import { isRecord } from '../utils/type-guards.js';
 
@@ -7,9 +7,9 @@ const LIST_LEVELS_ACTION = 'list_levels';
 const BRIDGE_UNAVAILABLE = 'Automation bridge is not available';
 
 export class LevelResources {
-  private automationBridge: AutomationBridge | undefined;
+  private automationBridge: AutomationRequestBridge | undefined;
 
-  constructor(_bridge: UnrealBridge, automationBridge?: AutomationBridge) {
+  constructor(_bridge: UnrealBridge, automationBridge?: AutomationRequestBridge) {
     this.automationBridge = automationBridge;
   }
 
@@ -29,7 +29,8 @@ export class LevelResources {
 
       return { success: false, error: 'Failed to get current level' };
     } catch (err) {
-      return { error: `Failed to get current level: ${this.getErrorMessage(err)}`, success: false };
+      const message = err instanceof Error ? err.message : String(err);
+      return { error: `Failed to get current level: ${message}`, success: false };
     }
   }
 
@@ -50,7 +51,8 @@ export class LevelResources {
 
       return { success: false, error: 'Failed to get level name' };
     } catch (err) {
-      return { error: `Failed to get level name: ${this.getErrorMessage(err)}`, success: false };
+      const message = err instanceof Error ? err.message : String(err);
+      return { error: `Failed to get level name: ${message}`, success: false };
     }
   }
 
@@ -67,7 +69,8 @@ export class LevelResources {
 
       return { success: false, error: 'Failed to save level' };
     } catch (err) {
-      return { error: `Failed to save level: ${this.getErrorMessage(err)}`, success: false };
+      const message = err instanceof Error ? err.message : String(err);
+      return { error: `Failed to save level: ${message}`, success: false };
     }
   }
 
@@ -84,7 +87,4 @@ export class LevelResources {
     return isRecord(response.result) ? response.result : undefined;
   }
 
-  private getErrorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
-  }
 }

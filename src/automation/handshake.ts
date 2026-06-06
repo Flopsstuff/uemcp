@@ -3,6 +3,7 @@ import { Logger } from '../utils/logger.js';
 import { AutomationBridgeMessage } from './types.js';
 import { bridgeAckSchema } from './message-schema.js';
 import { EventEmitter } from 'node:events';
+import type { AutomationSocket } from './connection-manager.js';
 
 export class HandshakeHandler extends EventEmitter {
     private log = new Logger('HandshakeHandler');
@@ -14,7 +15,7 @@ export class HandshakeHandler extends EventEmitter {
         super();
     }
 
-    public initiateHandshake(socket: WebSocket, timeoutMs: number = this.DEFAULT_HANDSHAKE_TIMEOUT_MS): Promise<Record<string, unknown>> {
+    public initiateHandshake(socket: AutomationSocket, timeoutMs: number = this.DEFAULT_HANDSHAKE_TIMEOUT_MS): Promise<Record<string, unknown>> {
         return new Promise((resolve, reject) => {
             let settled = false;
             let helloTimer: NodeJS.Timeout | undefined;
@@ -59,7 +60,7 @@ export class HandshakeHandler extends EventEmitter {
                 try {
                     parsed = JSON.parse(text) as AutomationBridgeMessage;
                 } catch (error) {
-                    this.log.error('Received non-JSON automation message during handshake', error);
+                    this.log.error('Received non-JSON automation message during handshake', error instanceof Error ? error : String(error));
                     rejectHandshake(new Error('Invalid JSON payload'), 4003, 'Invalid JSON payload');
                     return;
                 }

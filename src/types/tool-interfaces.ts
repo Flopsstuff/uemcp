@@ -1,8 +1,17 @@
-import { AutomationBridge } from '../automation/index.js';
+import type { AutomationBridgeStatus } from '../automation/index.js';
 import type { AutomationErrorDetail } from './automation-responses.js';
 
+export interface AutomationRequestBridge {
+    isConnected(): boolean;
+    sendAutomationRequest(action: string, payload: Record<string, unknown>, options?: { timeoutMs?: number; waitForEvent?: boolean; waitForEventTimeoutMs?: number }): Promise<unknown>;
+}
+
+export interface AutomationStatusBridge {
+    getStatus(): AutomationBridgeStatus;
+}
+
 export interface IBaseTool {
-    getAutomationBridge(): AutomationBridge;
+    getAutomationBridge(): AutomationRequestBridge;
 }
 
 export interface StandardActionResponse<T = unknown> {
@@ -29,7 +38,7 @@ export interface ITools {
     assetResources: IAssetResources;
     actorResources?: unknown;
     levelResources?: unknown;
-    automationBridge?: AutomationBridge;
+    automationBridge?: AutomationRequestBridge;
     bridge?: unknown;
     [key: string]: unknown;
 }

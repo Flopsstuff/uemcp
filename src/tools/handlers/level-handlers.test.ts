@@ -4,12 +4,19 @@ import type { ITools } from '../../types/tool-interfaces.js';
 
 function createTools() {
   const sendAutomationRequest = vi.fn(async () => ({ success: true }));
-  const tools = {
+  const tools: ITools = {
+    systemTools: {
+      executeConsoleCommand: vi.fn(async () => ({ success: true })),
+      getProjectSettings: vi.fn(async () => ({}))
+    },
+    assetResources: {
+      list: vi.fn(async () => ({}))
+    },
     automationBridge: {
       isConnected: () => true,
       sendAutomationRequest
     }
-  } as unknown as ITools;
+  };
 
   return { tools, sendAutomationRequest };
 }

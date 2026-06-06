@@ -1,14 +1,23 @@
 import { BaseTool } from './base-tool.js';
 import { StandardActionResponse } from '../types/tool-interfaces.js';
-import { toVec3Object, toRotObject } from '../utils/normalize.js';
-import { DEFAULT_SCREENSHOT_RESOLUTION } from '../constants.js';
 import { EditorResponse } from '../types/automation-responses.js';
-import path from 'node:path';
+import {
+  executeSimpleEditorCommand,
+  executeUserConsoleCommand,
+  setViewportResolutionCommand,
+  stepPIEFrames
+} from './editor-console.js';
+import {
+  CameraLocationInput,
+  CameraRotationInput,
+  getViewportCameraInfo,
+  normalizeViewportCameraInput
+} from './editor-camera.js';
+import { buildScreenshotCommand } from './editor-screenshot.js';
+import { EditorStateStore, RecordingOptions } from './editor-state.js';
 
 export class EditorTools extends BaseTool {
-  private cameraBookmarks = new Map<string, { location: [number, number, number]; rotation: [number, number, number]; savedAt: number }>();
-  private editorPreferences = new Map<string, Record<string, unknown>>();
-  private activeRecording?: { name?: string; options?: Record<string, unknown>; startedAt: number };
+  private editorState = new EditorStateStore();
 
   async isInPIE(): Promise<boolean> {
     try {
@@ -23,7 +32,10 @@ export class EditorTools extends BaseTool {
       }
 
       return false;
-    } catch {
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
       return false;
     }
   }
@@ -61,7 +73,8 @@ export class EditorTools extends BaseTool {
         return { success: true, message: 'PIE start command sent' };
       }
     } catch (err) {
-      return { success: false, error: `Failed to start PIE: ${err}` };
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: `Failed to start PIE: ${message}` };
     }
   }
 
@@ -86,23 +99,20 @@ export class EditorTools extends BaseTool {
           error: response.error || response.message || 'Failed to stop PIE'
         };
       } catch (_pluginErr) {
-        // Fallback to console command if plugin fails
+        if (!(_pluginErr instanceof Error)) {
+          throw _pluginErr;
+        }
         await this.bridge.executeConsoleCommand('stop');
         return { success: true, message: 'PIE stopped via console command' };
       }
     } catch (err) {
-      return { success: false, error: `Failed to stop PIE: ${err}` };
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: `Failed to stop PIE: ${message}` };
     }
   }
 
   async pausePlayInEditor(): Promise<StandardActionResponse> {
-    try {
-      // Pause/Resume PIE
-      await this.bridge.executeConsoleCommand('pause');
-      return { success: true, message: 'PIE paused/resumed' };
-    } catch (err) {
-      return { success: false, error: `Failed to pause PIE: ${err}` };
-    }
+    return executeSimpleEditorCommand(this.bridge, 'pause', 'PIE paused/resumed', 'Failed to pause PIE');
   }
 
   // Alias for consistency with naming convention
@@ -111,13 +121,7 @@ export class EditorTools extends BaseTool {
   }
 
   async buildLighting(): Promise<StandardActionResponse> {
-    try {
-      // Use console command to build lighting
-      await this.bridge.executeConsoleCommand('BuildLighting');
-      return { success: true, message: 'Lighting build started' };
-    } catch (err) {
-      return { success: false, error: `Failed to build lighting: ${err}` };
-    }
+    return executeSimpleEditorCommand(this.bridge, 'BuildLighting', 'Lighting build started', 'Failed to build lighting');
   }
 
   private async getViewportCameraInfo(): Promise<{
@@ -127,305 +131,104 @@ export class EditorTools extends BaseTool {
     error?: string;
     message?: string;
   }> {
-    try {
-      const resp = await this.sendAutomationRequest<EditorResponse>(
-        'control_editor',
-        { action: 'get_camera' },
-        { timeoutMs: 3000 }
-      );
-      const result = (resp?.result ?? resp) as Record<string, unknown>;
-      const loc = result?.location ?? (result.camera as Record<string, unknown> | undefined)?.location;
-      const rot = result?.rotation ?? (result.camera as Record<string, unknown> | undefined)?.rotation;
-      const locArr: [number, number, number] | undefined = Array.isArray(loc) && loc.length === 3 ? [Number(loc[0]) || 0, Number(loc[1]) || 0, Number(loc[2]) || 0] : undefined;
-      const rotArr: [number, number, number] | undefined = Array.isArray(rot) && rot.length === 3 ? [Number(rot[0]) || 0, Number(rot[1]) || 0, Number(rot[2]) || 0] : undefined;
-      if (resp && resp.success !== false && locArr && rotArr) {
-        return { success: true, location: locArr, rotation: rotArr };
-      }
-      return { success: false, error: 'Failed to get camera information' };
-    } catch (err) {
-      return { success: false, error: `Camera query failed: ${err}` };
-    }
+    return getViewportCameraInfo((action, params, options) =>
+      this.sendAutomationRequest<EditorResponse>(action, params, options)
+    );
   }
 
-  async setViewportCamera(location?: { x: number; y: number; z: number } | [number, number, number] | null | undefined, rotation?: { pitch: number; yaw: number; roll: number } | [number, number, number] | null | undefined): Promise<StandardActionResponse> {
-    // Special handling for when both location and rotation are missing/invalid
-    // Allow rotation-only updates
-    if (location === null) {
-      // Explicit null is not allowed for location
-      throw new Error('Invalid location: null is not allowed');
-    }
-    if (location !== undefined) {
-      const locObj = toVec3Object(location);
-      if (!locObj) {
-        throw new Error('Invalid location: must be {x,y,z} or [x,y,z]');
-      }
-      // Clamp extreme values to reasonable limits for Unreal Engine
-      const MAX_COORD = 1000000; // 1 million units is a reasonable max for UE
-      locObj.x = Math.max(-MAX_COORD, Math.min(MAX_COORD, locObj.x));
-      locObj.y = Math.max(-MAX_COORD, Math.min(MAX_COORD, locObj.y));
-      locObj.z = Math.max(-MAX_COORD, Math.min(MAX_COORD, locObj.z));
-      location = locObj as { x: number; y: number; z: number };
-    }
-
-    // Validate rotation if provided
-    if (rotation !== undefined) {
-      if (rotation === null) {
-        throw new Error('Invalid rotation: null is not allowed');
-      }
-      const rotObj = toRotObject(rotation);
-      if (!rotObj) {
-        throw new Error('Invalid rotation: must be {pitch,yaw,roll} or [pitch,yaw,roll]');
-      }
-      // Normalize rotation values to 0-360 range
-      rotObj.pitch = ((rotObj.pitch % 360) + 360) % 360;
-      rotObj.yaw = ((rotObj.yaw % 360) + 360) % 360;
-      rotObj.roll = ((rotObj.roll % 360) + 360) % 360;
-      rotation = rotObj as { pitch: number; yaw: number; roll: number };
-    }
+  async setViewportCamera(location?: CameraLocationInput | null | undefined, rotation?: CameraRotationInput | null | undefined): Promise<StandardActionResponse> {
+    const normalizedCamera = normalizeViewportCameraInput(location, rotation);
 
     // Use native control_editor.set_camera when available
     try {
       const resp = await this.sendAutomationRequest<EditorResponse>('control_editor', {
         action: 'set_camera',
-        location: location,
-        rotation: rotation
+        location: normalizedCamera.location,
+        rotation: normalizedCamera.rotation
       }, { timeoutMs: 10000 });
       if (resp && resp.success === true) {
-        return { success: true, message: resp.message || 'Camera set', location, rotation };
+        return {
+          success: true,
+          message: resp.message || 'Camera set',
+          location: normalizedCamera.location,
+          rotation: normalizedCamera.rotation
+        };
       }
       return { success: false, error: resp?.error || resp?.message || 'Failed to set camera' };
     } catch (err) {
-      return { success: false, error: `Camera control failed: ${err}` };
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: `Camera control failed: ${message}` };
     }
   }
 
   async setCameraSpeed(speed: number): Promise<StandardActionResponse> {
-    try {
-      await this.bridge.executeConsoleCommand(`camspeed ${speed}`);
-      return { success: true, message: `Camera speed set to ${speed}` };
-    } catch (err) {
-      return { success: false, error: `Failed to set camera speed: ${err}` };
-    }
+    return executeSimpleEditorCommand(this.bridge, `camspeed ${speed}`, `Camera speed set to ${speed}`, 'Failed to set camera speed');
   }
 
   async setFOV(fov: number): Promise<StandardActionResponse> {
-    try {
-      await this.bridge.executeConsoleCommand(`fov ${fov}`);
-      return { success: true, message: `FOV set to ${fov}` };
-    } catch (err) {
-      return { success: false, error: `Failed to set FOV: ${err}` };
-    }
+    return executeSimpleEditorCommand(this.bridge, `fov ${fov}`, `FOV set to ${fov}`, 'Failed to set FOV');
   }
 
   async takeScreenshot(filename?: string, resolution?: string): Promise<StandardActionResponse> {
     try {
-      if (resolution && !/^\d+x\d+$/.test(resolution)) {
-        return { success: false, error: 'Invalid resolution format. Use WxH (e.g. 1920x1080)' };
-      }
+      const screenshot = buildScreenshotCommand(filename, resolution);
+      if (!screenshot.valid) return { success: false, error: screenshot.error };
 
-      // Security: Prevent path traversal by replacing directory separators and invalid chars
-      // We use path.basename to strip any directory components, then sanitize the filename
-      // usage of new RegExp to avoid eslint no-useless-escape on forward slash in literal
-      const invalidChars = new RegExp('[<>:*?"|/\\\\]', 'g');
-      const fallbackFilename = `Screenshot_${Date.now()}`;
-      const requestedFilename = filename ? path.basename(filename).replace(invalidChars, '_').trim() : '';
-      const sanitizedFilename = requestedFilename || fallbackFilename;
-
-      const resString = resolution || DEFAULT_SCREENSHOT_RESOLUTION;
-      const command = filename ? `highresshot ${resString} filename="${sanitizedFilename}"` : 'shot';
-
-      await this.bridge.executeConsoleCommand(command);
+      await this.bridge.executeConsoleCommand(screenshot.command);
 
       return {
         success: true,
-        message: `Screenshot captured: ${sanitizedFilename}`,
-        filename: sanitizedFilename,
-        command
+        message: `Screenshot captured: ${screenshot.filename}`,
+        filename: screenshot.filename,
+        command: screenshot.command
       };
     } catch (err) {
-      return { success: false, error: `Failed to take screenshot: ${err}` };
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: `Failed to take screenshot: ${message}` };
     }
   }
 
   async resumePlayInEditor(): Promise<StandardActionResponse> {
-    try {
-      // Use console command to toggle pause (resumes if paused)
-      await this.bridge.executeConsoleCommand('pause');
-      return {
-        success: true,
-        message: 'PIE resume toggled via pause command'
-      };
-    } catch (err) {
-      return { success: false, error: `Failed to resume PIE: ${err}` };
-    }
+    return executeSimpleEditorCommand(this.bridge, 'pause', 'PIE resume toggled via pause command', 'Failed to resume PIE');
   }
 
   async stepPIEFrame(steps: number = 1): Promise<StandardActionResponse> {
-    const clampedSteps = Number.isFinite(steps) ? Math.max(1, Math.floor(steps)) : 1;
-    try {
-      // Use console command to step frames
-      for (let index = 0; index < clampedSteps; index += 1) {
-        await this.bridge.executeConsoleCommand('Step=1');
-      }
-      return {
-        success: true,
-        message: `Advanced PIE by ${clampedSteps} frame(s)`,
-        steps: clampedSteps
-      };
-    } catch (err) {
-      return { success: false, error: `Failed to step PIE: ${err}` };
-    }
+    return stepPIEFrames(this.bridge, steps);
   }
 
-  async startRecording(options?: { filename?: string; frameRate?: number; durationSeconds?: number; metadata?: Record<string, unknown> }): Promise<StandardActionResponse> {
-    const startedAt = Date.now();
-    this.activeRecording = {
-      name: typeof options?.filename === 'string' ? options.filename.trim() : undefined,
-      options: options ? { ...options } : undefined,
-      startedAt
-    };
-
-    return {
-      success: true as const,
-      message: 'Recording session started',
-      recording: {
-        name: this.activeRecording.name,
-        startedAt,
-        options: this.activeRecording.options
-      }
-    };
+  async startRecording(options?: RecordingOptions): Promise<StandardActionResponse> {
+    return this.editorState.startRecording(options);
   }
 
   async stopRecording(): Promise<StandardActionResponse> {
-    if (!this.activeRecording) {
-      return {
-        success: true as const,
-        message: 'No active recording session to stop'
-      };
-    }
-
-    const stoppedRecording = this.activeRecording;
-    this.activeRecording = undefined;
-
-    return {
-      success: true as const,
-      message: 'Recording session stopped',
-      recording: stoppedRecording
-    };
+    return this.editorState.stopRecording();
   }
 
   async createCameraBookmark(name: string): Promise<StandardActionResponse> {
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      return { success: false as const, error: 'bookmarkName is required' };
-    }
-
-    const cameraInfo = await this.getViewportCameraInfo();
-    if (!cameraInfo.success || !cameraInfo.location || !cameraInfo.rotation) {
-      return {
-        success: false as const,
-        error: cameraInfo.error || 'Failed to capture viewport camera'
-      };
-    }
-
-    this.cameraBookmarks.set(trimmedName, {
-      location: cameraInfo.location,
-      rotation: cameraInfo.rotation,
-      savedAt: Date.now()
-    });
-
-    return {
-      success: true as const,
-      message: `Bookmark '${trimmedName}' saved`,
-      bookmark: {
-        name: trimmedName,
-        location: cameraInfo.location,
-        rotation: cameraInfo.rotation
-      }
-    };
+    return this.editorState.createCameraBookmark(name, await this.getViewportCameraInfo());
   }
 
   async jumpToCameraBookmark(name: string): Promise<StandardActionResponse> {
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      return { success: false as const, error: 'bookmarkName is required' };
-    }
-
-    const bookmark = this.cameraBookmarks.get(trimmedName);
-    if (!bookmark) {
-      return {
-        success: false as const,
-        error: `Bookmark '${trimmedName}' not found`
-      };
-    }
+    const lookup = this.editorState.getCameraBookmark(name);
+    if (!lookup.success) return lookup.response;
 
     await this.setViewportCamera(
-      { x: bookmark.location[0], y: bookmark.location[1], z: bookmark.location[2] },
-      { pitch: bookmark.rotation[0], yaw: bookmark.rotation[1], roll: bookmark.rotation[2] }
+      { x: lookup.bookmark.location[0], y: lookup.bookmark.location[1], z: lookup.bookmark.location[2] },
+      { pitch: lookup.bookmark.rotation[0], yaw: lookup.bookmark.rotation[1], roll: lookup.bookmark.rotation[2] }
     );
 
-    return {
-      success: true as const,
-      message: `Jumped to bookmark '${trimmedName}'`
-    };
+    return this.editorState.createJumpResponse(lookup.name);
   }
 
   async setEditorPreferences(category: string | undefined, preferences: Record<string, unknown>): Promise<StandardActionResponse> {
-    const resolvedCategory = typeof category === 'string' && category.trim().length > 0 ? category.trim() : 'General';
-    const existing = this.editorPreferences.get(resolvedCategory) ?? {};
-    this.editorPreferences.set(resolvedCategory, { ...existing, ...preferences });
-
-    return {
-      success: true as const,
-      message: `Preferences stored for ${resolvedCategory}`,
-      preferences: this.editorPreferences.get(resolvedCategory)
-    };
+    return this.editorState.setEditorPreferences(category, preferences);
   }
 
   async setViewportResolution(width: number, height: number): Promise<StandardActionResponse> {
-    try {
-      // Clamp to reasonable limits
-      const clampedWidth = Math.max(320, Math.min(7680, width));
-      const clampedHeight = Math.max(240, Math.min(4320, height));
-
-      // Use console command directly instead of Python
-      const command = `r.SetRes ${clampedWidth}x${clampedHeight}`;
-      await this.bridge.executeConsoleCommand(command);
-
-      return {
-        success: true,
-        message: `Viewport resolution set to ${clampedWidth}x${clampedHeight}`,
-        width: clampedWidth,
-        height: clampedHeight
-      };
-    } catch (err) {
-      return { success: false, error: `Failed to set viewport resolution: ${err}` };
-    }
+    return setViewportResolutionCommand(this.bridge, width, height);
   }
 
   async executeConsoleCommand(command: string): Promise<StandardActionResponse> {
-    try {
-      // Sanitize and validate command
-      if (!command || typeof command !== 'string') {
-        return { success: false, error: 'Invalid command: must be a non-empty string' };
-      }
-
-      if (command.length > 1000) {
-        return {
-          success: false,
-          error: `Command too long (${command.length} chars). Maximum is 1000 characters.`
-        };
-      }
-
-      const res = await this.bridge.executeConsoleCommand(command);
-
-      return {
-        success: true,
-        message: `Console command executed: ${command}`,
-        output: res
-      };
-    } catch (err) {
-      return { success: false, error: `Failed to execute console command: ${err}` };
-    }
+    return executeUserConsoleCommand(this.bridge, command);
   }
 }

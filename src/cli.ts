@@ -34,11 +34,11 @@ function isResolvableSourceError(error: unknown): boolean {
         await startFromModule(await import(tsModuleSpecifier), 'index.ts');
         return;
       } catch (err2) {
-        log.error('Failed to start server (fallback to TypeScript failed):', err2);
+        log.error('Failed to start server (fallback to TypeScript failed):', err2 instanceof Error ? err2 : String(err2));
         process.exit(1);
       }
     }
-    log.error('Failed to start server:', err);
+    log.error('Failed to start server:', err instanceof Error ? err : String(err));
     process.exit(1);
   }
 })();

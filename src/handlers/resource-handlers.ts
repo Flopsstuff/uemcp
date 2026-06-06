@@ -1,10 +1,15 @@
 import { ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { UnrealBridge } from '../unreal-bridge.js';
-import { AutomationBridge } from '../automation/index.js';
 import { AssetResources } from '../resources/assets.js';
 import { ActorResources } from '../resources/actors.js';
 import { LevelResources } from '../resources/levels.js';
 import { HealthMonitor } from '../services/health-monitor.js';
+import type { AutomationStatusBridge } from '../types/tool-interfaces.js';
+
+interface ResourceBridge {
+  readonly isConnected: boolean;
+  getEngineVersion(): Promise<unknown>;
+  getFeatureFlags(): Promise<unknown>;
+}
 
 export type ResourceServer = {
   setRequestHandler(
@@ -45,8 +50,8 @@ function objectDetails(value: unknown): Record<string, unknown> {
 export class ResourceHandler {
   constructor(
     private server: ResourceServer,
-    private bridge: UnrealBridge,
-    private automationBridge: AutomationBridge,
+    private bridge: ResourceBridge,
+    private automationBridge: AutomationStatusBridge,
     private assetResources: AssetResources,
     private actorResources: ActorResources,
     private levelResources: LevelResources,

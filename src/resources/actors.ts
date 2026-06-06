@@ -1,5 +1,5 @@
 import { UnrealBridge } from '../unreal-bridge.js';
-import { AutomationBridge } from '../automation/index.js';
+import type { AutomationRequestBridge } from '../types/tool-interfaces.js';
 import { coerceNumber, coerceString } from '../utils/result-helpers.js';
 
 interface CacheEntry {
@@ -11,7 +11,7 @@ export class ActorResources {
   private cache = new Map<string, CacheEntry>();
   private readonly CACHE_TTL_MS = 5000; // 5 seconds cache for actors (they change more frequently)
 
-  constructor(private bridge: UnrealBridge, private automationBridge?: AutomationBridge) {}
+  constructor(private bridge: UnrealBridge, private automationBridge?: AutomationRequestBridge) {}
 
   private isAutomationBridgeAvailable(): boolean {
     return Boolean(this.automationBridge && typeof this.automationBridge.sendAutomationRequest === 'function');
@@ -64,7 +64,8 @@ export class ActorResources {
 
       return { success: false, error: 'Failed to retrieve actor list from automation bridge' };
     } catch (err) {
-      return { success: false, error: `Failed to list actors: ${err}` };
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: `Failed to list actors: ${message}` };
     }
   }
 
@@ -94,7 +95,8 @@ export class ActorResources {
         error: `Actor not found: ${actorName}`
       };
     } catch (err) {
-      return { success: false, error: `Failed to get actor: ${err}` };
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: `Failed to get actor: ${message}` };
     }
   }
 
@@ -105,7 +107,8 @@ export class ActorResources {
         propertyName: 'ActorTransform'
       });
     } catch (err) {
-      return { error: `Failed to get transform: ${err}` };
+      const message = err instanceof Error ? err.message : String(err);
+      return { error: `Failed to get transform: ${message}` };
     }
   }
 
@@ -133,9 +136,10 @@ export class ActorResources {
         error: `Failed to resolve components for ${actorPath}`
       };
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       return {
         success: false as const,
-        error: `Component lookup failed: ${err}`
+        error: `Component lookup failed: ${message}`
       };
     }
   }

@@ -1,4 +1,3 @@
-import { UnrealBridge } from '../unreal-bridge.js';
 import { Logger } from '../utils/logger.js';
 
 export interface PerformanceMetrics {
@@ -11,6 +10,11 @@ export interface PerformanceMetrics {
   lastHealthCheck: Date;
   uptime: number;
   recentErrors: Array<{ time: string; scope: string; type: string; message: string; retriable: boolean }>;
+}
+
+interface HealthCheckBridge {
+  readonly isConnected: boolean;
+  executeConsoleCommand(command: string): Promise<unknown>;
 }
 
 const RESPONSE_TIME_SAMPLE_LIMIT = 100;
@@ -80,11 +84,11 @@ export class HealthMonitor {
       });
       if (this.metrics.recentErrors.length > RECENT_ERROR_LIMIT) this.metrics.recentErrors.splice(0, this.metrics.recentErrors.length - RECENT_ERROR_LIMIT);
     } catch (error) {
-      this.logger.debug('Failed to record health monitor error response', error);
+      this.logger.debug('Failed to record health monitor error response', error instanceof Error ? error : String(error));
     }
   }
 
-  async performHealthCheck(bridge: UnrealBridge): Promise<boolean> {
+  async performHealthCheck(bridge: HealthCheckBridge): Promise<boolean> {
     // If not connected, do not attempt any ping (stay quiet)
     if (!bridge.isConnected) {
       this.markDisconnected();
@@ -100,13 +104,12 @@ export class HealthMonitor {
     } catch (err1) {
       this.metrics.connectionStatus = 'error';
       this.metrics.lastHealthCheck = new Date();
-      // Avoid noisy warnings when engine may be shutting down; log at debug
-      this.logger.debug('Health check failed (console):', err1);
+      this.logger.debug('Health check failed (console):', err1 instanceof Error ? err1 : String(err1));
       return false;
     }
   }
 
-  startHealthChecks(bridge: UnrealBridge) {
+  startHealthChecks(bridge: HealthCheckBridge) {
     if (this.healthCheckTimer) return;
     this.lastHealthSuccessAt = Date.now();
     this.healthCheckTimer = setInterval(async () => {

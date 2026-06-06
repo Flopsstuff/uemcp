@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AutomationBridge } from '../../automation/index.js';
 import type { ITools } from '../../types/tool-interfaces.js';
 import { createSubActionDispatcher, executeAutomationRequest, getTimeoutMs, normalizePathFields, validateSecurityPatterns } from './common-handlers.js';
 
@@ -24,7 +23,7 @@ function createConnectedTools() {
     automationBridge: {
       isConnected: () => true,
       sendAutomationRequest
-    } as unknown as AutomationBridge
+    }
   };
 
   return { tools, sendAutomationRequest };

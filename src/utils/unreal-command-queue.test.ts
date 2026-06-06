@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { UnrealCommandQueue } from './unreal-command-queue.js';
+import {
+  UnrealCommandQueue,
+  UnrealCommandQueueStoppedError,
+} from './unreal-command-queue.js';
 
 interface Deferred<T> {
   promise: Promise<T>;
@@ -107,5 +110,23 @@ describe('UnrealCommandQueue', () => {
     await expect(third).resolves.toBe('third');
     await expect(first).resolves.toBe('first');
     expect(startedAt).toEqual([0, 300, 600]);
+  });
+
+  it('does not retry an active command after the queue is stopped', async () => {
+    const releaseFailure = deferred<void>();
+    const command = vi.fn(async () => {
+      await releaseFailure.promise;
+      throw new Error('Automation bridge not connected');
+    });
+
+    const result = queue.execute(command, 8);
+    queue.stopProcessor();
+    releaseFailure.resolve();
+
+    await expect(result).rejects.toBeInstanceOf(
+      UnrealCommandQueueStoppedError,
+    );
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(command).toHaveBeenCalledTimes(1);
   });
 });

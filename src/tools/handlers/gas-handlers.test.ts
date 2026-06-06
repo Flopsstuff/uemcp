@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AutomationBridge } from '../../automation/index.js';
 import type { ITools } from '../../types/tool-interfaces.js';
 import { handleGASTools } from './gas-handlers.js';
 
@@ -20,7 +19,7 @@ function createConnectedTools(result: Record<string, unknown> = { success: true 
     automationBridge: {
       isConnected: () => true,
       sendAutomationRequest
-    } as unknown as AutomationBridge
+    }
   };
 
   return { tools, sendAutomationRequest };

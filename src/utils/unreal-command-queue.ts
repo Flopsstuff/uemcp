@@ -8,6 +8,13 @@ export interface CommandQueueItem<T = unknown> {
   retryCount?: number;
 }
 
+export class UnrealCommandQueueStoppedError extends Error {
+  constructor() {
+    super('Unreal command queue stopped');
+    this.name = 'UnrealCommandQueueStoppedError';
+  }
+}
+
 export class UnrealCommandQueue {
   private log = new Logger('UnrealCommandQueue');
   private queue: CommandQueueItem[] = [];
@@ -15,6 +22,7 @@ export class UnrealCommandQueue {
   private lastCommandTime = 0;
   private lastStatCommandTime = 0;
   private processorInterval?: ReturnType<typeof setInterval>;
+  private stopped = false;
 
   // Config
   private readonly MIN_COMMAND_DELAY = 100;
@@ -29,6 +37,10 @@ export class UnrealCommandQueue {
    * Execute a command with priority-based throttling
    */
   async execute<T>(command: () => Promise<T>, priority: number = 5): Promise<T> {
+    if (this.stopped) {
+      throw new UnrealCommandQueueStoppedError();
+    }
+
     return new Promise((resolve, reject) => {
       const item: CommandQueueItem = {
         command: command as () => Promise<unknown>,
@@ -66,15 +78,23 @@ export class UnrealCommandQueue {
           await this.delay(requiredDelay - timeSinceLastCommand);
         }
 
+        if (this.stopped) {
+          item.reject(new UnrealCommandQueueStoppedError());
+          continue;
+        }
+
         this.recordCommandStart(item.priority);
 
         try {
           const result = await item.command();
           item.resolve(result);
         } catch (error: unknown) {
-          // Enhanced retry policy
-          const errObj = error as Record<string, unknown> | null;
-          const msgRaw = errObj?.message ?? String(error);
+          if (this.stopped) {
+            item.reject(new UnrealCommandQueueStoppedError());
+            continue;
+          }
+
+          const msgRaw = error instanceof Error ? error.message : String(error);
           const msg = String(msgRaw).toLowerCase();
           if (item.retryCount === undefined) item.retryCount = 0;
 
@@ -181,9 +201,15 @@ export class UnrealCommandQueue {
    * Should be called during shutdown to allow clean process exit.
    */
   stopProcessor(): void {
+    this.stopped = true;
     if (this.processorInterval) {
       clearInterval(this.processorInterval);
       this.processorInterval = undefined;
+    }
+
+    const stoppedError = new UnrealCommandQueueStoppedError();
+    for (const item of this.queue.splice(0)) {
+      item.reject(stoppedError);
     }
   }
 

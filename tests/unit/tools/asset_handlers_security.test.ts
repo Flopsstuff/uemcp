@@ -1,14 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { handleAssetTools } from '../../../src/tools/handlers/asset-handlers';
+import type { ITools } from '../../../src/types/tool-interfaces';
+
+type SendAutomationRequest = (
+    action: string,
+    payload: Record<string, unknown>,
+    options?: { timeoutMs?: number }
+) => Promise<Record<string, unknown>>;
 
 describe('Asset Handlers Security', () => {
-    let mockTools: any;
+    let mockTools: ITools;
+    let sendAutomationRequest: ReturnType<typeof vi.fn<SendAutomationRequest>>;
 
     beforeEach(() => {
+        sendAutomationRequest = vi.fn<SendAutomationRequest>(async () => ({ success: true }));
         mockTools = {
+            systemTools: {
+                executeConsoleCommand: vi.fn(async () => ({ success: true })),
+                getProjectSettings: vi.fn(async () => ({}))
+            },
+            assetResources: {
+                list: vi.fn(async () => ({}))
+            },
             automationBridge: {
                 isConnected: vi.fn().mockReturnValue(true),
-                sendAutomationRequest: vi.fn().mockResolvedValue({ success: true }),
+                sendAutomationRequest,
             },
             assetTools: {
                 createFolder: vi.fn(),
@@ -42,7 +58,7 @@ describe('Asset Handlers Security', () => {
         expect(result.success).toBe(false);
         expect(result.message).toMatch(/Path traversal/);
 
-        expect(mockTools.automationBridge.sendAutomationRequest).not.toHaveBeenCalled();
+        expect(sendAutomationRequest).not.toHaveBeenCalled();
     });
 
     it('should default path to /Game if not provided or empty', async () => {
@@ -50,9 +66,9 @@ describe('Asset Handlers Security', () => {
 
         await handleAssetTools('list', args, mockTools);
 
-        const lastCall = mockTools.automationBridge.sendAutomationRequest.mock.lastCall;
-        expect(lastCall[0]).toBe('list');
-        expect(lastCall[1].path).toBe('/Game');
+        const lastCall = sendAutomationRequest.mock.lastCall;
+        expect(lastCall?.[0]).toBe('list');
+        expect(lastCall?.[1].path).toBe('/Game');
     });
 
     it('should sanitize path by ensuring root prefix', async () => {
@@ -62,8 +78,8 @@ describe('Asset Handlers Security', () => {
 
         await handleAssetTools('list', args, mockTools);
 
-        const lastCall = mockTools.automationBridge.sendAutomationRequest.mock.lastCall;
-        expect(lastCall[1].path).toBe('/Game/MyFolder');
+        const lastCall = sendAutomationRequest.mock.lastCall;
+        expect(lastCall?.[1].path).toBe('/Game/MyFolder');
     });
 
     it('should not wrap nested render target failures as success', async () => {
@@ -75,7 +91,7 @@ describe('Asset Handlers Security', () => {
                 message: 'Failed to create render target'
             }
         };
-        mockTools.automationBridge.sendAutomationRequest.mockResolvedValueOnce(bridgeResponse);
+        sendAutomationRequest.mockResolvedValueOnce(bridgeResponse);
 
         const result = await handleAssetTools('create_render_target', {
             name: 'RT_FailureRegression',
@@ -92,6 +108,139 @@ describe('Asset Handlers Security', () => {
             error: 'TEXTURE_ERROR',
             message: 'Failed to create render target',
             result: bridgeResponse.result
+        });
+    });
+
+    it('should route get_metadata through manage_asset and normalize metadata', async () => {
+        sendAutomationRequest.mockResolvedValueOnce({
+            success: true,
+            tags: { category: 'environment' },
+            metadata: { owner: 'qa' }
+        });
+
+        const result = await handleAssetTools('get_metadata', {
+            assetPath: '/Game/Props/SM_Crate'
+        }, mockTools);
+
+        expect(sendAutomationRequest).toHaveBeenCalledWith('manage_asset', {
+            assetPath: '/Game/Props/SM_Crate',
+            subAction: 'get_metadata'
+        }, {});
+        expect(result).toMatchObject({
+            success: true,
+            message: 'Metadata retrieved (2 items)',
+            data: {
+                message: 'Metadata retrieved (2 items)',
+                tags: { category: 'environment' },
+                metadata: { owner: 'qa' }
+            }
+        });
+    });
+
+    it('should reject traversal paths in delete asset arrays', async () => {
+        const result = await handleAssetTools('delete', {
+            assetPaths: ['../../Secret/Asset']
+        }, mockTools);
+
+        expect(result).toMatchObject({
+            success: false,
+            error: 'SECURITY_VIOLATION'
+        });
+        expect(sendAutomationRequest).not.toHaveBeenCalled();
+    });
+
+    it('should forward the caller timeout for destructive asset deletion', async () => {
+        await handleAssetTools('delete', {
+            path: '/Game/MCPTests/SlowBlueprintCluster',
+            timeoutMs: 60000
+        }, mockTools);
+
+        expect(sendAutomationRequest).toHaveBeenCalledWith('manage_asset', {
+            paths: ['/Game/MCPTests/SlowBlueprintCluster'],
+            subAction: 'delete'
+        }, {
+            timeoutMs: 60000
+        });
+    });
+
+    it('should reject traversal paths in bulk_delete asset arrays', async () => {
+        const result = await handleAssetTools('bulk_delete', {
+            assetPaths: ['../../Secret/Asset']
+        }, mockTools);
+
+        expect(result).toMatchObject({
+            success: false,
+            error: 'SECURITY_VIOLATION'
+        });
+        expect(sendAutomationRequest).not.toHaveBeenCalled();
+    });
+
+    it('should reject traversal paths in bulk_delete folder path', async () => {
+        const result = await handleAssetTools('bulk_delete', {
+            folderPath: '../../Secret'
+        }, mockTools);
+
+        expect(result).toMatchObject({
+            success: false,
+            error: 'SECURITY_VIOLATION'
+        });
+        expect(sendAutomationRequest).not.toHaveBeenCalled();
+    });
+
+    it('should not wrap create_folder automation failures as success', async () => {
+        sendAutomationRequest.mockResolvedValueOnce({
+            success: false,
+            error: 'DENIED',
+            message: 'Folder write denied'
+        });
+
+        const result = await handleAssetTools('create_folder', {
+            path: '/Game/Locked'
+        }, mockTools);
+
+        expect(result).toMatchObject({
+            success: false,
+            error: 'DENIED',
+            message: 'Folder write denied',
+            path: '/Game/Locked'
+        });
+    });
+
+    it('should not wrap get_metadata automation failures as success', async () => {
+        sendAutomationRequest.mockResolvedValueOnce({
+            success: false,
+            error: 'DENIED',
+            message: 'Metadata read denied'
+        });
+
+        const result = await handleAssetTools('get_metadata', {
+            assetPath: '/Game/Locked'
+        }, mockTools);
+
+        expect(result).toMatchObject({
+            success: false,
+            error: 'DENIED',
+            message: 'Metadata read denied',
+            assetPath: '/Game/Locked'
+        });
+    });
+
+    it('should not wrap bulk_delete automation failures as success', async () => {
+        sendAutomationRequest.mockResolvedValueOnce({
+            success: false,
+            error: 'DENIED',
+            message: 'Bulk delete denied'
+        });
+
+        const result = await handleAssetTools('bulk_delete', {
+            assetPaths: ['/Game/Locked']
+        }, mockTools);
+
+        expect(result).toMatchObject({
+            success: false,
+            error: 'DENIED',
+            message: 'Bulk delete denied',
+            assetPaths: ['/Game/Locked']
         });
     });
 });

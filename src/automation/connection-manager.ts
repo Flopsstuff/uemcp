@@ -6,13 +6,30 @@ import { EventEmitter } from 'node:events';
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 
+type AutomationSocketListener =
+    | (() => void)
+    | ((data: Buffer | string) => void)
+    | ((error: Error) => void);
+
+export interface AutomationSocket {
+    readonly protocol: string;
+    readonly readyState: number;
+    ping(): void;
+    send(data: string): void;
+    close(code?: number, data?: string): void;
+    removeAllListeners(): this;
+    on(eventName: string | symbol, listener: AutomationSocketListener): this;
+    once(eventName: string | symbol, listener: AutomationSocketListener): this;
+    off(eventName: string | symbol, listener: AutomationSocketListener): this;
+}
+
 export class ConnectionManager extends EventEmitter {
-    private activeSockets = new Map<WebSocket, SocketInfo>();
-    private primarySocket?: WebSocket;
+    private activeSockets = new Map<AutomationSocket, SocketInfo>();
+    private primarySocket?: AutomationSocket;
     private heartbeatTimer?: NodeJS.Timeout;
     private lastMessageAt?: Date;
     private log = new Logger('ConnectionManager');
-    private rateLimitState = new Map<WebSocket, { windowStartMs: number; messageCount: number; automationCount: number }>();
+    private rateLimitState = new Map<AutomationSocket, { windowStartMs: number; messageCount: number; automationCount: number }>();
 
     constructor(
         private heartbeatIntervalMs: number,
@@ -31,7 +48,7 @@ export class ConnectionManager extends EventEmitter {
     }
 
     public registerSocket(
-        socket: WebSocket,
+        socket: AutomationSocket,
         port: number,
         metadata?: Record<string, unknown>,
         remoteAddress?: string,
@@ -67,13 +84,13 @@ export class ConnectionManager extends EventEmitter {
             this.removeSocket(socket);
         });
 
-        socket.once('error', (error) => {
+        socket.once('error', (error: Error) => {
             this.log.error('Socket error in ConnectionManager', error);
             this.removeSocket(socket);
         });
     }
 
-    public removeSocket(socket: WebSocket): SocketInfo | undefined {
+    public removeSocket(socket: AutomationSocket): SocketInfo | undefined {
         const info = this.activeSockets.get(socket);
         if (info) {
             this.activeSockets.delete(socket);
@@ -88,7 +105,7 @@ export class ConnectionManager extends EventEmitter {
         return info;
     }
 
-    public recordInboundMessage(socket: WebSocket, isAutomationRequest: boolean): boolean {
+    public recordInboundMessage(socket: AutomationSocket, isAutomationRequest: boolean): boolean {
         if (!this.activeSockets.has(socket)) {
             this.rateLimitState.delete(socket);
             return false;
@@ -129,11 +146,11 @@ export class ConnectionManager extends EventEmitter {
         return true;
     }
 
-    public getActiveSockets(): Map<WebSocket, SocketInfo> {
+    public getActiveSockets(): Map<AutomationSocket, SocketInfo> {
         return this.activeSockets;
     }
 
-    public getPrimarySocket(): WebSocket | undefined {
+    public getPrimarySocket(): AutomationSocket | undefined {
         return this.primarySocket;
     }
 
@@ -162,7 +179,7 @@ export class ConnectionManager extends EventEmitter {
                         socket.ping();
                         socket.send(pingPayload);
                     } catch (error) {
-                        this.log.error('Failed to send heartbeat', error);
+                        this.log.error('Failed to send heartbeat', error instanceof Error ? error : String(error));
                     }
                 }
             }

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AutomationBridge } from '../automation/index.js';
 import type { ITools } from '../types/tool-interfaces.js';
 import { handleConsolidatedToolCall } from './consolidated-tool-handlers.js';
 import { consolidatedToolDefinitions } from './consolidated-tool-definitions.js';
+import { toolRegistry } from './dynamic-handler-registry.js';
 import { coreToolDefinitions } from './schemas/core-tools.js';
 
 type SendAutomationRequest = (
@@ -24,8 +24,8 @@ function createConnectedTools() {
     automationBridge: {
       isConnected: () => true,
       sendAutomationRequest
-    } as unknown as AutomationBridge
-  } as unknown as ITools;
+    }
+  };
 
   return { tools, sendAutomationRequest };
 }
@@ -197,6 +197,30 @@ describe('consolidated action params compatibility', () => {
       action: 'create_level'
     });
     expect(String(result.message)).toContain('Security violation');
+  });
+
+  it('preserves string messages from non-Error dispatch exceptions', async () => {
+    const { tools } = createConnectedTools();
+    toolRegistry.register('throw_object_test', async () => {
+      throw { message: 'Security violation: object-shaped error' };
+    });
+
+    try {
+      const result = await handleConsolidatedToolCall('throw_object_test', {
+        action: 'probe'
+      }, tools) as Record<string, unknown>;
+
+      expect(result).toMatchObject({
+        success: false,
+        isError: true,
+        error: 'SECURITY_VIOLATION',
+        toolName: 'throw_object_test',
+        action: 'probe'
+      });
+      expect(String(result.message)).toContain('Security violation: object-shaped error');
+    } finally {
+      toolRegistry.removeHandler('throw_object_test');
+    }
   });
 
   it('routes full editor screenshot mode with base64 image return enabled', async () => {

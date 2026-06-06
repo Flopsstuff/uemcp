@@ -1,12 +1,12 @@
 import http from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { HealthMonitor } from './health-monitor.js';
-import { AutomationBridge } from '../automation/index.js';
 import { Logger } from '../utils/logger.js';
+import type { AutomationStatusBridge } from '../types/tool-interfaces.js';
 
 interface MetricsServerOptions {
   healthMonitor: HealthMonitor;
-  automationBridge: AutomationBridge;
+  automationBridge: AutomationStatusBridge;
   logger: Logger;
 }
 
