@@ -1,4 +1,4 @@
-import { dynamicToolManager, type ToolCategory } from '../tools/dynamic-tool-manager.js';
+import { dynamicToolManager, type ToolCategory } from '../tools/dynamic/dynamic-tool-manager.js';
 
 const VALID_TOOL_CATEGORIES: ToolCategory[] = ['core', 'world', 'gameplay', 'utility', 'all'];
 export const TOOL_LIST_CHANGED_ACTIONS = new Set(['enable_tools', 'disable_tools', 'enable_category', 'disable_category', 'reset']);

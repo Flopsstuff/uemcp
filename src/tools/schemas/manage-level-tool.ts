@@ -1,4 +1,4 @@
-import { commonSchemas } from '../tool-definition-utils.js';
+import { commonSchemas } from '../catalog/tool-definition-utils.js';
 import type { ToolDefinition } from './core-tool-definition.js';
 
 export const manageLevelToolDefinition: ToolDefinition = {

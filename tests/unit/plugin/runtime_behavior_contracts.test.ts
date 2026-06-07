@@ -16,6 +16,8 @@ const privateSource = (...parts: string[]): string =>
 describe('plugin runtime behavior contracts', () => {
   it('distinguishes omitted channel textures from failed channel texture loads', () => {
     const source = privateSource(
+      'Domains',
+      'Texture',
       'McpAutomationBridge_TextureHandlersChannelPack.cpp',
     );
 
@@ -28,8 +30,14 @@ describe('plugin runtime behavior contracts', () => {
   });
 
   it('resolves Blueprint root aliases even when no explicit root node exists', () => {
-    const supportSource = privateSource('McpAutomationBridge_SCSHandlers.cpp');
+    const supportSource = privateSource(
+      'Domains',
+      'SCS',
+      'McpAutomationBridge_SCSHandlers.cpp',
+    );
     const addSource = privateSource(
+      'Domains',
+      'SCS',
       'McpAutomationBridge_SCSHandlersAddComponent.cpp',
     );
 
@@ -45,6 +53,8 @@ describe('plugin runtime behavior contracts', () => {
 
   it('adds Niagara modules through the stack graph utility', () => {
     const source = privateSource(
+      'Domains',
+      'NiagaraGraph',
       'McpAutomationBridge_NiagaraGraphHandlers.cpp',
     );
 
@@ -58,9 +68,13 @@ describe('plugin runtime behavior contracts', () => {
 
   it('splices the Niagara parameter-map chain before removing stack modules', () => {
     const handlerSource = privateSource(
+      'Domains',
+      'NiagaraGraph',
       'McpAutomationBridge_NiagaraGraphHandlers.cpp',
     );
     const removalSource = privateSource(
+      'Domains',
+      'NiagaraGraph',
       'McpAutomationBridge_NiagaraGraphRemoval.cpp',
     );
 
@@ -75,6 +89,8 @@ describe('plugin runtime behavior contracts', () => {
 
   it('prefers an existing Niagara connection before attempting auto-connect', () => {
     const source = privateSource(
+      'Domains',
+      'NiagaraGraph',
       'McpAutomationBridge_NiagaraGraphPins.cpp',
     );
     const existingConnectionCheck = source.indexOf(
@@ -91,6 +107,7 @@ describe('plugin runtime behavior contracts', () => {
 
   it('switches to a transient editor world before deleting active worlds', () => {
     const source = privateSource(
+      'Safety',
       'McpSafeOperationsFolderDeleteAssets.h',
     );
 
@@ -99,7 +116,7 @@ describe('plugin runtime behavior contracts', () => {
   });
 
   it('verifies that map loading changed to the requested world package', () => {
-    const source = privateSource('McpSafeOperationsMapLoad.h');
+    const source = privateSource('Safety', 'McpSafeOperationsMapLoad.h');
 
     expect(source).toContain('ResolveExpectedMapPackageName(');
     expect(source).toMatch(
@@ -111,7 +128,11 @@ describe('plugin runtime behavior contracts', () => {
   });
 
   it('emits subscribed logs as schema-valid structured automation events', () => {
-    const source = privateSource('McpAutomationBridge_LogHandlers.cpp');
+    const source = privateSource(
+      'Domains',
+      'Log',
+      'McpAutomationBridge_LogHandlers.cpp',
+    );
 
     expect(source).toContain(
       'Event->SetStringField(TEXT("type"), TEXT("automation_event"))',
@@ -126,6 +147,8 @@ describe('plugin runtime behavior contracts', () => {
 
   it('does not attach a transient nested emitter to a new Niagara system', () => {
     const source = privateSource(
+      'Domains',
+      'NiagaraAuthoring',
       'McpAutomationBridge_NiagaraAuthoringHandlersSystems.cpp',
     );
 
@@ -135,9 +158,21 @@ describe('plugin runtime behavior contracts', () => {
   });
 
   it('makes WebSocket listener shutdown idempotent and race-safe', () => {
-    const header = privateSource('McpBridgeWebSocket.h');
-    const lifecycleSource = privateSource('McpBridgeWebSocket.cpp');
-    const serverSource = privateSource('McpBridgeWebSocketServer.cpp');
+    const header = privateSource(
+      'Transport',
+      'WebSocket',
+      'McpBridgeWebSocket.h',
+    );
+    const lifecycleSource = privateSource(
+      'Transport',
+      'WebSocket',
+      'McpBridgeWebSocket.cpp',
+    );
+    const serverSource = privateSource(
+      'Transport',
+      'WebSocket',
+      'McpBridgeWebSocketServer.cpp',
+    );
 
     expect(header).toContain('TAtomic<bool> bCloseStarted;');
     expect(header).toContain('FCriticalSection ListenSocketMutex;');

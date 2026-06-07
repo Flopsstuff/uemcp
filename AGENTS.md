@@ -29,15 +29,15 @@ MCP tooling for Unreal Engine 5.0-5.8 Preview. Server package version `0.5.30`; 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| Start TS MCP server | `src/cli.ts`, `src/index.ts`, `src/server-setup.ts` | CLI shim -> stdio server -> resource/tool registration |
-| Add or change a TS tool contract | `src/tools/consolidated-tool-definitions.ts` | Source of truth for parent tools, actions, categories, output schemas |
-| Register TS tool behavior | `src/tools/consolidated-tool-handlers.ts`, `src/server/tool-registry.ts` | Register through the MCP registry path only |
-| Implement TS action logic | `src/tools/handlers/*-handlers.ts` | Validate/normalize, then call `executeAutomationRequest()` |
+| Start TS MCP server | `src/cli.ts`, `src/index.ts`, `src/server/server-factory.ts`, `src/server/stdio-lifecycle.ts` | CLI shim -> public facade -> construction/lifecycle -> registration |
+| Add or change a TS tool contract | `src/tools/catalog/consolidated-tool-definitions.ts`, `src/tools/definitions/` | Source of truth for parent tools, actions, categories, output schemas |
+| Register TS tool behavior | `src/tools/orchestration/consolidated-tool-handlers.ts`, `src/server/tool-registry.ts` | Register through the MCP registry path only |
+| Implement TS action logic | `src/tools/handlers/<domain>/` | Validate/normalize, then call `executeAutomationRequest()` |
 | Change WebSocket automation | `src/automation/` | Handshake, connection policy, request tracking, token/TLS plumbing |
-| Add Unreal bridge behavior | `plugins/McpAutomationBridge/.../Private/McpAutomationBridge_*Handlers.cpp` | Register in `UMcpAutomationBridgeSubsystem::InitializeHandlers()` |
+| Add Unreal bridge behavior | `plugins/McpAutomationBridge/.../Private/Domains/<Domain>/` | Register in `UMcpAutomationBridgeSubsystem::InitializeHandlers()` |
 | Add native MCP schema/tool metadata | `plugins/McpAutomationBridge/.../Private/MCP/` | Self-register with `MCP_REGISTER_TOOL`; keep canonical names only |
-| Fix UE save/load crashes | `McpSafeOperations.h`, `McpAutomationBridgeHelpers.h` | Use project safe wrappers and path guards |
-| Path and command security | `src/utils/path-security.ts`, `src/utils/command-validator.ts` | Enforce UE roots and console-command block lists |
+| Fix UE save/load crashes | `Private/Safety/McpSafeOperations.h`, `Private/Foundation/BridgeHelpers/McpAutomationBridgeHelpers.h` | Use project safe wrappers and path guards |
+| Path and command security | `src/utils/paths/path-security.ts`, `src/utils/commands/command-validator.ts` | Enforce UE roots and console-command block lists |
 | Integration tests | `tests/test-runner.mjs`, `tests/mcp-tools/` | Pipe-separated expectations; Unreal-dependent unless mocked |
 | Version bump | `.github/workflows/bump-version.yml` | Updates server files; plugin `.uplugin` versions are separate |
 | Plugin packaging | `scripts/package-plugin.*`, `scripts/sync-mcp-plugin.js` | RunUAT packaging and Engine/Project plugin sync |
@@ -45,16 +45,16 @@ MCP tooling for Unreal Engine 5.0-5.8 Preview. Server package version `0.5.30`; 
 ## CODE MAP
 | Symbol | Type | Location | Refs | Role |
 |--------|------|----------|------|------|
-| `createServer()` / `startStdioServer()` | TS functions | `src/index.ts` | high | Stdio MCP lifecycle and stdout safety |
-| `registerDefaultHandlers()` | TS function | `src/tools/consolidated-tool-handlers.ts` | high | Parent tool -> handler map |
-| `executeAutomationRequest()` | TS function | `src/tools/handlers/common-handlers.ts` | high | TS-to-Unreal request boundary |
+| `createServer()` / `startStdioServer()` | TS functions | `src/server/server-factory.ts`, `src/server/stdio-lifecycle.ts` | high | Server construction, stdio lifecycle, and stdout safety |
+| `registerDefaultHandlers()` | TS function | `src/tools/orchestration/consolidated-tool-handlers.ts` | high | Parent tool -> handler map |
+| `executeAutomationRequest()` | TS function | `src/tools/handlers/foundation/dispatch/common-handlers.ts` | high | TS-to-Unreal request boundary |
 | `AutomationBridge` | TS class | `src/automation/bridge.ts` | high | WebSocket connect/handshake/request queue |
 | `UMcpAutomationBridgeSubsystem` | C++ class | `plugins/McpAutomationBridge/.../Public/McpAutomationBridgeSubsystem.h` | high | Plugin request queue, native MCP startup, handler map |
-| `FMcpNativeTransport` | C++ class | `plugins/McpAutomationBridge/.../Private/MCP/McpNativeTransport.*` | medium | Native `/mcp` HTTP/SSE JSON-RPC endpoint |
+| `FMcpNativeTransport` | C++ class | `plugins/McpAutomationBridge/.../Private/MCP/Transport/` | medium | Native `/mcp` HTTP/SSE JSON-RPC endpoint |
 
 ## CONVENTIONS
 ### Transport Surfaces
-1. **TypeScript stdio MCP**: `src/index.ts` creates the SDK server, keeps stdout JSON-only, and connects to Unreal through `src/automation/`.
+1. **TypeScript stdio MCP**: `src/index.ts` exposes the public API, `src/server/` owns construction/lifecycle, and `src/automation/` connects to Unreal.
 2. **WebSocket bridge**: Plugin listen sockets default to loopback ports `8090,8091`; TS sends automation requests through the negotiated bridge.
 3. **Native MCP**: Optional plugin HTTP/SSE endpoint under `Private/MCP/`; `GET /mcp` opens SSE, `POST /mcp` handles JSON-RPC, `DELETE /mcp` tears down sessions.
 
@@ -101,6 +101,6 @@ npm run clean:tmp       # Safe cleanup of repo tmp/ artifacts
 
 ## NOTES
 - Engine reference path: `/data/UnrealEngine/Engine/`.
-- Server version sources: `package.json`, `package-lock.json`, `server.json`, `src/index.ts` fallback. Plugin version source: `plugins/McpAutomationBridge/McpAutomationBridge.uplugin`.
+- Server version sources: `package.json`, `package-lock.json`, `server.json`, `src/server/server-factory.ts` fallback. Plugin version source: `plugins/McpAutomationBridge/McpAutomationBridge.uplugin`.
 - External GitHub Actions are expected to be pinned to full commit SHAs.
 - `tests/reports/`, root `build/`, root `tmp/`, root `Public/`, uppercase `Plugins/`, and package/plugin build outputs are not instruction targets.

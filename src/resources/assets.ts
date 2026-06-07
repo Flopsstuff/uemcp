@@ -1,8 +1,8 @@
-import { BaseTool } from '../tools/base-tool.js';
-import { IAssetResources } from '../types/tool-interfaces.js';
-import { coerceString } from '../utils/result-helpers.js';
-import { AutomationResponse } from '../types/automation-responses.js';
-import { Logger } from '../utils/logger.js';
+import { BaseTool } from '../tools/catalog/base-tool.js';
+import { IAssetResources } from '../types/tools/tool-interfaces.js';
+import { coerceString } from '../utils/responses/result-helpers.js';
+import { AutomationResponse } from '../types/automation/automation-responses.js';
+import { Logger } from '../utils/logging/logger.js';
 import { getAssetListTtlMs, normalizePage, normalizePageSize } from './asset-pagination.js';
 
 const log = new Logger('AssetResources');

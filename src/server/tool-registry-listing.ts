@@ -1,6 +1,6 @@
-import { dynamicToolManager } from '../tools/dynamic-tool-manager.js';
-import type { ToolDefinition } from '../tools/consolidated-tool-definitions.js';
-import { isRecord } from '../utils/type-guards.js';
+import { dynamicToolManager } from '../tools/dynamic/dynamic-tool-manager.js';
+import type { ToolDefinition } from '../tools/catalog/consolidated-tool-definitions.js';
+import { isRecord } from '../utils/validation/type-guards.js';
 
 export function buildSanitizedToolList(effectiveCategories: string[]) {
     const allTools = dynamicToolManager.getAllToolDefinitions();

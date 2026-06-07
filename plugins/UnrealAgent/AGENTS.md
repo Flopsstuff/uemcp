@@ -11,20 +11,21 @@ UnrealAgent/
 `-- Source/UnrealAgent/
     |-- UnrealAgent.Build.cs     # Slate/Json/LevelEditor/ToolMenus deps
     `-- Private/
-        |-- UnrealAgentModule.cpp          # Window menu + Level Editor tab spawner
-        |-- UnrealAgentAutomationTests.cpp # Slate/ACP smoke tests
-        |-- Acp/                          # OpenCode ACP process + JSON-RPC client
-        `-- UI/                           # Slate chat panel
+        |-- UnrealAgentModule.cpp # Window menu + Level Editor tab spawner
+        |-- Acp/                  # client, Studio Kit, context, evidence, validation
+        |-- Tests/                # Slate/ACP automation coverage
+        `-- UI/                   # core panel, composer, transcript, history, permissions
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
 | Register/open panel | `Source/UnrealAgent/Private/UnrealAgentModule.cpp` | `Window > Unreal Agent`, `UnrealAgent` tab spawner |
-| Change ACP protocol/process | `Source/UnrealAgent/Private/Acp/` | See nested AGENTS for `opencode acp`, Studio Kit, context, evidence |
-| Change Slate panel | `Source/UnrealAgent/Private/UI/` | See nested AGENTS for widget tags and transcript rules |
+| Change ACP protocol/process | `Source/UnrealAgent/Private/Acp/Client/` | See nested AGENTS for `opencode acp` |
+| Change Studio Kit/context/evidence | `Source/UnrealAgent/Private/Acp/` | Use the matching responsibility folder |
+| Change Slate panel | `Source/UnrealAgent/Private/UI/` | Use the matching panel responsibility folder |
 | Change module deps | `Source/UnrealAgent/UnrealAgent.Build.cs` | Keep editor-only Slate/Json/ToolMenus deps scoped here |
-| Verify UI/protocol | `Source/UnrealAgent/Private/UnrealAgentAutomationTests.cpp` | Test names under `UnrealAgent.Acp.*` |
+| Verify UI/protocol | `Source/UnrealAgent/Private/Tests/` | Test names under `UnrealAgent.Acp.*` |
 | User-facing docs | `README.md` | Keep runtime prompt, MCP playbook, quick prompts, and verification guidance in one place |
 
 ## CONVENTIONS

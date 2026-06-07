@@ -6,24 +6,24 @@
  */
 
 // Command validation
-export { CommandValidator } from './command-validator.js';
+export { CommandValidator } from './commands/command-validator.js';
 
 // Elicitation (MCP prompt helpers)
 export type {
   ElicitSchema,
   ElicitOptions,
-} from './elicitation.js';
-export { createElicitationHelper } from './elicitation.js';
+} from './interaction/elicitation.js';
+export { createElicitationHelper } from './interaction/elicitation.js';
 
 // Error handling
-export { ErrorType, ErrorHandler } from './error-handler.js';
+export { ErrorType, ErrorHandler } from './responses/error-handler.js';
 
 // INI file reading
-export { readIniFile, getProjectSetting } from './ini-reader.js';
+export { readIniFile, getProjectSetting } from './config/ini-reader.js';
 
 // Logging
-export type { LogLevel } from './logger.js';
-export { Logger } from './logger.js';
+export type { LogLevel } from './logging/logger.js';
+export { Logger } from './logging/logger.js';
 
 // Normalization helpers
 export type {
@@ -31,7 +31,7 @@ export type {
   Rot3Obj,
   Vec3Tuple,
   Rot3Tuple,
-} from './normalize.js';
+} from './validation/normalize.js';
 export {
   toVec3Object,
   toRotObject,
@@ -40,19 +40,19 @@ export {
   toFiniteNumber,
   normalizePartialVector,
   normalizeTransformInput,
-} from './normalize.js';
+} from './validation/normalize.js';
 
 // Path security
-export { sanitizePath as sanitizePathSecure } from './path-security.js';
+export { sanitizePath as sanitizePathSecure } from './paths/path-security.js';
 
 // Response factory
-export { ResponseFactory } from './response-factory.js';
+export { ResponseFactory } from './responses/response-factory.js';
 
 // Response validation
-export { ResponseValidator, responseValidator } from './response-validator.js';
+export { ResponseValidator, responseValidator } from './responses/response-validator.js';
 
 // Result helpers
-export type { InterpretedStandardResult } from './result-helpers.js';
+export type { InterpretedStandardResult } from './responses/result-helpers.js';
 export {
   interpretStandardResult,
   cleanResultText,
@@ -62,14 +62,14 @@ export {
   coerceBoolean,
   coerceNumber,
   coerceVector3,
-} from './result-helpers.js';
+} from './responses/result-helpers.js';
 
 // Safe JSON handling
-export { cleanObject as cleanObjectSafe } from './safe-json.js';
+export { cleanObject as cleanObjectSafe } from './serialization/safe-json.js';
 
 // Command queue
-export type { CommandQueueItem } from './unreal-command-queue.js';
-export { UnrealCommandQueue } from './unreal-command-queue.js';
+export type { CommandQueueItem } from './commands/unreal-command-queue.js';
+export { UnrealCommandQueue } from './commands/unreal-command-queue.js';
 
 // Validation utilities
 export {
@@ -83,7 +83,7 @@ export {
   concurrencyDelay,
   ensureColorRGB,
   ensureRotation,
-} from './validation.js';
+} from './validation/validation.js';
 
 // Action constants
 export {
@@ -93,7 +93,7 @@ export {
   type ToolAction,
   type ActorAction,
   type InputAction,
-} from './action-constants.js';
+} from './commands/action-constants.js';
 
 // Type coercion helpers
 export {
@@ -107,7 +107,7 @@ export {
   toRotationObj,
   validateAudioParams,
   normalizeName,
-} from './type-coercion.js';
+} from './validation/type-coercion.js';
 
 // Type guards
-export { isRecord } from './type-guards.js';
+export { isRecord } from './validation/type-guards.js';

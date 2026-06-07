@@ -5,9 +5,13 @@ Canonical TypeScript MCP tool contracts and dispatch glue. This directory define
 ## STRUCTURE
 ```
 tools/
-|-- consolidated-tool-definitions.ts  # parent tools, action enums, JSON schemas, output schemas
-|-- consolidated-tool-handlers.ts     # maps parent tool names to handler functions
-|-- dynamic-tool-manager.ts           # runtime enable/disable by tool/category
+|-- catalog/                          # consolidated definitions and schema composition
+|-- definitions/                      # category/domain-specific tool contracts
+|-- dynamic/                          # runtime enable/disable by tool/category
+|-- editor/                           # editor facade modules
+|-- environment/                      # environment-oriented tool tests/support
+|-- level/                            # level facade and operations
+|-- orchestration/                    # registration, routing, dispatch, call utilities
 |-- schemas/                          # shared schema fragments for core tools
 `-- handlers/                         # domain action handlers; see nested AGENTS
 ```
@@ -15,15 +19,15 @@ tools/
 ## WHERE TO LOOK
 | Task | File | Notes |
 |------|------|-------|
-| Add or change tool schema | `consolidated-tool-definitions.ts` | Keep action enum, input schema, category, and output schema aligned |
-| Route parent tool | `consolidated-tool-handlers.ts` | Register only through `registerDefaultHandlers()` |
-| Enable/disable tool sets | `dynamic-tool-manager.ts` | Categories are `core`, `world`, `gameplay`, `utility`, `all` |
-| Implement action logic | `handlers/*-handlers.ts` | Validate/normalize, then use `executeAutomationRequest()` |
-| Shared handler helpers | `handlers/common-handlers.ts` | `requireAction()`, response parsing, error formatting |
+| Add or change tool schema | `catalog/consolidated-tool-definitions.ts`, `definitions/` | Keep action enum, input schema, category, and output schema aligned |
+| Route parent tool | `orchestration/consolidated-tool-handlers.ts` | Register only through `registerDefaultHandlers()` |
+| Enable/disable tool sets | `dynamic/` | Categories are `core`, `world`, `gameplay`, `utility`, `all` |
+| Implement action logic | `handlers/<domain>/*-handlers.ts` | Validate/normalize, then use `executeAutomationRequest()` |
+| Shared handler helpers | `handlers/foundation/` | Action requirements, argument parsing, normalization, dispatch, and responses |
 
 ## CONVENTIONS
 - Parent tools are canonical public names. Do not reintroduce former child tool names as exposed MCP tools.
-- Action strings must stay aligned across `consolidated-tool-definitions.ts`, handler switches, native WebSocket handler registration, native MCP tool schemas, and tests.
+- Action strings must stay aligned across `catalog/consolidated-tool-definitions.ts`, handler switches, native WebSocket handler registration, native MCP tool schemas, and tests.
 - Output schemas should be registered and validated before responses leave the MCP server.
 - `manage_tools` and `inspect` are protected from disablement; keep dynamic-tool behavior consistent with native MCP.
 - Use `unknown` plus type guards/interfaces for untrusted tool arguments.

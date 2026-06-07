@@ -1,7 +1,7 @@
-import type { StandardActionResponse } from './types/tool-interfaces.js';
+import type { StandardActionResponse } from './types/tools/tool-interfaces.js';
 import { CONSOLE_COMMAND_TIMEOUT_MS } from './constants.js';
-import { CommandValidator } from './utils/command-validator.js';
-import { UnrealCommandQueueStoppedError } from './utils/unreal-command-queue.js';
+import { CommandValidator } from './utils/commands/command-validator.js';
+import { UnrealCommandQueueStoppedError } from './utils/commands/unreal-command-queue.js';
 import type {
   BatchConsoleCommand,
   BatchConsoleOptions,

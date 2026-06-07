@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ITools } from '../../../src/types/tool-interfaces.js';
+import type { ITools } from '../../../src/types/tools/tool-interfaces.js';
 
-vi.mock('../../../src/tools/handlers/common-handlers.js', () => ({
+vi.mock('../../../src/tools/handlers/foundation/dispatch/common-handlers.js', () => ({
   executeAutomationRequest: vi.fn()
 }));
 
-import { handleInspectTools } from '../../../src/tools/handlers/inspect-handlers.js';
-import { executeAutomationRequest } from '../../../src/tools/handlers/common-handlers.js';
+import { handleInspectTools } from '../../../src/tools/handlers/inspect/inspect-handlers.js';
+import { executeAutomationRequest } from '../../../src/tools/handlers/foundation/dispatch/common-handlers.js';
 
 describe('Inspect Handlers', () => {
   const mockExecuteAutomationRequest = vi.mocked(executeAutomationRequest);
@@ -139,7 +139,7 @@ describe('Inspect Handlers', () => {
   });
 
   it('inspect_cdo is in the tool schema action enum', async () => {
-    const { consolidatedToolDefinitions } = await import('../../../src/tools/consolidated-tool-definitions.js');
+    const { consolidatedToolDefinitions } = await import('../../../src/tools/catalog/consolidated-tool-definitions.js');
     const inspectTool = consolidatedToolDefinitions.find((t: { name: string }) => t.name === 'inspect');
     const actionEnum = (inspectTool?.inputSchema as Record<string, unknown> & {
       properties: { action: { enum: string[] } }
@@ -148,7 +148,7 @@ describe('Inspect Handlers', () => {
   });
 
   it('keeps unsupported inspect export file-path params out of the schema', async () => {
-    const { consolidatedToolDefinitions } = await import('../../../src/tools/consolidated-tool-definitions.js');
+    const { consolidatedToolDefinitions } = await import('../../../src/tools/catalog/consolidated-tool-definitions.js');
     const { coreToolDefinitions } = await import('../../../src/tools/schemas/core-tools.js');
     const inspectTool = consolidatedToolDefinitions.find((t: { name: string }) => t.name === 'inspect');
     const coreInspectTool = coreToolDefinitions.find((t: { name: string }) => t.name === 'inspect');

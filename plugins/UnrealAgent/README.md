@@ -118,10 +118,10 @@ Non-loopback and token policy live in `plugins/McpAutomationBridge`; keep this p
 | Task | Location |
 | --- | --- |
 | Register/open panel | `Source/UnrealAgent/Private/UnrealAgentModule.cpp` |
-| ACP process, JSON-RPC, context attachment, MCP injection | `Source/UnrealAgent/Private/Acp/McpOpenCodeAcpClient.*` |
-| Studio Kit generation, context, evidence, validation | `Source/UnrealAgent/Private/Acp/UnrealAgent*.*` |
-| Slate panel, quick prompts, model/agent menus, transcript | `Source/UnrealAgent/Private/UI/SUnrealAgentPanel.*` |
-| Automation coverage | `Source/UnrealAgent/Private/UnrealAgentAutomationTests.cpp` |
+| ACP process, JSON-RPC, context attachment, MCP injection | `Source/UnrealAgent/Private/Acp/Client/` |
+| Studio Kit generation, context, evidence, validation | `Source/UnrealAgent/Private/Acp/` responsibility folders |
+| Slate panel, quick prompts, model/agent menus, transcript | `Source/UnrealAgent/Private/UI/` responsibility folders |
+| Automation coverage | `Source/UnrealAgent/Private/Tests/` |
 | Module deps | `Source/UnrealAgent/UnrealAgent.Build.cs` |
 | Packaging filter | `Config/FilterPlugin.ini` |
 

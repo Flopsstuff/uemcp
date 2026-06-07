@@ -1,6 +1,6 @@
 import type { AutomationBridge } from './automation/index.js';
 import { DEFAULT_AUTOMATION_HOST, DEFAULT_AUTOMATION_PORT } from './constants.js';
-import { ErrorHandler } from './utils/error-handler.js';
+import { ErrorHandler } from './utils/responses/error-handler.js';
 import { errorMessage } from './unreal-bridge-response.js';
 import type { ConnectionEventInfo, UnrealBridgeLogger } from './unreal-bridge-types.js';
 

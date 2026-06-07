@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { Logger } from '../utils/logger.js';
+import { Logger } from '../utils/logging/logger.js';
 import { AutomationBridgeClient } from './bridge-client.js';
 import { resolveAutomationBridgeConfig, type AutomationBridgeResolvedConfig } from './bridge-config.js';
 import { AutomationRequestDispatcher } from './bridge-request-dispatcher.js';

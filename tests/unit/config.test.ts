@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { EnvSchema } from '../../src/config.js';
 import { getRequiredComponent, resolveClassAlias } from '../../src/config/class-aliases.js';
-import { loadEnv } from '../../src/types/env.js';
+import { loadEnv } from '../../src/types/config/env.js';
 
 describe('EnvSchema env var defaults (Zod v4 compatibility)', () => {
     it('parse({}) returns documented defaults for preprocessed boolean fields', () => {

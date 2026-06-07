@@ -1,6 +1,6 @@
 import { UnrealBridge } from './unreal-bridge.js';
 import { AutomationBridge } from './automation/index.js';
-import { Logger } from './utils/logger.js';
+import { Logger } from './utils/logging/logger.js';
 import { HealthMonitor } from './services/health-monitor.js';
 import { AssetResources } from './resources/assets.js';
 import { ActorResources } from './resources/actors.js';

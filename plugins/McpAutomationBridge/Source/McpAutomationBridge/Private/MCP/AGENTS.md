@@ -5,24 +5,28 @@ Native plugin MCP implementation. This subtree is separate from the TypeScript s
 ## STRUCTURE
 ```
 MCP/
-|-- McpNativeTransport.cpp/.h     # raw socket HTTP/SSE transport and JSON-RPC handling
-|-- McpJsonRpc.cpp/.h             # JSON-RPC response/error helpers
-|-- McpToolRegistry.cpp/.h        # canonical self-describing tool registry
-|-- McpDynamicToolManager.cpp/.h  # runtime enable/disable and protected tools
-|-- McpSchemaBuilder.cpp/.h       # JSON schema builder DSL
-|-- McpToolDefinition.h           # base class and dispatch patterns
-`-- Tools/McpTool_*.cpp           # 37 self-registering tool definitions
+|-- DynamicTools/                 # runtime enable/disable and protected tools
+|-- Protocol/                     # JSON-RPC response/error helpers
+|-- Registry/                     # tool registry, definitions, schema builder
+|-- Routing/                      # consolidated native action routing
+|-- Transport/                    # raw socket HTTP/SSE transport
+`-- Tools/
+    |-- Core/
+    |-- Gameplay/
+    |-- Utility/
+    `-- World/
 ```
 
 ## WHERE TO LOOK
 | Task | File | Notes |
 |------|------|-------|
-| Change HTTP/SSE behavior | `McpNativeTransport.cpp` | `GET /mcp`, `POST /mcp`, `DELETE /mcp`, sessions, SSE writes |
-| Change JSON-RPC shape | `McpJsonRpc.*` | Centralize result/error envelope formatting |
-| Add native tool metadata | `Tools/McpTool_*.cpp` | Subclass `FMcpToolDefinition` and use `MCP_REGISTER_TOOL` |
-| Change schema construction | `McpSchemaBuilder.*` | Keep schema JSON generated through builder helpers |
-| Change tool filtering | `McpDynamicToolManager.*` | Core-only/default-all behavior, protected tools/categories |
-| Change canonical list | `McpToolRegistry.cpp` | Only 23 parent tool names are accepted |
+| Change HTTP/SSE behavior | `Transport/` | `GET /mcp`, `POST /mcp`, `DELETE /mcp`, sessions, SSE writes |
+| Change JSON-RPC shape | `Protocol/` | Centralize result/error envelope formatting |
+| Add native tool metadata | `Tools/<Category>/McpTool_*.cpp` | Subclass `FMcpToolDefinition` and use `MCP_REGISTER_TOOL` |
+| Change schema construction | `Registry/McpSchemaBuilder.*` | Keep schema JSON generated through builder helpers |
+| Change tool filtering | `DynamicTools/` | Core-only/default-all behavior, protected tools/categories |
+| Change canonical list | `Registry/McpToolRegistry.cpp` | Only 23 parent tool names are accepted |
+| Change native action routing | `Routing/` | Keep parent tools and action aliases aligned |
 
 ## TRANSPORT CONVENTIONS
 - `GET /mcp` opens a persistent SSE notification stream.

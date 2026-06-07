@@ -3,7 +3,7 @@ import { AssetResources } from '../resources/assets.js';
 import { ActorResources } from '../resources/actors.js';
 import { LevelResources } from '../resources/levels.js';
 import { HealthMonitor } from '../services/health-monitor.js';
-import type { AutomationStatusBridge } from '../types/tool-interfaces.js';
+import type { AutomationStatusBridge } from '../types/tools/tool-interfaces.js';
 
 interface ResourceBridge {
   readonly isConnected: boolean;

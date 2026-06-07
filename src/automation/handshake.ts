@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { Logger } from '../utils/logger.js';
+import { Logger } from '../utils/logging/logger.js';
 import { AutomationBridgeMessage } from './types.js';
 import { bridgeAckSchema } from './message-schema.js';
 import { EventEmitter } from 'node:events';

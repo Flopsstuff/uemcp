@@ -14,25 +14,27 @@ McpAutomationBridge/
     |   |-- McpAutomationBridgeSubsystem.h
     |   `-- McpConnectionManager.h
     `-- Private/
-        |-- McpAutomationBridgeSubsystem.cpp
-        |-- McpAutomationBridge_ProcessRequest.cpp
-        |-- McpConnectionManager.cpp / McpBridgeWebSocket.cpp
+        |-- Core/                 # module, settings, subsystem, request dispatch
+        |-- Domains/              # one folder per automation domain
+        |-- Foundation/           # reflection and shared implementation support
         |-- MCP/                  # native MCP transport and self-describing tools
-        |-- McpSafeOperations.h   # UE 5.7-safe save/load wrappers
-        |-- McpAutomationBridgeHelpers.h
-        `-- McpAutomationBridge_*Handlers.cpp  # 58 domain handler files
+        |-- Safety/               # UE-safe save/load/delete wrappers
+        |-- Transport/            # WebSocket and connection management
+        `-- UI/                   # plugin UI implementation
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| Add action handler | `Private/McpAutomationBridge_*Handlers.cpp` | Keep domain naming aligned with existing files |
-| Register handler | `Private/McpAutomationBridgeSubsystem.cpp` | Add to `InitializeHandlers()` |
-| Declare handler | `Private/McpHandlerDeclarations.h` or subsystem header | Match existing declaration location |
-| Route requests | `Private/McpAutomationBridge_ProcessRequest.cpp` | Game-thread dispatch, unsafe-state deferral, reentrancy guard |
-| WebSocket bridge | `Private/McpConnectionManager.cpp`, `Private/McpBridgeWebSocket.cpp` | Listen host, ports, token auth, rate limits |
+| Add action handler | `Private/Domains/<Domain>/<Responsibility>/` | Keep dispatchers/contracts at the domain root and implementations in the matching responsibility folder |
+| Register handler | `Private/Core/Subsystem/` | Add to `InitializeHandlers()` |
+| Declare handler | matching `Private/Domains/<Domain>/` header or subsystem header | Match existing declaration location |
+| Route requests | `Private/Core/Requests/` | Game-thread dispatch, unsafe-state deferral, reentrancy guard |
+| WebSocket bridge | `Private/Transport/` | Listen host, ports, token auth, rate limits |
 | Native MCP | `Private/MCP/` | See nested AGENTS for `/mcp` transport and tool registry rules |
-| Settings | `Public/McpAutomationBridgeSettings.h`, `Private/McpAutomationBridgeSettings.cpp` | Loopback, TLS, token, native MCP, debug knobs |
+| Settings | `Public/McpAutomationBridgeSettings.h`, `Private/Core/Settings/McpAutomationBridgeSettings.cpp` | Loopback, TLS, token, native MCP, debug knobs |
+| Shared implementation | `Private/Foundation/` | Bridge helpers, reflection, Blueprint and handler utilities |
+| Safe Unreal operations | `Private/Safety/` | Save/load/delete wrappers and guards |
 | Packaging | `scripts/package-plugin.*`, `Config/FilterPlugin.ini` | RunUAT package, installed flag, zip output |
 
 ## CONVENTIONS
@@ -41,6 +43,7 @@ McpAutomationBridge/
 - Defer work while Unreal is saving packages, garbage collecting, or async loading; do not add bypasses around unsafe-state checks.
 - Build configuration is intentionally version-aware: keep `Build.cs` feature probes and optional dependency guards when adding engine modules.
 - Optional plugin features should fail gracefully when the UE module/plugin is unavailable.
+- Keep dense domain implementations grouped by responsibility; a source folder should not accumulate more than 25 direct `.cpp`/`.h` files.
 
 ## UE SAFETY
 - Use `McpSafeAssetSave`, `McpSafeLevelSave`, and `McpSafeLoadMap` from `McpSafeOperations.h` instead of raw package save/load calls.

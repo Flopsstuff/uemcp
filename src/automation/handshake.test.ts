@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
-import { Logger } from '../utils/logger.js';
+import { Logger } from '../utils/logging/logger.js';
 import { HandshakeHandler } from './handshake.js';
 
 class FakeSocket extends EventEmitter {

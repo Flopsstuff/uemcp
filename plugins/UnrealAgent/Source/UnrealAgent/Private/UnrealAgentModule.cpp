@@ -1,4 +1,4 @@
-#include "UI/SUnrealAgentPanel.h"
+#include "UI/Core/SUnrealAgentPanel.h"
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/UIAction.h"

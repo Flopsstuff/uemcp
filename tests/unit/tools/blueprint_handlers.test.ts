@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ITools } from '../../../src/types/tool-interfaces.js';
+import type { ITools } from '../../../src/types/tools/tool-interfaces.js';
 
-vi.mock('../../../src/tools/handlers/common-handlers.js', () => ({
+vi.mock('../../../src/tools/handlers/foundation/dispatch/common-handlers.js', () => ({
   executeAutomationRequest: vi.fn()
 }));
 
-import { handleBlueprintGet } from '../../../src/tools/handlers/blueprint-handlers.js';
-import { executeAutomationRequest } from '../../../src/tools/handlers/common-handlers.js';
+import { handleBlueprintGet } from '../../../src/tools/handlers/blueprint/blueprint-handlers.js';
+import { executeAutomationRequest } from '../../../src/tools/handlers/foundation/dispatch/common-handlers.js';
 
 describe('Blueprint Handlers', () => {
   const mockExecuteAutomationRequest = vi.mocked(executeAutomationRequest);

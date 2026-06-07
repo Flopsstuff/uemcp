@@ -1,7 +1,7 @@
 import { UnrealBridge } from '../unreal-bridge.js';
-import type { AutomationRequestBridge } from '../types/tool-interfaces.js';
-import { coerceString } from '../utils/result-helpers.js';
-import { isRecord } from '../utils/type-guards.js';
+import type { AutomationRequestBridge } from '../types/tools/tool-interfaces.js';
+import { coerceString } from '../utils/responses/result-helpers.js';
+import { isRecord } from '../utils/validation/type-guards.js';
 
 const LIST_LEVELS_ACTION = 'list_levels';
 const BRIDGE_UNAVAILABLE = 'Automation bridge is not available';

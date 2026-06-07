@@ -1,4 +1,4 @@
-import { Logger } from '../utils/logger.js';
+import { Logger } from '../utils/logging/logger.js';
 
 export interface PerformanceMetrics {
   totalRequests: number;

@@ -1,7 +1,7 @@
 import type { AutomationBridge } from './automation/index.js';
-import { UnrealCommandQueue } from './utils/unreal-command-queue.js';
-import { Logger } from './utils/logger.js';
-import type { StandardActionResponse } from './types/tool-interfaces.js';
+import { UnrealCommandQueue } from './utils/commands/unreal-command-queue.js';
+import { Logger } from './utils/logging/logger.js';
+import type { StandardActionResponse } from './types/tools/tool-interfaces.js';
 import {
   configureAutomationBridge,
   connectAutomationBridge,

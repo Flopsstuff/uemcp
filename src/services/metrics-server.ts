@@ -1,8 +1,8 @@
 import http from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { HealthMonitor } from './health-monitor.js';
-import { Logger } from '../utils/logger.js';
-import type { AutomationStatusBridge } from '../types/tool-interfaces.js';
+import { Logger } from '../utils/logging/logger.js';
+import type { AutomationStatusBridge } from '../types/tools/tool-interfaces.js';
 
 interface MetricsServerOptions {
   healthMonitor: HealthMonitor;
