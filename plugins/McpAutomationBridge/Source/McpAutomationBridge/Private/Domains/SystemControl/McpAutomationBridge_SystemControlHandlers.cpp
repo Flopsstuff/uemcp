@@ -13,12 +13,26 @@ bool UMcpAutomationBridgeSubsystem::HandleSystemControlAction(
   }
 
   const FString Lower = SubAction.ToLower();
+  const bool bInsightsAction =
+      Lower == TEXT("start_session") ||
+      Lower == TEXT("start_unreal_insights") ||
+      Lower == TEXT("capture_insights_trace") ||
+      Lower == TEXT("get_trace_status") ||
+      Lower == TEXT("pause_session") ||
+      Lower == TEXT("resume_session") ||
+      Lower == TEXT("stop_session") ||
+      Lower == TEXT("write_snapshot") ||
+      Lower == TEXT("send_snapshot") ||
+      Lower == TEXT("analyze_trace");
+  const bool bLogSubscriptionAction =
+      Lower == TEXT("subscribe") || Lower == TEXT("unsubscribe");
   if (!Lower.StartsWith(TEXT("run_ubt")) &&
       !Lower.StartsWith(TEXT("run_tests")) &&
       !Lower.StartsWith(TEXT("test_progress")) &&
       !Lower.StartsWith(TEXT("test_stale")) &&
       Lower != TEXT("export_asset") &&
-      Lower != TEXT("start_session") &&
+      !bInsightsAction &&
+      !bLogSubscriptionAction &&
       Lower != TEXT("validate_assets") &&
       Lower != TEXT("execute_python")) {
     return false;
@@ -32,9 +46,13 @@ bool UMcpAutomationBridgeSubsystem::HandleSystemControlAction(
     return true;
   }
 
-  if (Lower == TEXT("start_session")) {
+  if (bInsightsAction) {
     return HandleInsightsAction(RequestId, TEXT("manage_insights"), Payload,
                                 RequestingSocket);
+  }
+  if (bLogSubscriptionAction) {
+    return HandleLogAction(RequestId, TEXT("manage_logs"), Payload,
+                           RequestingSocket);
   }
   if (Lower == TEXT("validate_assets")) {
     return McpSystemControlHandlers::HandleValidateAssets(

@@ -8,16 +8,13 @@
 // Handler Summary:
 // -----------------------------------------------------------------------------
 // Action: manage_tests
-//   - run_tests: Execute automation tests by filter via FAutomationTestFramework
+//   - run_tests: Execute automation tests by filter via editor automation command
 //
 // Dependencies:
-//   - Core: McpAutomationBridgeSubsystem, McpAutomationBridgeHelpers
-//   - Engine: AutomationTest module
+//   - Core: McpAutomationBridgeSubsystem
 //
 // Notes:
-//   - Tests run asynchronously; results appear in logs
-//   - StartTestByName() initiates test execution
-//   - For synchronous results, would require OnTestEnd delegate binding
+//   - Tests run asynchronously; results appear in logs/automation_event streams
 // =============================================================================
 
 #include "Core/Compatibility/McpVersionCompatibility.h"  // MUST be first - UE version compatibility macros
@@ -26,15 +23,12 @@
 // Core Includes
 // -----------------------------------------------------------------------------
 #include "McpAutomationBridgeSubsystem.h"
-#include "Foundation/BridgeHelpers/McpAutomationBridgeHelpers.h"
-#include "Core/Module/McpAutomationBridgeGlobals.h"
-#include "Foundation/HandlerUtils/McpHandlerUtils.h"
+#include "Domains/SystemControl/McpAutomationBridge_SystemControlHandlersPrivate.h"
 
 // -----------------------------------------------------------------------------
 // Engine Includes
 // -----------------------------------------------------------------------------
 #include "Dom/JsonObject.h"
-#include "Misc/AutomationTest.h"
 
 // =============================================================================
 // Handler Implementation
@@ -68,24 +62,8 @@ bool UMcpAutomationBridgeSubsystem::HandleTestAction(
     // -------------------------------------------------------------------------
     if (SubAction == TEXT("run_tests"))
     {
-        FString Filter;
-        Payload->TryGetStringField(TEXT("filter"), Filter);
-
-        // Note: FAutomationTestFramework::StartTestByName() runs asynchronously
-        // Results are delivered via OnTestEnd delegate (global)
-        // For this bridge, we confirm test initiation; check logs for results
-
-        FAutomationTestFramework::Get().StartTestByName(Filter, 0);
-
-        // Build response
-        TSharedPtr<FJsonObject> Result = McpHandlerUtils::CreateResultObject();
-        Result->SetStringField(TEXT("action"), TEXT("run_tests"));
-        Result->SetStringField(TEXT("filter"), Filter);
-        Result->SetBoolField(TEXT("started"), true);
-
-        SendAutomationResponse(RequestingSocket, RequestId, true,
-            TEXT("Tests started. Check logs for results."), Result);
-        return true;
+        return McpSystemControlHandlers::HandleRunTests(
+            this, RequestId, Payload, RequestingSocket);
     }
 
     // Unknown subaction

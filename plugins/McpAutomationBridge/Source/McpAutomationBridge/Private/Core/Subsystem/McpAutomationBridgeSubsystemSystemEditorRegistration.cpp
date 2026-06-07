@@ -8,6 +8,7 @@ void UMcpAutomationBridgeSubsystem::RegisterSystemAndEditorHandlers()
 {
     MCP_REGISTER_DIRECT("console_command", HandleConsoleCommandAction);
     MCP_REGISTER_DIRECT("batch_console_commands", HandleConsoleCommandAction);
+    MCP_REGISTER_DIRECT("manage_tests", HandleTestAction);
     MCP_REGISTER_DIRECT("inspect", HandleInspectAction);
     MCP_REGISTER_DIRECT("list_blueprints", HandleListBlueprints);
     MCP_REGISTER_DIRECT("manage_world_partition", HandleWorldPartitionAction);

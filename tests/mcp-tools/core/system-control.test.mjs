@@ -17,6 +17,10 @@ const PYTHON_FILE_LITERAL = JSON.stringify(PYTHON_FILE_RELATIVE);
 const PYTHON_HELPER_LITERAL = JSON.stringify(PYTHON_HELPER_RELATIVE);
 const PROJECT_SETTING_SECTION = '/Script/Engine.Engine';
 const PROJECT_SETTING_KEY = `McpSystemControlSmoke_${Date.now()}`;
+const TRACE_TEST_ID = Date.now();
+const TRACE_CAPTURE_FILE = `MCPTests/phase5-capture-${TRACE_TEST_ID}.utrace`;
+const TRACE_START_FILE = `MCPTests/phase5-start-${TRACE_TEST_ID}.utrace`;
+const TRACE_SNAPSHOT_FILE = `MCPTests/phase5-snapshot-${TRACE_TEST_ID}.utrace`;
 const PROJECT_SETTING_SECTION_LITERAL = JSON.stringify(PROJECT_SETTING_SECTION);
 const PROJECT_SETTING_KEY_LITERAL = JSON.stringify(PROJECT_SETTING_KEY);
 const CREATE_PYTHON_FILE_CODE = `
@@ -94,6 +98,17 @@ const testCases = [
   { scenario: 'CREATE: spawn_category', toolName: 'system_control', arguments: { action: 'spawn_category', categoryName: 'AI' }, expected: 'success' },
   // === ACTION ===
   { scenario: 'ACTION: start_session', toolName: 'system_control', arguments: { action: 'start_session', channels: 'cpu' }, expected: 'success' },
+  { scenario: 'INFO: get_trace_status', toolName: 'system_control', arguments: { action: 'get_trace_status' }, expected: 'success' },
+  { scenario: 'ACTION: pause_session', toolName: 'system_control', arguments: { action: 'pause_session' }, expected: { successPattern: 'paused', errorPattern: 'TRACE_PAUSE_FAILED' } },
+  { scenario: 'ACTION: resume_session', toolName: 'system_control', arguments: { action: 'resume_session' }, expected: { successPattern: 'resumed', errorPattern: 'TRACE_RESUME_FAILED' } },
+  { scenario: 'ACTION: write_snapshot', toolName: 'system_control', arguments: { action: 'write_snapshot', snapshotPath: TRACE_SNAPSHOT_FILE, overwrite: true }, expected: 'success' },
+  { scenario: 'ACTION: analyze_trace', toolName: 'system_control', arguments: { action: 'analyze_trace', tracePath: TRACE_SNAPSHOT_FILE }, expected: 'success' },
+  { scenario: 'ACTION: send_snapshot', toolName: 'system_control', arguments: { action: 'send_snapshot', host: 'localhost', port: 1981 }, expected: { successPattern: 'snapshot', errorPattern: 'SNAPSHOT_SEND_FAILED' } },
+  { scenario: 'ACTION: stop_session', toolName: 'system_control', arguments: { action: 'stop_session' }, expected: 'success' },
+  { scenario: 'ACTION: capture_insights_trace', toolName: 'system_control', arguments: { action: 'capture_insights_trace', channels: 'cpu', traceFile: TRACE_CAPTURE_FILE, overwrite: true }, expected: 'success' },
+  { scenario: 'ACTION: stop_session after capture', toolName: 'system_control', arguments: { action: 'stop_session' }, expected: 'success' },
+  { scenario: 'ACTION: start_unreal_insights', toolName: 'system_control', arguments: { action: 'start_unreal_insights', channels: 'cpu', connectionType: 'file', traceFile: TRACE_START_FILE, overwrite: true }, expected: 'success' },
+  { scenario: 'ACTION: stop_session after start_unreal_insights', toolName: 'system_control', arguments: { action: 'stop_session' }, expected: 'success' },
   { scenario: 'ACTION: lumen_update_scene', toolName: 'system_control', arguments: { action: 'lumen_update_scene' }, expected: 'success' },
   // === PLAYBACK ===
   { scenario: 'PLAYBACK: play_sound', toolName: 'system_control', arguments: { action: 'play_sound', volume: 0 }, expected: 'success' },

@@ -71,6 +71,19 @@ function mergeAutomationResponse(
   return Object.assign({}, response, fields);
 }
 
+const insightsActionSet = new Set<string>([
+  'start_session',
+  'start_unreal_insights',
+  'capture_insights_trace',
+  'get_trace_status',
+  'pause_session',
+  'resume_session',
+  'stop_session',
+  'write_snapshot',
+  'send_snapshot',
+  'analyze_trace'
+]);
+
 export function registerDefaultHandlers() {
   toolRegistry.register('manage_asset', async (args, tools) => {
     const action = getToolAction(args);
@@ -142,18 +155,24 @@ export function registerDefaultHandlers() {
       const response = await executeAutomationRequest(tools, 'manage_debug', { ...args, subAction: action, categoryName }, 'Bridge unavailable');
       return cleanObject(mergeAutomationResponse(response, { action, categoryName }));
     }
-    if (action === 'start_session') {
+    if (insightsActionSet.has(action)) {
       const channels = typeof args.channels === 'string' ? args.channels.trim() : '';
       if (channels && !/^[A-Za-z0-9_, -]+$/.test(channels)) {
         return { success: false, error: 'INVALID_CHANNELS', message: 'Trace channels contain unsupported characters.' };
       }
-      const response = await executeAutomationRequest(tools, 'manage_insights', {
+      const payload = channels ? {
         ...args,
         action,
         subAction: action,
         channels
-      }, 'Bridge unavailable');
-      return cleanObject(mergeAutomationResponse(response, { action, channels, sessionType: 'trace' }));
+      } : {
+        ...args,
+        action,
+        subAction: action
+      };
+      const response = await executeAutomationRequest(tools, 'manage_insights', payload, 'Bridge unavailable');
+      const metadata = channels ? { action, channels, sessionType: 'trace' } : { action, sessionType: 'trace' };
+      return cleanObject(mergeAutomationResponse(response, metadata));
     }
     if (action === 'lumen_update_scene') return cleanObject(await executeAutomationRequest(tools, 'manage_render', { ...args, subAction: action }, 'Bridge unavailable'));
     return await handleSystemTools(action, args, tools);

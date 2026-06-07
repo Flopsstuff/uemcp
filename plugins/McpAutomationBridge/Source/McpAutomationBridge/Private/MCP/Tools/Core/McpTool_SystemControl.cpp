@@ -44,6 +44,16 @@ public:
 			.String(TEXT("arguments"), TEXT(""))
 			.String(TEXT("filter"), TEXT(""))
 			.String(TEXT("channels"), TEXT(""))
+				.StringEnum(TEXT("connectionType"), {
+					TEXT("file"),
+					TEXT("network")
+				}, TEXT("Trace connection type."))
+				.String(TEXT("host"), TEXT("Loopback trace server host."))
+				.Number(TEXT("port"), TEXT("Loopback trace server port."))
+			.String(TEXT("traceFile"), TEXT("Trace output file path."))
+			.String(TEXT("tracePath"), TEXT("Trace file path to inspect or analyze."))
+			.String(TEXT("snapshotPath"), TEXT("Trace snapshot output file path."))
+			.Bool(TEXT("overwrite"), TEXT("Overwrite existing trace files."))
 			.String(TEXT("widgetPath"), TEXT("Widget blueprint path."))
 			.String(TEXT("childClass"), TEXT(""))
 			.String(TEXT("parentName"), TEXT(""))

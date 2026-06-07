@@ -30,6 +30,9 @@ function createConnectedTools() {
   return { tools, sendAutomationRequest };
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
 describe('consolidated action params compatibility', () => {
   it('advertises params for action tools in public schemas', () => {
     const tools = [
@@ -259,5 +262,94 @@ describe('consolidated action params compatibility', () => {
       returnBase64: true,
       includeMetadata: true
     }, {});
+  });
+
+  it('routes Unreal Insights trace actions through manage_insights', async () => {
+    const { tools, sendAutomationRequest } = createConnectedTools();
+
+    const result = await handleConsolidatedToolCall('system_control', {
+      action: 'capture_insights_trace',
+      channels: 'cpu,gpu',
+      traceFile: 'Saved/Profiling/McpTrace.utrace',
+      overwrite: true
+    }, tools) as Record<string, unknown>;
+
+    expect(sendAutomationRequest).toHaveBeenCalledWith('manage_insights', expect.objectContaining({
+      action: 'capture_insights_trace',
+      subAction: 'capture_insights_trace',
+      channels: 'cpu,gpu',
+      traceFile: 'Saved/Profiling/McpTrace.utrace',
+      overwrite: true
+    }), expect.any(Object));
+    expect(result).toMatchObject({
+      success: true,
+      action: 'capture_insights_trace',
+      channels: 'cpu,gpu',
+      sessionType: 'trace'
+    });
+  });
+
+  it('does not synthesize empty Unreal Insights channels', async () => {
+    const { tools, sendAutomationRequest } = createConnectedTools();
+
+    const result = await handleConsolidatedToolCall('system_control', {
+      action: 'start_unreal_insights',
+      connectionType: 'file',
+      traceFile: 'McpTrace.utrace',
+      overwrite: true
+    }, tools);
+
+    expect(sendAutomationRequest).toHaveBeenCalledWith('manage_insights', expect.objectContaining({
+      action: 'start_unreal_insights',
+      subAction: 'start_unreal_insights',
+      traceFile: 'McpTrace.utrace',
+      overwrite: true
+    }), expect.any(Object));
+    const firstCall = sendAutomationRequest.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    expect(firstCall?.[1]).not.toHaveProperty('channels');
+    expect(result).toMatchObject({
+      success: true,
+      action: 'start_unreal_insights',
+      sessionType: 'trace'
+    });
+    expect(result).not.toHaveProperty('channels');
+  });
+
+  it('advertises only trace connection types backed by live bridge execution', () => {
+    const tool = consolidatedToolDefinitions.find((definition) => definition.name === 'system_control');
+    const coreTool = coreToolDefinitions.find((definition) => definition.name === 'system_control');
+    const tools = [tool, coreTool];
+
+    for (const definition of tools) {
+      const properties = definition?.inputSchema.properties;
+      expect(isRecord(properties)).toBe(true);
+      if (!isRecord(properties)) {
+        throw new Error('system_control properties must be a schema object');
+      }
+
+      const connectionType = properties.connectionType;
+      expect(isRecord(connectionType)).toBe(true);
+      if (!isRecord(connectionType)) {
+        throw new Error('connectionType must be a schema object');
+      }
+
+      expect(connectionType.enum).toEqual(['file', 'network']);
+    }
+  });
+
+  it('rejects unsafe Unreal Insights channels before bridge dispatch', async () => {
+    const { tools, sendAutomationRequest } = createConnectedTools();
+
+    const result = await handleConsolidatedToolCall('system_control', {
+      action: 'start_unreal_insights',
+      channels: 'cpu;quit'
+    }, tools) as Record<string, unknown>;
+
+    expect(sendAutomationRequest).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      success: false,
+      error: 'INVALID_CHANNELS'
+    });
   });
 });
