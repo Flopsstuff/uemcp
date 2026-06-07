@@ -52,8 +52,8 @@ This document tracks ongoing work to replace stubbed or registry-based fallbacks
 
 | Action | Current State | Needed Work |
 | --- | --- | --- |
-| `manage_asset` (render target) | Implemented (`create_render_target`). | Implement `nanite_rebuild_mesh`. |
-| `system_control` (lumen) | Implemented (`lumen_update_scene`). | |
+| `manage_asset` (render target / Nanite) | Implemented (`create_render_target`, `nanite_rebuild_mesh`). | ✅ Done |
+| `system_control` (lumen) | Implemented (`lumen_update_scene`). | ✅ Done |
 | `system_control` (pipeline) | Implemented (`run_ubt`). | ✅ Done (Streamed via Node) |
 | `system_control` (tests) | Implemented (`run_tests`). | Add result streaming. |
 | `system_control` (settings) | Implemented (`set_project_setting`). | ✅ Done |
@@ -65,7 +65,7 @@ This document tracks ongoing work to replace stubbed or registry-based fallbacks
 | --- | --- | --- |
 | `system_control` (logs) | Implemented (`subscribe`). | Add real-time streaming. |
 | `system_control` (debug) | Implemented (`spawn_category`). | Add GGameplayDebugger integration. |
-| `system_control` (insights) | Implemented (`start_session`). | Add FTraceAuxiliary integration. |
+| `system_control` (insights) | Implemented (`start_session`). | Add deeper FTraceAuxiliary capture/analyze integration. |
 | `control_editor` (ui) | Implemented (`simulate_input`). | Add FSlateApplication integration. |
 
 ## SCS (Simple Construction Script) Helpers
@@ -425,13 +425,8 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 
 ## Next Steps
 
-1. Refine `manage_render` logic (now split).
-2. Enhance test running with real-time result streaming.
-3. Polish dynamic lighting utilities (undo, mobility, pulse, removal).
-4. Extend log subscription for real-time streaming.
-5. ~~Continue implementation of Phase 22 (Sessions & Local Multiplayer) per Roadmap.~~ ✅ Done
-6. ~~Continue implementation of Phase 23 (Level Structure) per Roadmap.~~ ✅ Done
-7. ~~Continue implementation of Phase 24 (Volumes & Zones) per Roadmap.~~ ✅ Done
-8. ~~Continue implementation of Phase 25 (Navigation System) per Roadmap.~~ ✅ Done
-9. ~~Continue implementation of Phase 26 (Spline System) per Roadmap.~~ ✅ Done
-10. Phase 27 (PCG Framework) complete. ✅ Done
+1. Finish Phase 5 test/log real-time result streaming.
+2. Expand Phase 29 rendering/post-process coverage beyond seeded lighting, render-target, Lightmass-volume, and post-process-volume actions.
+3. Expand Phase 33 profiling/validation coverage beyond `start_session` and `validate_assets`.
+4. Continue Phase 30 cinematic/media expansion after the Phase 29 rendering surface is settled.
+5. Phases 22-28 are complete, including Phase 27 (PCG Framework). ✅ Done

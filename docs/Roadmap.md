@@ -2,7 +2,9 @@
 
 This roadmap outlines the comprehensive development plan for expanding the Unreal Engine Model Context Protocol (MCP) server into a **complete automation platform** capable of building full production projects (games, films, archviz, VR experiences, virtual production, etc.).
 
-**Target**: ~2,855 actions covering all Unreal Engine subsystems and major plugin integrations.
+**Target**: ~2,825 actions covering all Unreal Engine subsystems and major plugin integrations.
+
+**Current sync (2026-06-07)**: Phases 1-4 and 6-28 are implemented and tracked through the consolidated 23-tool TypeScript/native canonical surface. Phase 5 has baseline infrastructure in place but still has streaming/profiling polish open. Phase 29+ remains the planned expansion area, with a few seeded actions already available through existing canonical tools.
 
 ---
 
@@ -36,11 +38,13 @@ This roadmap outlines the comprehensive development plan for expanding the Unrea
 - [x] **Metrics Dashboard**: `ue://health` view backed by bridge/server metrics.
 - [x] **UE 5.7 Support**: Full compatibility with Unreal Engine 5.7 (Control Rig, Subobject Data).
 
-## Phase 5: Infrastructure Improvements (Current)
+## Phase 5: Infrastructure Improvements (Partially Implemented / Ongoing)
 
-- [ ] **Real-time Streaming**: Streaming logs and test results via SSE or chunked responses.
+- [x] **Native MCP Streaming Transport**: Optional native `/mcp` HTTP/SSE transport supports SSE sessions and streamed `tools/call` responses.
+- [x] **Baseline Observability Routes**: `system_control` dispatches `run_tests`, log `subscribe`/`unsubscribe`, and Unreal Insights `start_session`.
+- [ ] **Real-time Test/Log Streams**: Extend test results and log subscriptions to continuous result/event streams across client-visible transports.
 - [ ] **Extensibility Framework**: Dynamic handler registry via JSON config and support for custom C++ handlers.
-- [ ] **Remote Profiling**: Deep integration with Unreal Insights for remote performance tuning.
+- [ ] **Remote Profiling**: Deep Unreal Insights integration beyond the current `start_session` trace route, including capture/analyze workflows.
 
 ## Context Reduction Initiative (Completed Workstream)
 
@@ -1023,7 +1027,7 @@ The following phases represent the comprehensive expansion to enable **full proj
 
 **Tool**: `manage_level_structure`
 
-**Status**: All 18 actions fully implemented in TypeScript and C++.
+**Status**: All 19 actions fully implemented in TypeScript and C++.
 
 ### 24.1 Trigger Volumes
 - [x] `create_trigger_volume`
@@ -1084,7 +1088,7 @@ The following phases represent the comprehensive expansion to enable **full proj
 
 **Tool**: `build_environment`
 
-**Status**: All 21 actions fully implemented in TypeScript and C++.
+**Status**: All 22 actions fully implemented in TypeScript and C++.
 
 ### 26.1 Spline Creation
 - [x] `create_spline_actor`
@@ -1118,11 +1122,13 @@ The following phases represent the comprehensive expansion to enable **full proj
 
 ---
 
-## Phase 27: PCG Framework
+## Phase 27: PCG Framework (Complete)
 
 **Goal**: Complete procedural content generation.
 
 **Tool**: `manage_pcg`
+
+**Status**: All listed PCG graph, node, sampler, spawner, execution, and partition-grid actions are implemented in TypeScript and C++.
 
 ### 27.1 Graph Management
 - [x] `create_pcg_graph`, `create_pcg_subgraph`
@@ -1219,11 +1225,13 @@ The following phases represent the comprehensive expansion to enable **full proj
 
 ---
 
-## Phase 29: Advanced Lighting & Rendering
+## Phase 29: Advanced Lighting & Rendering (Planned / Partially Seeded)
 
 **Goal**: Complete lighting and post-processing.
 
-**Tool**: `build_environment` (Expanded) + `manage_post_process`
+**Tool**: `build_environment` plus seeded `manage_asset` and `manage_level_structure` actions; expanded post-process/render actions remain planned on the consolidated surface.
+
+**Status**: Baseline lighting, Lightmass volume creation, render target creation, and post-process volume creation are already available. The detailed ray-tracing, reflection, post-process tuning, and scene-capture actions below remain planned unless marked complete.
 
 ### 29.1 Ray Tracing
 - [ ] `configure_ray_traced_shadows`
@@ -1237,6 +1245,8 @@ The following phases represent the comprehensive expansion to enable **full proj
 - [ ] `set_actor_light_channel`
 
 ### 29.3 Lightmass
+- [x] `create_lightmass_volume`
+- [x] `create_lightmass_importance_volume`
 - [ ] `configure_lightmass_settings`
 - [ ] `build_lighting_quality`
 - [ ] `configure_indirect_lighting_cache`
@@ -1252,7 +1262,8 @@ The following phases represent the comprehensive expansion to enable **full proj
 - [ ] `configure_lumen_reflection_settings`
 
 ### 29.5 Post Processing
-- [ ] `create_post_process_volume`
+- [x] `create_post_process_volume`
+- [x] `add_post_process_volume`
 - [ ] `configure_pp_blend` (infinite_unbound, weight)
 - [ ] Color Grading: `set_pp_white_balance`, `set_pp_color_grading`, `set_pp_lut`, saturation, contrast, gamma, gain, offset
 - [ ] `configure_tonemapper`, `set_tonemapper_type`
@@ -1266,7 +1277,8 @@ The following phases represent the comprehensive expansion to enable **full proj
 ### 29.6 Scene Capture
 - [ ] `create_scene_capture_2d`, `create_scene_capture_cube`
 - [ ] `configure_capture_resolution`, `configure_capture_source`
-- [ ] `create_render_target`, `assign_render_target`
+- [x] `create_render_target`
+- [ ] `assign_render_target`
 - [ ] `capture_scene`
 
 ---
@@ -1275,7 +1287,9 @@ The following phases represent the comprehensive expansion to enable **full proj
 
 **Goal**: Complete sequencer and media capabilities.
 
-**Tool**: `manage_sequencer` (Expanded) + `manage_movie_render` + `manage_media`
+**Tool**: `manage_sequence` expanded with planned movie-render and media actions.
+
+**Status**: Baseline Level Sequence create/open/play/binding actions are complete in Phase 3. This phase tracks the expanded cinematic, Movie Render Queue, media, take-recorder, and replay surface.
 
 ### 30.1 Sequencer (Expanded)
 - [ ] `create_master_sequence`
@@ -1319,11 +1333,15 @@ The following phases represent the comprehensive expansion to enable **full proj
 
 ---
 
+> **Roadmap naming note**: In Phases 31-48, `manage_*` names are capability-family placeholders unless they already match one of the current 23 canonical public tools.
+
 ## Phase 31: Data & Persistence
 
 **Goal**: Complete data management and save systems.
 
-**Tools**: `manage_data_assets`, `manage_save_system`, `manage_gameplay_tags`, `manage_config`
+**Tools**: Planned data, save, gameplay-tag, and config capability families; current project-setting baseline lives on `system_control`.
+
+**Status**: `get_project_settings` and `set_project_setting` are implemented. Data assets, save slots, gameplay tags, and expanded config hierarchy actions remain planned.
 
 ### 31.1 Data Assets
 - [ ] `create_data_asset`, `create_primary_data_asset`
@@ -1348,6 +1366,7 @@ The following phases represent the comprehensive expansion to enable **full proj
 - [ ] `create_tag_table`
 
 ### 31.4 Config System
+- [x] `get_project_settings`, `set_project_setting`
 - [ ] `read_config_value`, `write_config_value`
 - [ ] `get_section`, `create_config_section`
 - [ ] `flush_config`, `reload_config`
@@ -1359,9 +1378,12 @@ The following phases represent the comprehensive expansion to enable **full proj
 
 **Goal**: Complete build pipeline and packaging.
 
-**Tool**: `manage_build`
+**Tool**: `system_control` for current `run_ubt`; expanded build/deployment capability remains planned.
+
+**Status**: Baseline UBT execution and asset validation are available. Cooking, packaging, platform signing, chunking, plugin management, and encryption/compression remain planned.
 
 ### 32.1 Build Pipeline
+- [x] `run_ubt` (baseline)
 - [ ] `run_ubt` (expanded)
 - [ ] `generate_project_files`
 - [ ] `compile_shaders`
@@ -1380,7 +1402,7 @@ The following phases represent the comprehensive expansion to enable **full proj
 > **Note**: Console builds (PlayStation, Xbox, Switch) require external SDK installation and platform portal registration BEFORE the project can be opened. Once SDKs are installed, MCP can configure build settings within the project.
 
 ### 32.3 Asset Management
-- [ ] `validate_assets`
+- [x] `validate_assets`
 - [ ] `audit_assets`
 - [ ] `size_map_analysis`
 - [ ] `reference_viewer`
@@ -1401,9 +1423,12 @@ The following phases represent the comprehensive expansion to enable **full proj
 
 **Goal**: Complete testing and profiling infrastructure.
 
-**Tools**: `manage_testing`, `manage_profiling`, `manage_validation`
+**Tools**: `system_control` for current baseline testing/profiling/validation; expanded test/profiling/validation actions are planned.
+
+**Status**: `run_tests`, `start_session`, and `validate_assets` are implemented on `system_control`. The checklist below tracks the broader named action surface still planned unless marked complete.
 
 ### 33.1 Automation Testing
+- [x] `run_tests`
 - [ ] `create_functional_test`
 - [ ] `create_automation_test`
 - [ ] `run_automation_tests`
@@ -1413,6 +1438,7 @@ The following phases represent the comprehensive expansion to enable **full proj
 - [ ] `run_gauntlet_test`
 
 ### 33.2 Profiling
+- [x] `start_session`
 - [ ] `start_unreal_insights`
 - [ ] `capture_insights_trace`
 - [ ] `analyze_trace`
@@ -1424,6 +1450,7 @@ The following phases represent the comprehensive expansion to enable **full proj
 - [ ] `configure_stat_commands`
 
 ### 33.3 Validation
+- [x] `validate_assets`
 - [ ] `create_asset_validator`
 - [ ] `run_data_validation`
 - [ ] `check_for_errors`
@@ -1508,6 +1535,8 @@ The following phases represent the comprehensive expansion to enable **full proj
 
 **Goal**: Common gameplay patterns and systems.
 
+**Status**: Mostly planned. HLOD layer creation/configuration is already seeded through `manage_level_structure.configure_hlod_layer`.
+
 ### 35.1 Targeting System
 - [ ] `create_targeting_component`
 - [ ] `configure_lock_on_target`
@@ -1559,7 +1588,7 @@ The following phases represent the comprehensive expansion to enable **full proj
 - [ ] `create_hierarchical_instanced_static_mesh`
 - [ ] `add_instance`, `remove_instance`, `update_instance_transform`
 - [ ] `configure_instance_culling`, `configure_instance_lod`
-- [ ] `create_hlod_layer`
+- [x] `configure_hlod_layer` (creates and configures HLOD layer assets)
 - [ ] `configure_hlod_settings`
 - [ ] `add_actors_to_hlod`, `build_hlod`
 - [ ] `configure_hlod_transition`
@@ -1967,7 +1996,10 @@ The following phases represent the comprehensive expansion to enable **full proj
 
 ## Phase 45: Utility Plugins
 
+**Status**: Baseline Python execution is implemented through `system_control.execute_python`. The rest of this phase remains planned plugin-specific utility expansion.
+
 ### 45.1 Python Scripting
+- [x] `execute_python` (inline code and file execution)
 - [ ] `execute_python_script`, `execute_python_string`, `execute_python_file`
 - [ ] `configure_python_paths`, `install_python_package`, `list_python_packages`
 - [ ] `create_python_editor_utility`, `register_python_command`, `unregister_python_command`
@@ -2165,19 +2197,19 @@ The following phases represent the comprehensive expansion to enable **full proj
 | Category | Phases | Estimated Actions |
 |----------|--------|-------------------|
 | Completed Foundation (1-4) | 4 | ~160 |
-| Infrastructure (5) | 1 | ~20 |
-| Content Creation (6-12) | 7 | ~400 |
-| Gameplay Systems (13-18) | 6 | ~300 |
-| UI/UX (19) | 1 | ~80 |
-| Networking & Framework (20-22) | 3 | ~100 |
-| World & Environment (23-28) | 6 | ~200 |
-| Rendering & Post (29) | 1 | ~80 |
+| Infrastructure (5, partial) | 1 | ~20 |
+| Completed Content Creation (6-12) | 7 | ~400 |
+| Completed Gameplay Systems (13-18) | 6 | ~300 |
+| Completed UI/UX (19) | 1 | ~80 |
+| Completed Networking & Framework (20-22) | 3 | ~100 |
+| Completed World & Environment (23-28) | 6 | ~200 |
+| Rendering & Post (29, partial/planned) | 1 | ~80 |
 | Cinematics & Media (30) | 1 | ~80 |
-| Data & Persistence (31) | 1 | ~50 |
-| Build & Deploy (32) | 1 | ~35 |
-| Testing & Quality (33) | 1 | ~35 |
+| Data & Persistence (31, partial/planned) | 1 | ~50 |
+| Build & Deploy (32, partial/planned) | 1 | ~35 |
+| Testing & Quality (33, partial/planned) | 1 | ~35 |
 | Editor Utilities (34) | 1 | ~60 |
-| Additional Systems (35) | 1 | ~80 |
+| Additional Systems (35, partial/planned) | 1 | ~80 |
 | Plugin: Character (36) | 1 | ~60 |
 | Plugin: Asset/Content (37) | 1 | ~150 |
 | Plugin: Audio Middleware (38) | 1 | ~80 |
@@ -2187,15 +2219,17 @@ The following phases represent the comprehensive expansion to enable **full proj
 | Plugin: AI/NPC (42) | 1 | ~30 |
 | Plugin: Online Services (43) | 1 | ~160 |
 | Plugin: Streaming (44) | 1 | ~50 |
-| Plugin: Utilities (45) | 1 | ~100 |
+| Plugin: Utilities (45, partial/planned) | 1 | ~100 |
 | Plugin: Physics/Destruction (46) | 1 | ~80 |
 | Accessibility (47) | 1 | ~40 |
 | Modding & UGC (48) | 1 | ~25 |
-| **TOTAL** | **48** | **~2,855** |
+| **TOTAL** | **48** | **~2,825** |
+
+Current implementation is complete through Phase 28 except for the explicitly ongoing Phase 5 infrastructure polish. Phases 29, 31-33, 35, and 45 have seeded actions on existing canonical tools, but their expanded roadmap surfaces remain planned.
 
 ## What This Enables
 
-With ~2,855 actions covering all Unreal Engine systems and major plugins:
+When the planned ~2,825-action target is complete, the platform will cover all Unreal Engine systems and major plugins for:
 
 - **Complete Game Development**: Build any genre (FPS, RPG, Racing, Platformer, etc.)
 - **Animated Films**: Full pipeline from character to final render
