@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { Logger } from '../utils/logger.js';
+import { Logger } from '../utils/logging/logger.js';
 import { randomUUID } from 'node:crypto';
 import { SocketInfo } from './types.js';
 import { EventEmitter } from 'node:events';

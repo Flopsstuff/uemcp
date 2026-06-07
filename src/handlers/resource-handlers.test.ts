@@ -4,7 +4,7 @@ import type { AssetResources } from '../resources/assets.js';
 import type { ActorResources } from '../resources/actors.js';
 import type { LevelResources } from '../resources/levels.js';
 import { HealthMonitor } from '../services/health-monitor.js';
-import { Logger } from '../utils/logger.js';
+import { Logger } from '../utils/logging/logger.js';
 import { ResourceHandler, type ResourceServer } from './resource-handlers.js';
 
 type RegisteredResourceHandler = (request: { params: { uri: string } }) => Promise<{ contents: Array<{ text: string }> }>;

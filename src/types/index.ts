@@ -18,11 +18,11 @@ export type {
   EditorResponse,
   SequenceResponse,
   ConsoleResponse,
-} from './automation-responses.js';
+} from './automation/automation-responses.js';
 
 // Environment configuration
-export type { Env } from './env.js';
-export { loadEnv } from './env.js';
+export type { Env } from './config/env.js';
+export { loadEnv } from './config/env.js';
 
 // Handler argument types
 export type {
@@ -61,7 +61,7 @@ export type {
   SplinesArgs,
   VolumeProperties,
   VolumesArgs,
-} from './handler-types.js';
+} from './handlers/handler-types.js';
 
 // Tool interfaces
 export type {
@@ -69,7 +69,7 @@ export type {
   StandardActionResponse,
   IAssetResources,
   ITools,
-} from './tool-interfaces.js';
+} from './tools/tool-interfaces.js';
 
 // Tool-specific types
-export * from './tool-types.js';
+export * from './tools/tool-types.js';

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { HealthMonitor } from './health-monitor.js';
-import { Logger } from '../utils/logger.js';
+import { Logger } from '../utils/logging/logger.js';
 
 function createLogger(): Logger {
   return new Logger('HealthMonitorTest', 'error');

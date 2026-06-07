@@ -1,4 +1,5 @@
 using UnrealBuildTool;
+using System.IO;
 
 public class UnrealAgent : ModuleRules
 {
@@ -6,6 +7,7 @@ public class UnrealAgent : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         bUseUnity = true;
+        PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
 
         PublicDependencyModuleNames.AddRange(new string[]
         {

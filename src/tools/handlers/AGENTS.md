@@ -1,28 +1,30 @@
 # src/tools/handlers
 
-Domain-specific TypeScript action handlers. There are 43 runtime TS files here, including 41 `*-handlers.ts` domain files plus shared helpers. They do argument cleanup and then dispatch to Unreal; they should not contain editor-side business logic that belongs in C++.
+Domain-specific TypeScript action handlers. Implementation files are grouped by tool domain, with larger animation, audio, and level areas split by responsibility. They do argument cleanup and then dispatch to Unreal; they should not contain editor-side business logic that belongs in C++.
 
 ## STRUCTURE
 ```
 handlers/
-|-- common-handlers.ts            # executeAutomationRequest(), requireAction(), parsing/errors
-|-- argument-helper.ts            # shared argument extraction helpers
-|-- actor/asset/blueprint/editor/level style handlers
-|-- animation/audio/effect/geometry/material/widget authoring handlers
-|-- ai/gas/character/combat/inventory/interaction handlers
-|-- networking/sessions/game-framework/input handlers
-|-- system/performance/pipeline/inspect handlers
-`-- *.test.ts                    # focused Vitest coverage for subtle handler behavior
+|-- index.ts                      # handler export surface
+|-- foundation/
+|   |-- arguments/                # argument extraction and validation
+|   |-- dispatch/                 # automation dispatch, action requirements, timeouts
+|   |-- normalization/            # UE path and transform normalization
+|   `-- responses/                # response promotion helpers
+|-- animation/{authoring,runtime}/
+|-- audio/{authoring,runtime}/
+|-- level/{structure,runtime}/
+`-- <domain>/                     # one folder per remaining parent-tool domain
 ```
 
 ## WHERE TO LOOK
 | Task | File | Notes |
 |------|------|-------|
-| Add action branch | matching `*-handlers.ts` | Match the parent tool domain and existing switch style |
-| Dispatch to Unreal | `common-handlers.ts` | Use `executeAutomationRequest(action, params)` |
-| Require action | `common-handlers.ts` | Use `requireAction(args)` for action-based tools |
-| Parse/format errors | `common-handlers.ts` | Preserve tool/action context in returned errors |
-| Normalize common inputs | `argument-helper.ts`, `src/utils/normalize.ts` | Reuse existing coercion helpers |
+| Add action branch | matching `<domain>/*-handlers.ts` | Match the parent tool domain and existing switch style |
+| Dispatch to Unreal | `foundation/dispatch/common-handlers.ts` | Use `executeAutomationRequest(action, params)` |
+| Require action | `foundation/dispatch/common-handlers.ts` | Use `requireAction(args)` for action-based tools |
+| Parse/format errors | `foundation/dispatch/common-handlers.ts` | Preserve tool/action context in returned errors |
+| Normalize common inputs | `foundation/arguments/`, `foundation/normalization/` | Reuse existing coercion helpers |
 
 ## CONVENTIONS
 - Switch on `args.action` after validating that arguments are records.

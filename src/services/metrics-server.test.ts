@@ -3,7 +3,7 @@ import net from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { startMetricsServer } from './metrics-server.js';
 import { HealthMonitor } from './health-monitor.js';
-import { Logger } from '../utils/logger.js';
+import { Logger } from '../utils/logging/logger.js';
 
 const originalMetricsPort = process.env.MCP_METRICS_PORT;
 const originalPrometheusPort = process.env.PROMETHEUS_PORT;

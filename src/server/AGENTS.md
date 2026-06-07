@@ -5,6 +5,8 @@ MCP server registration layer for tools and resources. This directory owns how t
 ## STRUCTURE
 ```
 server/
+|-- server-factory.ts     # Server, bridge, metrics, and schema construction
+|-- stdio-lifecycle.ts    # Stdio transport startup and shutdown handling
 |-- tool-registry.ts      # ListTools/CallTool handlers, manage_tools intercept, output validation
 `-- resource-registry.ts  # MCP resource registration
 ```
@@ -17,6 +19,8 @@ server/
 | Change `manage_tools` TS behavior | `tool-registry.ts` | Handled locally before Unreal dispatch |
 | Change response validation | `tool-registry.ts` | Runs through `responseValidator` and safe JSON cleanup |
 | Change MCP resources | `resource-registry.ts` | Keep resource behavior separate from tool behavior |
+| Change server construction | `server-factory.ts` | Own bridge wiring, health, metrics, schemas, and SDK capabilities |
+| Change stdio startup/shutdown | `stdio-lifecycle.ts` | Own process hooks, transport connection, and cleanup |
 
 ## CONVENTIONS
 - Register MCP SDK request handlers here; do not scatter `ListToolsRequestSchema` or `CallToolRequestSchema` handling elsewhere.

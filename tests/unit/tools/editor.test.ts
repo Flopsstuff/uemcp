@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EditorTools } from '../../../src/tools/editor.js';
+import { EditorTools } from '../../../src/tools/editor/editor.js';
 import { UnrealBridge } from '../../../src/unreal-bridge.js';
 
 describe('EditorTools Security', () => {

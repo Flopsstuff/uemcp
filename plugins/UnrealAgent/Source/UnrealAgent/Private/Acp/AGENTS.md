@@ -5,16 +5,16 @@ OpenCode ACP client for the Unreal Agent panel. This subtree owns process lifecy
 ## WHERE TO LOOK
 | Task | File | Notes |
 |------|------|-------|
-| Public client API | `McpOpenCodeAcpClient.h` | `Start`, `Stop`, `Tick`, prompt/model/agent/permission methods |
-| Process launch/lookup | `McpOpenCodeAcpClient.cpp` | `ResolveOpenCodeExecutable`, safe arg checks, pipe setup |
-| ACP handshake/session | `McpOpenCodeAcpClient.cpp` | `SendInitialize`, `SendNewSession`, request IDs and timeouts |
-| Studio Kit generation | `UnrealAgentStudioKit.*` | Managed `.opencode/` agents, skills, commands, config, and guardrail plugin |
-| Editor context envelope | `UnrealAgentEditorContext.*` | Redacted project/map/PIE/selection/dirty/evidence prompt context |
-| Evidence ledger | `UnrealAgentEvidenceLedger.*` | `Saved/UnrealAgent/state.json`, decisions, evidence event files |
-| Validation runner | `UnrealAgentValidationRunner.*` | Lightweight Studio Kit/context/evidence checks for panel use |
-| MCP server injection | `McpOpenCodeAcpClient.cpp` | `EnsureProjectUnrealAgentConfig`, `AddConfiguredMcpServers`, context attachment |
-| Model/agent selectors | `McpOpenCodeAcpClient.cpp` | Config option parsing and fallback lists |
-| Permissions/tool activity | `McpOpenCodeAcpClient.cpp` | Pending permission ID/options, transcript formatting |
+| Public client API | `Client/McpOpenCodeAcpClient.h` | `Start`, `Stop`, `Tick`, prompt/model/agent/permission methods |
+| Process launch/lookup | `Client/` | Executable resolution, safe args, process lifecycle, pipe IO |
+| ACP handshake/session | `Client/` | Initialize/session requests, IDs, timeouts, and updates |
+| Studio Kit generation | `StudioKit/` | Managed `.opencode/` agents, skills, commands, config, and guardrail plugin |
+| Editor context envelope | `Context/` | Redacted project/map/PIE/selection/dirty/evidence prompt context |
+| Evidence ledger | `Evidence/` | `Saved/UnrealAgent/state.json`, decisions, evidence event files |
+| Validation runner | `Validation/` | Lightweight Studio Kit/context/evidence checks for panel use |
+| MCP server injection | `Client/` | Project configuration, MCP server injection, and context attachment |
+| Model/agent selectors | `Client/` | Config option parsing and fallback lists |
+| Permissions/tool activity | `Client/` | Pending permission ID/options and transcript formatting |
 
 ## PROTOCOL CONVENTIONS
 - ACP protocol version is `1`.

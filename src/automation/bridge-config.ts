@@ -11,7 +11,7 @@ import {
     DEFAULT_NEGOTIATED_PROTOCOLS
 } from '../constants.js';
 import { config } from '../config.js';
-import type { Logger } from '../utils/logger.js';
+import type { Logger } from '../utils/logging/logger.js';
 import type { AutomationBridgeOptions } from './types.js';
 
 const requirePackage = createRequire(import.meta.url);

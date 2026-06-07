@@ -1,4 +1,4 @@
-import { Logger } from '../utils/logger.js';
+import { Logger } from '../utils/logging/logger.js';
 import { AutomationBridgeMessage, AutomationBridgeResponseMessage, ProgressUpdateMessage } from './types.js';
 import { RequestTracker } from './request-tracker.js';
 

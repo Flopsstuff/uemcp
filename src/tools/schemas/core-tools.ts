@@ -1,4 +1,4 @@
-import { addActionParamsSchema } from '../tool-definition-utils.js';
+import { addActionParamsSchema } from '../catalog/tool-definition-utils.js';
 import { controlActorToolDefinition } from './control-actor-tool.js';
 import { controlEditorToolDefinition } from './control-editor-tool.js';
 import type { ToolDefinition } from './core-tool-definition.js';

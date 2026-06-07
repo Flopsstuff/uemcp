@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { LevelTools } from '../../../src/tools/level.js';
+import { LevelTools } from '../../../src/tools/level/level.js';
 import { UnrealBridge } from '../../../src/unreal-bridge.js';
 
 describe('LevelTools Injection Security', () => {

@@ -30,6 +30,7 @@ public class McpAutomationBridge : ModuleRules
         PCHUsage = PCHUsageMode.NoPCHs;
         bUseUnity = true;
         TrySetIntMember(this, "NumIncludedBytesPerUnityCPPOverride", 256 * 1024);
+        PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
 
         PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "Json", "JsonUtilities", "LevelSequence", "MovieScene", "MovieSceneTracks", "GameplayTags", "AIModule", "Landscape" });
 

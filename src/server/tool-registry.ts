@@ -2,21 +2,21 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { UnrealBridge } from '../unreal-bridge.js';
 import { AutomationBridge } from '../automation/index.js';
-import { Logger } from '../utils/logger.js';
+import { Logger } from '../utils/logging/logger.js';
 import { HealthMonitor } from '../services/health-monitor.js';
-import { handleConsolidatedToolCall } from '../tools/consolidated-tool-handlers.js';
-import { mergeActionParams } from '../tools/consolidated-call-utils.js';
-import { responseValidator } from '../utils/response-validator.js';
-import { ErrorHandler } from '../utils/error-handler.js';
-import { cleanObject } from '../utils/safe-json.js';
-import { isRecord } from '../utils/type-guards.js';
-import { redactImagePayloadForLog } from '../utils/log-redaction.js';
-import { createElicitationHelper } from '../utils/elicitation.js';
+import { handleConsolidatedToolCall } from '../tools/orchestration/consolidated-tool-handlers.js';
+import { mergeActionParams } from '../tools/orchestration/consolidated-call-utils.js';
+import { responseValidator } from '../utils/responses/response-validator.js';
+import { ErrorHandler } from '../utils/responses/error-handler.js';
+import { cleanObject } from '../utils/serialization/safe-json.js';
+import { isRecord } from '../utils/validation/type-guards.js';
+import { redactImagePayloadForLog } from '../utils/logging/log-redaction.js';
+import { createElicitationHelper } from '../utils/interaction/elicitation.js';
 import { AssetResources } from '../resources/assets.js';
 import { ActorResources } from '../resources/actors.js';
 import { LevelResources } from '../resources/levels.js';
-import { getProjectSetting } from '../utils/ini-reader.js';
-import { dynamicToolManager } from '../tools/dynamic-tool-manager.js';
+import { getProjectSetting } from '../utils/config/ini-reader.js';
+import { dynamicToolManager } from '../tools/dynamic/dynamic-tool-manager.js';
 import {
     clientSupportsListChanged,
     getEffectiveCategories,

@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { MAX_WS_MESSAGE_SIZE_BYTES } from '../constants.js';
-import { redactImagePayloadTextForLog } from '../utils/log-redaction.js';
-import type { Logger } from '../utils/logger.js';
+import { redactImagePayloadTextForLog } from '../utils/logging/log-redaction.js';
+import type { Logger } from '../utils/logging/logger.js';
 import { formatHostForUrl, type AutomationBridgeResolvedConfig } from './bridge-config.js';
 import { getRawDataByteLength, rawDataToUtf8String } from './bridge-frame.js';
 import type { AutomationBridgeRuntimeState } from './bridge-state.js';

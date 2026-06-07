@@ -2224,6 +2224,6 @@ This roadmap represents a massive undertaking. Contributions are welcome for any
 
 Each new action requires:
 1. TypeScript handler in `src/tools/handlers/`
-2. Tool definition in `src/tools/consolidated-tool-definitions.ts`
+2. Tool definition in `src/tools/catalog/consolidated-tool-definitions.ts` or `src/tools/definitions/`
 3. C++ handler in `plugins/McpAutomationBridge/Source/.../Private/`
 4. Integration test

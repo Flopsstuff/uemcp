@@ -6,14 +6,14 @@ import { describe, expect, it } from 'vitest';
 describe('server shutdown contracts', () => {
   it('stops health checks and the command queue before the automation bridge', () => {
     const source = readFileSync(
-      resolve(process.cwd(), 'src/index.ts'),
+      resolve(process.cwd(), 'src/server/stdio-lifecycle.ts'),
       'utf8',
     );
     const shutdownStart = source.indexOf(
       'const handleShutdown = async',
     );
     const shutdownEnd = source.indexOf(
-      "['SIGINT', 'SIGTERM']",
+      'for (const signal of',
       shutdownStart,
     );
     const shutdownSource = source.slice(shutdownStart, shutdownEnd);

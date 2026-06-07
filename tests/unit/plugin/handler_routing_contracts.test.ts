@@ -15,7 +15,11 @@ const pluginSource = (...parts: string[]): string =>
 
 describe('plugin handler routing contracts', () => {
   it('preserves the material authoring unknown-action response', () => {
-    const source = pluginSource('McpAutomationBridge_MaterialAuthoringHandlers.cpp');
+    const source = pluginSource(
+      'Domains',
+      'MaterialAuthoring',
+      'McpAutomationBridge_MaterialAuthoringHandlers.cpp',
+    );
 
     expect(source).toContain('TEXT("Unknown subAction: %s")');
     expect(source).toContain('TEXT("INVALID_SUBACTION")');
@@ -23,9 +27,15 @@ describe('plugin handler routing contracts', () => {
 
   it('leaves unmatched GAS actions to the parent dispatcher', () => {
     const leaf = pluginSource(
+      'Domains',
+      'GAS',
       'McpAutomationBridge_GASHandlersAbilityGrantExecution.cpp',
     );
-    const dispatcher = pluginSource('McpAutomationBridge_GASHandlers.cpp');
+    const dispatcher = pluginSource(
+      'Domains',
+      'GAS',
+      'McpAutomationBridge_GASHandlers.cpp',
+    );
 
     expect(leaf).not.toContain('TEXT("Unknown GAS subAction: %s")');
     expect(leaf).toMatch(/return false;\s*}\s*}\s*#endif\s*$/);
@@ -35,6 +45,8 @@ describe('plugin handler routing contracts', () => {
 
   it('preserves interaction destruction response contracts after the split', () => {
     const source = pluginSource(
+      'Domains',
+      'Interaction',
       'McpAutomationBridge_InteractionHandlersDestruction.cpp',
     );
 
@@ -52,6 +64,8 @@ describe('plugin handler routing contracts', () => {
 
   it('preserves trigger configuration response contracts after the split', () => {
     const source = pluginSource(
+      'Domains',
+      'Interaction',
       'McpAutomationBridge_InteractionHandlersTriggers.cpp',
     );
 
@@ -67,7 +81,11 @@ describe('plugin handler routing contracts', () => {
   });
 
   it('preserves the landscape grass mesh alias and missing-mesh error', () => {
-    const source = pluginSource('McpAutomationBridge_LandscapeGrassType.cpp');
+    const source = pluginSource(
+      'Domains',
+      'Landscape',
+      'McpAutomationBridge_LandscapeGrassType.cpp',
+    );
 
     expect(source).toContain('TryGetStringField(TEXT("meshPath"), MeshPath)');
     expect(source).toContain('TryGetStringField(TEXT("staticMesh"), MeshPath)');
@@ -76,7 +94,11 @@ describe('plugin handler routing contracts', () => {
   });
 
   it('preserves manage_effect Niagara authoring delegation', () => {
-    const source = pluginSource('McpAutomationBridge_EffectHandlers.cpp');
+    const source = pluginSource(
+      'Domains',
+      'Effect',
+      'McpAutomationBridge_EffectHandlers.cpp',
+    );
     const normalization = source.indexOf(
       'McpEffectHandlers::NormalizeNativeSubAction',
     );

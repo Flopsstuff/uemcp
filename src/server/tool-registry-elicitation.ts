@@ -1,6 +1,6 @@
-import { consolidatedToolDefinitions } from '../tools/consolidated-tool-definitions.js';
-import type { PrimitiveSchema } from '../utils/elicitation.js';
-import type { Logger } from '../utils/logger.js';
+import { consolidatedToolDefinitions } from '../tools/catalog/consolidated-tool-definitions.js';
+import type { PrimitiveSchema } from '../utils/interaction/elicitation.js';
+import type { Logger } from '../utils/logging/logger.js';
 
 type ElicitFunction = (
     message: string,

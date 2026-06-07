@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { Logger } from './utils/logger.js';
-import { isRecord } from './utils/type-guards.js';
+import { Logger } from './utils/logging/logger.js';
+import { isRecord } from './utils/validation/type-guards.js';
 import dotenv from 'dotenv';
 
 // Suppress dotenv output to avoid corrupting MCP stdout stream.

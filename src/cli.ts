@@ -3,8 +3,8 @@
 // gracefully fall back to TypeScript source (./index.ts) when running via
 // ts-node-esm or similar dev workflows where compiled JS isn't available.
 
-import { Logger } from './utils/logger.js';
-import { isRecord } from './utils/type-guards.js';
+import { Logger } from './utils/logging/logger.js';
+import { isRecord } from './utils/validation/type-guards.js';
 
 const log = new Logger('CLI');
 

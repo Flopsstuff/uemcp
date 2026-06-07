@@ -1,6 +1,6 @@
 import type { AutomationBridge } from './automation/index.js';
 import { ENGINE_QUERY_TIMEOUT_MS } from './constants.js';
-import type { StandardActionResponse } from './types/tool-interfaces.js';
+import type { StandardActionResponse } from './types/tools/tool-interfaces.js';
 import { isRecord, responsePayloadRecord } from './unreal-bridge-response.js';
 import type {
   AutomationRequestResponse,

@@ -15,7 +15,11 @@ const privateSource = (...parts: string[]): string =>
 
 describe('plugin security contracts', () => {
   it('never delivers an automation response to an unrelated active socket', () => {
-    const source = privateSource('McpConnectionManagerResponses.cpp');
+    const source = privateSource(
+      'Transport',
+      'Connection',
+      'McpConnectionManagerResponses.cpp',
+    );
     const responseFunction = source.slice(
       source.indexOf('void FMcpConnectionManager::SendAutomationResponse'),
       source.indexOf('void FMcpConnectionManager::SendProgressUpdate'),
@@ -29,6 +33,9 @@ describe('plugin security contracts', () => {
 
   it('resolves import sources through the project file security boundary', () => {
     const source = privateSource(
+      'Domains',
+      'AssetWorkflow',
+      'Operations',
       'McpAutomationBridge_AssetWorkflowImportDuplicate.cpp',
     );
 

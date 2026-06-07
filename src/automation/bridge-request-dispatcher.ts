@@ -1,5 +1,5 @@
 import { config } from '../config.js';
-import type { Logger } from '../utils/logger.js';
+import type { Logger } from '../utils/logging/logger.js';
 import type { RequestTracker } from './request-tracker.js';
 import type {
     AutomationBridgeEvents,

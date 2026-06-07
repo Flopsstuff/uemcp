@@ -17,10 +17,10 @@ export {
   ensureArgsPresent,
   normalizeLocation,
   normalizeRotation,
-} from './common-handlers.js';
+} from './foundation/dispatch/common-handlers.js';
 
 // Argument helpers
-export type { ArgConfig, NormalizedArgs } from './argument-helper.js';
+export type { ArgConfig, NormalizedArgs } from './foundation/arguments/argument-helper.js';
 export {
   normalizeArgs,
   normalizeArgsTyped,
@@ -34,45 +34,45 @@ export {
   extractOptionalArray,
   extractOptionalObject,
   resolveObjectPath,
-} from './argument-helper.js';
+} from './foundation/arguments/argument-helper.js';
 
 // Domain handlers
-export { handleActorTools } from './actor-handlers.js';
-export { handleAITools } from './ai-handlers.js';
-export { handleAnimationAuthoringTools } from './animation-authoring-handlers.js';
-export { handleAnimationTools } from './animation-handlers.js';
-export { handleAssetTools } from './asset-handlers.js';
-export { handleAudioAuthoringTools } from './audio-authoring-handlers.js';
-export { handleAudioTools } from './audio-handlers.js';
-export { handleBlueprintTools, handleBlueprintGet } from './blueprint-handlers.js';
-export { handleCharacterTools } from './character-handlers.js';
-export { handleCombatTools } from './combat-handlers.js';
-export { handleEditorTools } from './editor-handlers.js';
-export { handleEffectTools } from './effect-handlers.js';
-export { handleEnvironmentTools } from './environment-handlers.js';
-export { handleGameFrameworkTools } from './game-framework-handlers.js';
-export { handleGASTools } from './gas-handlers.js';
-export { handleGeometryTools } from './geometry-handlers.js';
-export { handleGraphTools } from './graph-handlers.js';
-export { handleInputTools } from './input-handlers.js';
-export { handleInspectTools } from './inspect-handlers.js';
-export { handleInteractionTools } from './interaction-handlers.js';
-export { handleInventoryTools } from './inventory-handlers.js';
-export { handleLevelTools } from './level-handlers.js';
-export { handleLevelStructureTools } from './level-structure-handlers.js';
-export { handleLightingTools } from './lighting-handlers.js';
-export { handleManageToolsTools } from './manage-tools-handlers.js';
-export { handleMaterialAuthoringTools } from './material-authoring-handlers.js';
-export { handleNavigationTools } from './navigation-handlers.js';
-export { handleNetworkingTools } from './networking-handlers.js';
-export { handleNiagaraAuthoringTools } from './niagara-authoring-handlers.js';
-export { handlePerformanceTools } from './performance-handlers.js';
-export { handlePipelineTools } from './pipeline-handlers.js';
-export { handleSequenceTools } from './sequence-handlers.js';
-export { handleSessionsTools } from './sessions-handlers.js';
-export { handleSkeletonTools } from './skeleton-handlers.js';
-export { handleSplineTools } from './spline-handlers.js';
-export { handleSystemTools } from './system-handlers.js';
-export { handleTextureTools } from './texture-handlers.js';
-export { handleVolumeTools } from './volume-handlers.js';
-export { handleWidgetAuthoringTools } from './widget-authoring-handlers.js';
+export { handleActorTools } from './actor/actor-handlers.js';
+export { handleAITools } from './ai/ai-handlers.js';
+export { handleAnimationAuthoringTools } from './animation/authoring/animation-authoring-handlers.js';
+export { handleAnimationTools } from './animation/runtime/animation-handlers.js';
+export { handleAssetTools } from './asset/asset-handlers.js';
+export { handleAudioAuthoringTools } from './audio/authoring/audio-authoring-handlers.js';
+export { handleAudioTools } from './audio/runtime/audio-handlers.js';
+export { handleBlueprintTools, handleBlueprintGet } from './blueprint/blueprint-handlers.js';
+export { handleCharacterTools } from './character/character-handlers.js';
+export { handleCombatTools } from './combat/combat-handlers.js';
+export { handleEditorTools } from './editor/editor-handlers.js';
+export { handleEffectTools } from './effect/effect-handlers.js';
+export { handleEnvironmentTools } from './environment/environment-handlers.js';
+export { handleGameFrameworkTools } from './game-framework/game-framework-handlers.js';
+export { handleGASTools } from './gas/gas-handlers.js';
+export { handleGeometryTools } from './geometry/geometry-handlers.js';
+export { handleGraphTools } from './graph/graph-handlers.js';
+export { handleInputTools } from './input/input-handlers.js';
+export { handleInspectTools } from './inspect/inspect-handlers.js';
+export { handleInteractionTools } from './interaction/interaction-handlers.js';
+export { handleInventoryTools } from './inventory/inventory-handlers.js';
+export { handleLevelTools } from './level/runtime/level-handlers.js';
+export { handleLevelStructureTools } from './level/structure/level-structure-handlers.js';
+export { handleLightingTools } from './lighting/lighting-handlers.js';
+export { handleManageToolsTools } from './tools/manage-tools-handlers.js';
+export { handleMaterialAuthoringTools } from './material/material-authoring-handlers.js';
+export { handleNavigationTools } from './navigation/navigation-handlers.js';
+export { handleNetworkingTools } from './networking/networking-handlers.js';
+export { handleNiagaraAuthoringTools } from './niagara/niagara-authoring-handlers.js';
+export { handlePerformanceTools } from './performance/performance-handlers.js';
+export { handlePipelineTools } from './pipeline/pipeline-handlers.js';
+export { handleSequenceTools } from './sequence/sequence-handlers.js';
+export { handleSessionsTools } from './sessions/sessions-handlers.js';
+export { handleSkeletonTools } from './skeleton/skeleton-handlers.js';
+export { handleSplineTools } from './spline/spline-handlers.js';
+export { handleSystemTools } from './system/system-handlers.js';
+export { handleTextureTools } from './texture/texture-handlers.js';
+export { handleVolumeTools } from './volume/volume-handlers.js';
+export { handleWidgetAuthoringTools } from './widget/widget-authoring-handlers.js';

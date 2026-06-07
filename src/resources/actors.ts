@@ -1,6 +1,6 @@
 import { UnrealBridge } from '../unreal-bridge.js';
-import type { AutomationRequestBridge } from '../types/tool-interfaces.js';
-import { coerceNumber, coerceString } from '../utils/result-helpers.js';
+import type { AutomationRequestBridge } from '../types/tools/tool-interfaces.js';
+import { coerceNumber, coerceString } from '../utils/responses/result-helpers.js';
 
 interface CacheEntry {
   data: unknown;

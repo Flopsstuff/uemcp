@@ -1,5 +1,5 @@
 import type { AutomationBridge } from './automation/index.js';
-import type { StandardActionResponse } from './types/tool-interfaces.js';
+import type { StandardActionResponse } from './types/tools/tool-interfaces.js';
 import { isStringArray, resultRecord } from './unreal-bridge-response.js';
 import type {
   AutomationRequestResponse,

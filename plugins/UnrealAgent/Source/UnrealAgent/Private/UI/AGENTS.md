@@ -5,11 +5,14 @@ Slate panel for `Window > Unreal Agent`. This subtree owns the visible chat surf
 ## WHERE TO LOOK
 | Task | File | Notes |
 |------|------|-------|
-| Build panel layout | `SUnrealAgentPanel.cpp` | `Construct`, cockpit, sidebar/composer/menu factories, quick prompts |
-| Public test hooks | `SUnrealAgentPanel.h` | Automation-only transcript/sidebar/context helpers |
-| ACP callback wiring | `SUnrealAgentPanel.cpp` | Status, transcript, permission, models changed, stopped |
-| Transcript rendering | `SUnrealAgentPanel.cpp` | Markdown-ish tables, activity groups, streaming rows |
-| Model/agent menus | `SUnrealAgentPanel.cpp` | Provider grouping, search, selection callbacks |
+| Build panel layout | `Core/` | Construction, lifecycle, main layout, predicates, and status |
+| Public test hooks | `Core/SUnrealAgentPanel.h` | Automation-only transcript/sidebar/context helpers |
+| Compose prompts | `Composer/` | Input, actions, prompt widgets, model/agent menus |
+| Render transcript | `Transcript/` | Markdown, activity groups, streaming, active chat state |
+| Manage history | `History/` | Conversation storage, rows, and history actions |
+| Resolve permissions | `Permissions/` | Permission bar and approval/rejection actions |
+| Show context controls | `Cockpit/` | Cockpit, sidebar, and context status |
+| Automation state | `Automation/` | UI automation state and hooks |
 
 ## UI CONVENTIONS
 - Stable widget tags prefixed `UnrealAgent.*` are the Slate automation contract. Update `UnrealAgentAutomationTests.cpp` with any tag/layout change.
