@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
 import { expectedCondition as conditionFromExpectation, splitExpectedConditions } from './expectation-utils.mjs';
+import { evaluateAssertions, selectCaptureValue } from './test-runner-response-utils.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -866,59 +867,6 @@ async function createConnectedClient(clientName, waitMs) {
   return { transport, client };
 }
 
-function getValueAtPath(source, pathExpression) {
-  if (!pathExpression || typeof pathExpression !== 'string') return undefined;
-  return pathExpression.split('.').reduce((current, part) => {
-    if (current === undefined || current === null) return undefined;
-    if (Array.isArray(current)) {
-      const index = Number.parseInt(part, 10);
-      return Number.isInteger(index) ? current[index] : undefined;
-    }
-    if (typeof current === 'object') {
-      return Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined;
-    }
-    return undefined;
-  }, source);
-}
-
-function matchesObjectSubset(candidate, expectedSubset) {
-  if (!candidate || typeof candidate !== 'object' || !expectedSubset || typeof expectedSubset !== 'object') return false;
-  return Object.entries(expectedSubset).every(([key, expectedValue]) => {
-    if (!Object.prototype.hasOwnProperty.call(candidate, key)) return false;
-    const actualValue = candidate[key];
-    if (expectedValue && typeof expectedValue === 'object' && !Array.isArray(expectedValue)) {
-      if ('length' in expectedValue && Array.isArray(actualValue)) return actualValue.length === expectedValue.length;
-      return matchesObjectSubset(actualValue, expectedValue);
-    }
-    return actualValue === expectedValue;
-  });
-}
-
-function evaluateAssertions(testCase, response) {
-  if (!Array.isArray(testCase.assertions) || testCase.assertions.length === 0) return { passed: true };
-
-  for (const assertion of testCase.assertions) {
-    const label = assertion.label || assertion.path || 'assertion';
-    const actual = getValueAtPath(response, assertion.path);
-
-    if (Object.prototype.hasOwnProperty.call(assertion, 'equals') && actual !== assertion.equals) {
-      return { passed: false, reason: `${label}: expected ${JSON.stringify(assertion.equals)}, got ${JSON.stringify(actual)}` };
-    }
-
-    if (Object.prototype.hasOwnProperty.call(assertion, 'length') && (!Array.isArray(actual) || actual.length !== assertion.length)) {
-      return { passed: false, reason: `${label}: expected array length ${assertion.length}, got ${Array.isArray(actual) ? actual.length : typeof actual}` };
-    }
-
-    if (assertion.includesObject) {
-      if (!Array.isArray(actual) || !actual.some((entry) => matchesObjectSubset(entry, assertion.includesObject))) {
-        return { passed: false, reason: `${label}: no array item matched ${JSON.stringify(assertion.includesObject)}` };
-      }
-    }
-  }
-
-  return { passed: true };
-}
-
 const capturedPlaceholderPattern = /\$\{captured:([^}]+)\}/g;
 /** @type {(captureKey: string) => void} */
 const noopMissingCapture = () => {};
@@ -966,8 +914,8 @@ export async function runToolTests(toolName, testCases) {
 
     // === CAPTURED VALUES SUPPORT ===
     // Stores values captured from previous test responses for use in subsequent tests
-    // Test cases can specify captureResult: { key: 'nodeName', fromField: 'nodeId' }
-    // to capture a value, and use ${captured:key} in arguments to inject it.
+    // Test cases can capture a direct field or filter an array with where/selectField,
+    // then use ${captured:key} in later arguments.
     const capturedValues = {};
 
     /**
@@ -979,9 +927,7 @@ export async function runToolTests(toolName, testCases) {
       const { key, fromField } = testCase.captureResult;
       if (!key || !fromField) return;
 
-      const value = fromField.includes('.')
-        ? getValueAtPath(response.structuredContent, fromField)
-        : response.structuredContent[fromField];
+      const value = selectCaptureValue(response.structuredContent, testCase.captureResult);
       if (value !== undefined) {
         capturedValues[key] = value;
         console.log(`📦 Captured: ${key} = ${value}`);

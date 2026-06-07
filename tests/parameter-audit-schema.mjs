@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
-import { definitionsRoot } from './parameter-audit-context.mjs';
+import { definitionsRoot as defaultDefinitionsRoot } from './parameter-audit-context.mjs';
 
 function propertyName(node) {
   if (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name) || ts.isNumericLiteral(node.name)) {
@@ -18,88 +18,102 @@ function getProperty(objectLiteral, name) {
   return undefined;
 }
 
-function stringArrayFromArrayLiteral(arrayLiteral, constants) {
-  const values = [];
-  for (const element of arrayLiteral.elements) {
-    if (ts.isStringLiteral(element)) {
-      values.push(element.text);
-      continue;
+function sourcePathsFromDefinitions(definitionsRoot) {
+  const sourcePaths = [];
+  const pendingDirectories = [definitionsRoot];
+
+  while (pendingDirectories.length > 0) {
+    const currentDirectory = pendingDirectories.pop();
+    for (const entry of fs.readdirSync(currentDirectory, { withFileTypes: true })) {
+      const entryPath = path.join(currentDirectory, entry.name);
+      if (entry.isDirectory()) {
+        pendingDirectories.push(entryPath);
+      } else if (entry.name.endsWith('.ts')) {
+        sourcePaths.push(entryPath);
+      }
     }
-    if (ts.isSpreadElement(element) && ts.isIdentifier(element.expression)) {
-      values.push(...(constants.get(element.expression.text) ?? []));
+  }
+
+  return sourcePaths.sort();
+}
+
+function unwrapExpression(node) {
+  let current = node;
+  while (
+    ts.isAsExpression(current)
+    || ts.isParenthesizedExpression(current)
+    || ts.isSatisfiesExpression(current)
+    || ts.isTypeAssertionExpression(current)
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
+function declarationInitializer(symbol) {
+  const declaration = symbol.valueDeclaration
+    ?? symbol.declarations?.find((candidate) => ts.isVariableDeclaration(candidate));
+  return declaration && ts.isVariableDeclaration(declaration)
+    ? declaration.initializer
+    : undefined;
+}
+
+function resolveExpression(node, checker, resolving = new Set()) {
+  const expression = unwrapExpression(node);
+  if (!ts.isIdentifier(expression)) return expression;
+
+  const locatedSymbol = checker.getSymbolAtLocation(expression);
+  if (!locatedSymbol) return undefined;
+  const symbol = locatedSymbol.flags & ts.SymbolFlags.Alias
+    ? checker.getAliasedSymbol(locatedSymbol)
+    : locatedSymbol;
+  if (resolving.has(symbol)) return undefined;
+
+  const initializer = declarationInitializer(symbol);
+  if (!initializer) return undefined;
+  const nextResolving = new Set(resolving);
+  nextResolving.add(symbol);
+  return resolveExpression(initializer, checker, nextResolving);
+}
+
+function stringArray(node, checker) {
+  const resolved = resolveExpression(node, checker);
+  if (!resolved || !ts.isArrayLiteralExpression(resolved)) return [];
+
+  const values = [];
+  for (const element of resolved.elements) {
+    if (ts.isStringLiteral(element) || ts.isNoSubstitutionTemplateLiteral(element)) {
+      values.push(element.text);
+    } else if (ts.isSpreadElement(element)) {
+      values.push(...stringArray(element.expression, checker));
     }
   }
   return [...new Set(values)].sort();
 }
 
-function extractActionConstants(sourceFile) {
-  const constants = new Map();
-  for (const statement of sourceFile.statements) {
-    if (!ts.isVariableStatement(statement)) continue;
-    for (const declaration of statement.declarationList.declarations) {
-      if (!ts.isIdentifier(declaration.name) || !declaration.name.text.endsWith('_ACTIONS')) continue;
-      if (!declaration.initializer) continue;
-      const initializer = ts.isAsExpression(declaration.initializer) ? declaration.initializer.expression : declaration.initializer;
-      if (!ts.isArrayLiteralExpression(initializer)) continue;
-      constants.set(declaration.name.text, stringArrayFromArrayLiteral(initializer, constants));
-    }
-  }
-  return constants;
-}
-
-function sourceFilesFromDefinitions() {
-  return fs.readdirSync(definitionsRoot)
-    .filter((entry) => entry.endsWith('.ts'))
-    .map((entry) => path.join(definitionsRoot, entry))
-    .sort()
-    .map((filePath) => ts.createSourceFile(
-      filePath,
-      fs.readFileSync(filePath, 'utf8'),
-      ts.ScriptTarget.Latest,
-      true,
-      ts.ScriptKind.TS
-    ));
-}
-
-function collectVariableInitializers(sourceFiles, constants) {
-  const variableInitializers = new Map();
-  for (const sourceFile of sourceFiles) {
-    for (const [name, values] of extractActionConstants(sourceFile)) {
-      constants.set(name, values);
-    }
-    for (const statement of sourceFile.statements) {
-      if (!ts.isVariableStatement(statement)) continue;
-      for (const declaration of statement.declarationList.declarations) {
-        if (ts.isIdentifier(declaration.name) && declaration.initializer) {
-          variableInitializers.set(declaration.name.text, declaration.initializer);
-        }
-      }
-    }
-  }
-  return variableInitializers;
-}
-
-function collectProperties(propertiesNode, resolveInitializer, constants) {
-  const resolved = resolveInitializer(propertiesNode);
+function collectProperties(propertiesNode, checker, resolving = new Set()) {
+  const resolved = resolveExpression(propertiesNode, checker, resolving);
   if (!resolved || !ts.isObjectLiteralExpression(resolved)) return { names: [], actionEnum: [] };
   const names = [];
   let actionEnum = [];
 
   for (const property of resolved.properties) {
-    if (ts.isSpreadAssignment(property) && ts.isIdentifier(property.expression)) {
-      const spread = collectProperties(property.expression, resolveInitializer, constants);
+    if (ts.isSpreadAssignment(property)) {
+      const spread = collectProperties(property.expression, checker, resolving);
       names.push(...spread.names);
-      if (spread.actionEnum.length > 0) actionEnum = spread.actionEnum;
+      if (spread.names.includes('action')) actionEnum = spread.actionEnum;
       continue;
     }
     if (!ts.isPropertyAssignment(property)) continue;
     const name = propertyName(property);
     if (typeof name !== 'string') continue;
     names.push(name);
-    if (name === 'action' && ts.isObjectLiteralExpression(property.initializer)) {
-      const enumNode = getProperty(property.initializer, 'enum');
-      if (enumNode && ts.isArrayLiteralExpression(enumNode)) {
-        actionEnum = stringArrayFromArrayLiteral(enumNode, constants);
+    if (name === 'action') {
+      actionEnum = [];
+      const action = resolveExpression(property.initializer, checker);
+      if (action && ts.isObjectLiteralExpression(action)) {
+        const enumNode = getProperty(action, 'enum');
+        if (enumNode) actionEnum = stringArray(enumNode, checker);
       }
     }
   }
@@ -107,31 +121,68 @@ function collectProperties(propertiesNode, resolveInitializer, constants) {
   return { names: [...new Set(names)].sort(), actionEnum };
 }
 
-export function extractToolSchemas() {
-  const sourceFiles = sourceFilesFromDefinitions();
-  const constants = new Map();
-  const variableInitializers = collectVariableInitializers(sourceFiles, constants);
-  const resolveInitializer = (node) => (ts.isIdentifier(node) ? variableInitializers.get(node.text) : node);
+function createDefinitionsProgram(definitionsRoot) {
+  const sourcePaths = sourcePathsFromDefinitions(definitionsRoot);
+  const program = ts.createProgram({
+    rootNames: sourcePaths,
+    options: {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.NodeNext,
+      moduleResolution: ts.ModuleResolutionKind.NodeNext,
+      skipLibCheck: true
+    }
+  });
+  const sourceFiles = sourcePaths
+    .map((filePath) => program.getSourceFile(filePath))
+    .filter((sourceFile) => sourceFile !== undefined);
+  return { program, sourceFiles };
+}
+
+function toolDefinitionDeclarations(sourceFiles) {
+  const declarations = [];
+  for (const sourceFile of sourceFiles) {
+    for (const statement of sourceFile.statements) {
+      if (!ts.isVariableStatement(statement)) continue;
+      for (const declaration of statement.declarationList.declarations) {
+        if (
+          ts.isIdentifier(declaration.name)
+          && declaration.name.text.endsWith('ToolDefinition')
+          && declaration.initializer
+        ) {
+          declarations.push(declaration);
+        }
+      }
+    }
+  }
+  return declarations;
+}
+
+export function extractToolSchemas(config = {}) {
+  const definitionsRoot = config.definitionsRoot ?? defaultDefinitionsRoot;
+  const { program, sourceFiles } = createDefinitionsProgram(definitionsRoot);
+  const checker = program.getTypeChecker();
   const tools = [];
 
-  for (const [variableName, initializer] of variableInitializers) {
-    if (!variableName.endsWith('ToolDefinition')) continue;
-    if (!ts.isObjectLiteralExpression(initializer)) continue;
+  for (const declaration of toolDefinitionDeclarations(sourceFiles)) {
+    const initializer = resolveExpression(declaration.initializer, checker);
+    if (!initializer || !ts.isObjectLiteralExpression(initializer)) continue;
     const nameNode = getProperty(initializer, 'name');
     if (!nameNode || !ts.isStringLiteral(nameNode)) continue;
     const inputSchemaNode = getProperty(initializer, 'inputSchema');
-    const inputSchema = inputSchemaNode ? resolveInitializer(inputSchemaNode) : undefined;
+    const inputSchema = inputSchemaNode
+      ? resolveExpression(inputSchemaNode, checker)
+      : undefined;
     if (!inputSchema || !ts.isObjectLiteralExpression(inputSchema)) continue;
     const properties = getProperty(inputSchema, 'properties');
     if (!properties) continue;
     const required = getProperty(inputSchema, 'required');
-    const collected = collectProperties(properties, resolveInitializer, constants);
+    const collected = collectProperties(properties, checker);
 
     tools.push({
       name: nameNode.text,
       actions: collected.actionEnum,
       properties: collected.names,
-      required: required && ts.isArrayLiteralExpression(required) ? stringArrayFromArrayLiteral(required, constants) : []
+      required: required ? stringArray(required, checker) : []
     });
   }
 

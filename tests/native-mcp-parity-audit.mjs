@@ -3,90 +3,83 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  enclosingClassSource,
+  maskCppLiteralsAndComments
+} from './native-mcp-source-parser.mjs';
+import { extractTypeScriptTools } from './native-mcp-typescript-parity-parser.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 
-const tsDefinitionsRoot = path.join(repoRoot, 'src/tools/definitions');
-const nativeMcpRoot = path.join(repoRoot, 'plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/MCP');
-const nativeToolRegistryPath = path.join(nativeMcpRoot, 'McpToolRegistry.cpp');
-const nativeToolsRoot = path.join(nativeMcpRoot, 'Tools');
-
-function stringArrayFromEnumBody(enumBody, constants) {
-  const values = [];
-  for (const match of enumBody.matchAll(/'([^']+)'|\.\.\.([A-Z0-9_]+_ACTIONS)/g)) {
-    if (match[1]) {
-      values.push(match[1]);
-    } else if (match[2]) {
-      values.push(...(constants.get(match[2]) ?? []));
-    }
-  }
-  return [...new Set(values)].sort();
+function auditPaths(config = {}) {
+  const configuredRepoRoot = config.repoRoot ?? repoRoot;
+  const nativeMcpRoot = config.nativeMcpRoot ?? path.join(
+    configuredRepoRoot,
+    'plugins/McpAutomationBridge/Source/McpAutomationBridge/Private/MCP'
+  );
+  return {
+    repoRoot: configuredRepoRoot,
+    tsDefinitionsRoot: config.tsDefinitionsRoot ?? path.join(configuredRepoRoot, 'src/tools/definitions'),
+    nativeMcpRoot,
+    nativeToolRegistryPath: config.nativeToolRegistryPath
+      ?? path.join(nativeMcpRoot, 'Registry', 'McpToolRegistry.cpp'),
+    nativeRoutingRoot: config.nativeRoutingRoot ?? path.join(nativeMcpRoot, 'Routing'),
+    nativeToolsRoot: config.nativeToolsRoot ?? path.join(nativeMcpRoot, 'Tools')
+  };
 }
 
-function extractActionConstants(source) {
-  const constants = new Map();
-  for (const match of source.matchAll(/export const ([A-Z0-9_]+_ACTIONS)\s*=\s*\[([\s\S]*?)\]\s+as const/g)) {
-    constants.set(match[1], stringArrayFromEnumBody(match[2], constants));
-  }
-  return constants;
-}
-
-function extractTypeScriptTools() {
-  const actionSource = fs.readFileSync(path.join(tsDefinitionsRoot, 'action-sets.ts'), 'utf8');
-  const constants = extractActionConstants(actionSource);
-  const tools = [];
-  const definitionFiles = fs.readdirSync(tsDefinitionsRoot)
-    .filter((entry) => entry.endsWith('.ts'))
+function recursiveFiles(root, predicate) {
+  return fs.readdirSync(root, { withFileTypes: true })
+    .flatMap((entry) => {
+      const entryPath = path.join(root, entry.name);
+      return entry.isDirectory() ? recursiveFiles(entryPath, predicate) : [entryPath];
+    })
+    .filter(predicate)
     .sort();
-  const toolFiles = definitionFiles.filter((entry) => entry.endsWith('-tool.ts'));
+}
 
-  for (const fileName of toolFiles) {
-    const source = fs.readFileSync(path.join(tsDefinitionsRoot, fileName), 'utf8');
-    const name = source.match(/name:\s*'([^']+)'/)?.[1];
-    if (!name) continue;
-    const slug = fileName.replace(/-tool\.ts$/, '');
-    const relatedSource = definitionFiles
-      .filter((entry) => entry === fileName || (entry.startsWith(`${slug}-`) && !entry.endsWith('-tool.ts')))
-      .map((entry) => fs.readFileSync(path.join(tsDefinitionsRoot, entry), 'utf8'))
-      .join('\n');
-    const actionEnum = relatedSource.match(/action:\s*\{[\s\S]*?enum:\s*\[([\s\S]*?)\]\s*,\s*description:/);
-    tools.push({
-      name,
-      actions: actionEnum ? stringArrayFromEnumBody(actionEnum[1], constants) : []
-    });
-  }
-
-  return tools.sort((left, right) => left.name.localeCompare(right.name));
+function sourceInsideMatch(source, match, openCharacter, closeCharacter) {
+  if (match.index === undefined) return '';
+  const openIndex = match.index + match[0].indexOf(openCharacter) + 1;
+  const closeIndex = match.index + match[0].lastIndexOf(closeCharacter);
+  return source.slice(openIndex, closeIndex);
 }
 
 function extractTextValues(text) {
-  return [...text.matchAll(/TEXT\(\s*"([^"]+)"\s*\)/g)].map((match) => match[1]);
+  const maskedText = maskCppLiteralsAndComments(text);
+  return [...text.matchAll(/TEXT\(\s*"([^"]+)"\s*\)/g)]
+    .filter((match) => match.index !== undefined && maskedText.slice(match.index, match.index + 4) === 'TEXT')
+    .map((match) => match[1]);
 }
 
-function extractNativeCanonicalRegistry() {
-  const source = fs.readFileSync(nativeToolRegistryPath, 'utf8');
-  const registryMatch = source.match(/CanonicalToolNames\s*=\s*\{([\s\S]*?)\};/);
-  return [...new Set(extractTextValues(registryMatch?.[1] ?? ''))].sort();
+function extractNativeCanonicalRegistry(paths) {
+  const source = fs.readFileSync(paths.nativeToolRegistryPath, 'utf8');
+  const maskedSource = maskCppLiteralsAndComments(source);
+  const registryMatch = maskedSource.match(/CanonicalToolNames\s*=\s*\{[\s\S]*?\};/);
+  const registryBody = registryMatch
+    ? sourceInsideMatch(source, registryMatch, '{', '}')
+    : '';
+  return extractTextValues(registryBody);
 }
 
-function nativeToolFiles() {
-  return fs.readdirSync(nativeToolsRoot, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.cpp'))
-    .map((entry) => path.join(nativeToolsRoot, entry.name))
-    .sort();
+function nativeToolFiles(paths) {
+  return recursiveFiles(paths.nativeToolsRoot, (filePath) => filePath.endsWith('.cpp'));
 }
 
-function buildNativeActionEvaluator() {
-  const source = fs.readdirSync(nativeMcpRoot)
-    .filter((entry) => /^McpConsolidatedActionRouting.*\.h$/.test(entry))
-    .sort()
-    .map((entry) => fs.readFileSync(path.join(nativeMcpRoot, entry), 'utf8'))
+function buildNativeActionEvaluator(paths) {
+  const source = recursiveFiles(
+    paths.nativeRoutingRoot,
+    (filePath) => /^McpConsolidatedActionRouting.*\.h$/.test(path.basename(filePath))
+  )
+    .map((filePath) => fs.readFileSync(filePath, 'utf8'))
     .join('\n');
+  const maskedSource = maskCppLiteralsAndComments(source);
   const functionBodies = new Map(
-    [...source.matchAll(/inline\s+(?:const\s+)?TArray<FString>&?\s+(\w+)\s*\(\)\s*\{([\s\S]*?)\n\}/g)]
-      .map((match) => [match[1], match[2]])
+    [...maskedSource.matchAll(
+      /inline\s+(?:const\s+)?TArray<FString>&?\s+(\w+)\s*\(\)\s*\{[\s\S]*?\n\}/g
+    )].map((match) => [match[1], sourceInsideMatch(source, match, '{', '}')])
   );
   const memo = new Map();
 
@@ -95,16 +88,22 @@ function buildNativeActionEvaluator() {
     const body = functionBodies.get(functionName);
     if (!body) return [];
 
-    const staticList = body.match(/static const TArray<FString> Actions = \{([\s\S]*?)\};/);
+    const maskedBody = maskCppLiteralsAndComments(body);
+    const staticList = maskedBody.match(
+      /static const TArray<FString> Actions = \{[\s\S]*?\};/
+    );
     if (staticList) {
-      const values = [...new Set(extractTextValues(staticList[1]))].sort();
+      const listBody = sourceInsideMatch(body, staticList, '{', '}');
+      const values = [...new Set(extractTextValues(listBody))].sort();
       memo.set(functionName, values);
       return values;
     }
 
-    const firstSource = body.match(/TArray<FString> Actions = (\w+)\(\);/);
+    const firstSource = maskedBody.match(/TArray<FString> Actions = (\w+)\(\);/);
     let values = firstSource ? evaluate(firstSource[1]) : [];
-    for (const append of body.matchAll(/AppendUniqueActions\(Actions, (\w+)\(\)\);/g)) {
+    for (const append of maskedBody.matchAll(
+      /AppendUniqueActions\(Actions, (\w+)\(\)\);/g
+    )) {
       values = [...new Set([...values, ...evaluate(append[1])])].sort();
     }
     memo.set(functionName, values);
@@ -115,31 +114,41 @@ function buildNativeActionEvaluator() {
 }
 
 function extractActionEnumFromNativeTool(source, evaluateActions) {
-  const routedActionEnum = source.match(
-    /\.StringEnum\(\s*TEXT\(\s*"action"\s*\)\s*,\s*McpConsolidatedActions::(\w+)\(\)\s*,/
-  );
+  const maskedSource = maskCppLiteralsAndComments(source);
+  const routedActionEnum = [...source.matchAll(
+    /\.StringEnum\(\s*TEXT\(\s*"action"\s*\)\s*,\s*McpConsolidatedActions::(\w+)\(\)\s*,/g
+  )].find((match) => match.index !== undefined
+    && maskedSource.slice(match.index, match.index + '.StringEnum'.length) === '.StringEnum');
   if (routedActionEnum) {
     return evaluateActions(routedActionEnum[1]);
   }
 
-  const inlineActionEnum = source.match(
-    /\.StringEnum\(\s*TEXT\(\s*"action"\s*\)\s*,\s*\{([\s\S]*?)\}\s*,/
-  );
+  const inlineActionEnum = [...source.matchAll(
+    /\.StringEnum\(\s*TEXT\(\s*"action"\s*\)\s*,\s*\{([\s\S]*?)\}\s*,/g
+  )].find((match) => match.index !== undefined
+    && maskedSource.slice(match.index, match.index + '.StringEnum'.length) === '.StringEnum');
   return [...new Set(extractTextValues(inlineActionEnum?.[1] ?? ''))].sort();
 }
 
-function extractNativeToolDefinitions() {
-  const evaluateActions = buildNativeActionEvaluator();
+function extractNativeToolDefinitions(paths) {
+  const evaluateActions = buildNativeActionEvaluator(paths);
   const tools = [];
 
-  for (const filePath of nativeToolFiles()) {
+  for (const filePath of nativeToolFiles(paths)) {
     const source = fs.readFileSync(filePath, 'utf8');
-    const name = source.match(/GetName\(\)\s+const\s+override\s*\{\s*return\s+TEXT\(\s*"([^"]+)"\s*\)\s*;/)?.[1];
-    if (!name) continue;
-    tools.push({
-      name,
-      actions: extractActionEnumFromNativeTool(source, evaluateActions)
-    });
+    const maskedSource = maskCppLiteralsAndComments(source);
+    for (const match of source.matchAll(
+      /GetName\(\)\s+const\s+override\s*\{\s*return\s+TEXT\(\s*"([^"]+)"\s*\)\s*;/g
+    )) {
+      if (match.index === undefined || maskedSource.slice(match.index, match.index + 'GetName'.length) !== 'GetName') {
+        continue;
+      }
+      const toolSource = enclosingClassSource(source, match.index ?? 0);
+      tools.push({
+        name: match[1],
+        actions: extractActionEnumFromNativeTool(toolSource, evaluateActions)
+      });
+    }
   }
 
   return tools.sort((left, right) => left.name.localeCompare(right.name));
@@ -150,34 +159,102 @@ function difference(left, right) {
   return left.filter((value) => !rightSet.has(value)).sort();
 }
 
-const typeScriptTools = extractTypeScriptTools();
-const nativeRegistry = extractNativeCanonicalRegistry();
-const nativeTools = extractNativeToolDefinitions();
-const nativeCanonicalTools = nativeTools.filter((tool) => nativeRegistry.includes(tool.name));
-const nativeToolsByName = new Map(nativeCanonicalTools.map((tool) => [tool.name, tool]));
-
-const toolNameGaps = {
-  missingFromNativeRegistry: difference(typeScriptTools.map((tool) => tool.name), nativeRegistry),
-  extraInNativeRegistry: difference(nativeRegistry, typeScriptTools.map((tool) => tool.name))
-};
-
-const actionGaps = [];
-for (const tool of typeScriptTools) {
-  const nativeActions = nativeToolsByName.get(tool.name)?.actions ?? [];
-  const missingNativeActions = difference(tool.actions, nativeActions);
-  const extraNativeActions = difference(nativeActions, tool.actions);
-  if (missingNativeActions.length > 0 || extraNativeActions.length > 0) {
-    actionGaps.push({ tool: tool.name, missingNativeActions, extraNativeActions });
-  }
+function uniqueSorted(values) {
+  return [...new Set(values)].sort();
 }
 
-console.log('Native MCP Action Parity Audit');
-console.log(`TypeScript tools: ${typeScriptTools.length}`);
-console.log(`Native canonical tools: ${nativeRegistry.length}`);
-console.log(`Native canonical definitions: ${nativeCanonicalTools.length}`);
-console.log(`Tools with action mismatches: ${actionGaps.length}`);
+function duplicateValues(values) {
+  const counts = new Map();
+  for (const value of values) {
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([value]) => value)
+    .sort();
+}
 
-if (toolNameGaps.missingFromNativeRegistry.length > 0 || toolNameGaps.extraInNativeRegistry.length > 0 || actionGaps.length > 0) {
-  console.error(JSON.stringify({ toolNameGaps, actionGaps }, null, 2));
-  process.exitCode = 1;
+export function auditNativeMcpParity(config = {}) {
+  const paths = auditPaths(config);
+  const typeScriptTools = extractTypeScriptTools(paths);
+  const nativeRegistry = extractNativeCanonicalRegistry(paths);
+  const nativeTools = extractNativeToolDefinitions(paths);
+  const typeScriptNames = typeScriptTools.map((tool) => tool.name);
+  const nativeDefinitionNames = nativeTools.map((tool) => tool.name);
+  const duplicateNames = {
+    typeScriptTools: duplicateValues(typeScriptNames),
+    nativeCanonicalRegistry: duplicateValues(nativeRegistry),
+    nativeToolDefinitions: duplicateValues(nativeDefinitionNames)
+  };
+  const uniqueTypeScriptNames = uniqueSorted(typeScriptNames);
+  const uniqueNativeRegistryNames = uniqueSorted(nativeRegistry);
+  const nativeRegistrySet = new Set(uniqueNativeRegistryNames);
+  const nativeCanonicalTools = nativeTools.filter((tool) => nativeRegistrySet.has(tool.name));
+  const nativeCanonicalDefinitionNames = nativeCanonicalTools.map((tool) => tool.name);
+  const uniqueNativeCanonicalDefinitionNames = uniqueSorted(nativeCanonicalDefinitionNames);
+  const nativeToolsByName = new Map(nativeCanonicalTools.map((tool) => [tool.name, tool]));
+  const toolNameGaps = {
+    missingFromNativeRegistry: difference(uniqueTypeScriptNames, uniqueNativeRegistryNames),
+    extraInNativeRegistry: difference(uniqueNativeRegistryNames, uniqueTypeScriptNames),
+    missingNativeDefinitions: difference(
+      uniqueNativeRegistryNames,
+      uniqueNativeCanonicalDefinitionNames
+    )
+  };
+  const actionGaps = [];
+
+  for (const tool of typeScriptTools) {
+    const nativeActions = nativeToolsByName.get(tool.name)?.actions ?? [];
+    const missingNativeActions = difference(tool.actions, nativeActions);
+    const extraNativeActions = difference(nativeActions, tool.actions);
+    if (missingNativeActions.length > 0 || extraNativeActions.length > 0) {
+      actionGaps.push({ tool: tool.name, missingNativeActions, extraNativeActions });
+    }
+  }
+
+  const counts = {
+    typeScriptDefinitions: typeScriptTools.length,
+    uniqueTypeScriptNames: uniqueTypeScriptNames.length,
+    nativeRegistryEntries: nativeRegistry.length,
+    uniqueNativeRegistryNames: uniqueNativeRegistryNames.length,
+    nativeDefinitions: nativeCanonicalTools.length,
+    uniqueNativeDefinitionNames: uniqueNativeCanonicalDefinitionNames.length
+  };
+  const hasMismatches = Object.values(duplicateNames).some((values) => values.length > 0)
+    || Object.values(toolNameGaps).some((values) => values.length > 0)
+    || actionGaps.length > 0;
+
+  return {
+    paths,
+    counts,
+    duplicateNames,
+    toolNameGaps,
+    actionGaps,
+    hasMismatches
+  };
+}
+
+export function runNativeMcpParityCli(config = {}) {
+  const result = auditNativeMcpParity(config);
+  console.log('Native MCP Action Parity Audit');
+  console.log(`TypeScript tools: ${result.counts.typeScriptDefinitions}`);
+  console.log(`Native canonical tools: ${result.counts.nativeRegistryEntries}`);
+  console.log(`Native canonical definitions: ${result.counts.nativeDefinitions}`);
+  console.log(`Tools with action mismatches: ${result.actionGaps.length}`);
+
+  if (result.hasMismatches) {
+    console.error(JSON.stringify({
+      counts: result.counts,
+      duplicateNames: result.duplicateNames,
+      toolNameGaps: result.toolNameGaps,
+      actionGaps: result.actionGaps
+    }, null, 2));
+    process.exitCode = 1;
+  }
+
+  return result;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  runNativeMcpParityCli();
 }
