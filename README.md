@@ -144,8 +144,11 @@ Enable via **Edit → Plugins**, then restart the editor.
 | Plugin | Required For |
 |--------|--------------|
 | **MCP Automation Bridge** | All automation operations |
+| **Python Editor Script Plugin** | Python-backed editor automation helpers |
 | **Editor Scripting Utilities** | Asset/Actor subsystem operations |
 | **Niagara** | Visual effects and particle systems |
+| **Gameplay Abilities** | `manage_gas` operations |
+| **Smart Objects** | AI smart object operations |
 
 </details>
 
@@ -160,15 +163,13 @@ Enable via **Edit → Plugins**, then restart the editor.
 | **Behavior Tree Editor** | `manage_ai` Behavior Tree operations |
 | **Niagara Editor** | Niagara authoring |
 | **Environment Query Editor** | AI/EQS operations |
-| **Gameplay Abilities** | `manage_gas` operations |
 | **MetaSound** | `manage_audio` MetaSound authoring |
 | **StateTree** | `manage_ai` State Tree operations |
-| **Smart Objects** | AI smart object operations |
 | **Enhanced Input** | `manage_networking` input mapping operations |
 | **Chaos Cloth** | Cloth simulation |
 | **Interchange** | Asset import/export |
 | **Data Validation** | Data validation |
-| **PCG** | `manage_pcg` graph authoring and execution |
+| **PCG** | `manage_pcg` graph authoring and execution when enabled for the build |
 | **Procedural Mesh Component** | Procedural geometry |
 | **OnlineSubsystem** | Session/networking operations |
 | **OnlineSubsystemUtils** | Session/networking operations |
@@ -176,6 +177,7 @@ Enable via **Edit → Plugins**, then restart the editor.
 </details>
 
 > 💡 Optional plugins are auto-enabled by the MCP Automation Bridge plugin when needed.
+> PCG support is compiled for source projects when the project explicitly enables PCG. Versioned release packages for UE 5.2+ include PCG support.
 
 ### Step 4: Configure MCP Client
 

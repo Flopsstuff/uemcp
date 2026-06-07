@@ -23,7 +23,7 @@ An Unreal Engine editor plugin that enables AI assistants (Claude, Cursor, Winds
 | **Audio** | Sound cues, audio components, MetaSounds |
 | **System** | Console commands, UBT, tests, logs, project settings, Python execution |
 
-**200+ automation actions** across 23 MCP tools.
+Automation coverage spans the plugin's consolidated MCP tool surface.
 
 ---
 
@@ -56,8 +56,11 @@ An Unreal Engine editor plugin that enables AI assistants (Claude, Cursor, Winds
 <summary><b>Core Plugins (Required)</b></summary>
 
    - ✅ MCP Automation Bridge
+   - ✅ Python Editor Script Plugin
    - ✅ Editor Scripting Utilities
    - ✅ Niagara
+   - ✅ Gameplay Abilities (for `manage_gas`)
+   - ✅ Smart Objects (for AI smart objects)
 
 </details>
 
@@ -66,26 +69,26 @@ An Unreal Engine editor plugin that enables AI assistants (Claude, Cursor, Winds
 
    - ✅ Level Sequence Editor (for `manage_sequence`)
    - ✅ Control Rig (for `animation_physics`)
+   - ✅ RigVM (for Control Rig and graph authoring support)
    - ✅ GeometryScripting (for `manage_geometry`)
+   - ✅ GeometryProcessing (for geometry processing support)
    - ✅ Behavior Tree Editor (for `manage_ai` Behavior Trees)
    - ✅ Niagara Editor (for Niagara authoring)
-   - ✅ Gameplay Abilities (for `manage_gas`)
    - ✅ MetaSound (for `manage_audio` MetaSounds)
    - ✅ StateTree (for `manage_ai` State Trees)
    - ✅ Enhanced Input (for `manage_networking` input mappings)
    - ✅ Environment Query Editor (for AI/EQS)
-   - ✅ Smart Objects (for AI smart objects)
    - ✅ Chaos Cloth (for cloth simulation)
    - ✅ Interchange (for asset import/export)
    - ✅ Data Validation (for data validation)
-   - ✅ PCG (for `manage_pcg` graph authoring and execution)
+   - ✅ PCG (for `manage_pcg` graph authoring and execution when enabled for the build)
    - ✅ Procedural Mesh Component (for procedural geometry)
    - ✅ OnlineSubsystem (for sessions/networking)
    - ✅ OnlineSubsystemUtils (for sessions/networking)
 
 </details>
 
-   > 💡 Optional plugins are auto-enabled by the MCP Automation Bridge plugin. Only the core plugins require manual verification.
+   > 💡 Optional plugins are auto-enabled by the MCP Automation Bridge plugin. PCG support is compiled for source projects when the project explicitly enables PCG; versioned release packages for UE 5.2+ include it.
 
 5. Restart the editor
 
@@ -167,6 +170,22 @@ Example prompts:
 - "Spawn a point light at (100, 200, 300)"
 - "Create a new material called M_Glow"
 - "Take a screenshot of the current viewport"
+
+---
+
+## Fab Technical Information
+
+Tools & Plugins
+---------------------
+- **Features:** Editor automation bridge for Model Context Protocol clients. Includes native HTTP/SSE MCP transport, WebSocket bridge transport, dynamic MCP tool management, asset/actor/editor/level automation, Blueprint and graph authoring, Niagara/material/audio/AI/PCG/sequencer helpers, project/system controls, and security settings for loopback, TLS, capability tokens, and rate limits.
+- **Code Modules:** `McpAutomationBridge` - Editor module.
+- **Number of Blueprints:** 0.
+- **Network Replicated:** No. This is an editor-only automation and MCP transport plugin; it does not add gameplay replication.
+- **Supported Development Platforms:** Windows: Yes. Mac: Yes. Linux: Yes.
+- **Supported Target Build Platforms:** Editor-only plugin for Win64, Mac, and Linux editor targets. It is not intended to be included in packaged game runtime builds.
+- **Documentation Link:** https://github.com/ChiR24/Unreal_mcp/tree/main/plugins/McpAutomationBridge#readme
+- **Example Project:** Not included. The plugin can be enabled in any Unreal Engine C++ project; see the documentation link for setup steps.
+- **Important/Additional Notes:** Requires Unreal Engine 5.0-5.8. Required engine plugins are `PythonScriptPlugin`, `EditorScriptingUtilities`, `Niagara`, `GameplayAbilities`, and `SmartObjects`. Other integration references are enabled but marked optional so compatible installed engine plugins can support their matching features without becoming hard distribution dependencies. These integrations include `LevelSequenceEditor`, `NiagaraEditor`, `BehaviorTreeEditor`, `EnvironmentQueryEditor`, `ControlRig`, `RigVM`, `IKRig`, `ChaosVehiclesPlugin`, `AnimationData`, `ProceduralMeshComponent`, `Interchange`, `InterchangeOpenUSD`, `DataValidation`, `EnhancedInput`, `GeometryScripting`, `GeometryProcessing`, `ChaosCloth`, `StructUtils`, `Metasound`, `StateTree`, `MassGameplay`, `OnlineSubsystem`, `OnlineSubsystemUtils`, `Synthesis`, and `PCG`. Native MCP transport does not require Node.js. The optional TypeScript bridge transport uses the separately distributed `unreal-engine-mcp-server` Node.js package.
 
 ---
 

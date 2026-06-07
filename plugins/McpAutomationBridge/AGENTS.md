@@ -1,64 +1,52 @@
-# Plugins/McpAutomationBridge
+# MCP AUTOMATION BRIDGE PLUGIN
 
-Editor-only Unreal Engine 5.0-5.8 Preview plugin. Version source is `McpAutomationBridge.uplugin` (`VersionName` currently `0.5.30`). It provides the WebSocket automation bridge used by the TypeScript server and an optional native MCP HTTP/SSE endpoint.
+Editor-only UE 5.0-5.8 Preview plugin. It owns the WebSocket automation bridge and the optional native `/mcp` HTTP/SSE server. `McpAutomationBridge.uplugin` is the plugin version source (`0.5.30`); server package versions are separate.
 
-## STRUCTURE
+## SCOPE MAP
+| Area | Owner | Notes |
+|------|-------|-------|
+| Manifest/config/docs | plugin root | `.uplugin`, `Config/`, plugin `README.md` and `CHANGELOG.md` |
+| Module dependencies | `Source/McpAutomationBridge/McpAutomationBridge.Build.cs` | Preserve UE-version probes and optional-module detection |
+| Public API/settings | `Source/McpAutomationBridge/Public/` | Subsystem contract, settings, connection manager API |
+| Core lifecycle/routing | `Private/Core/` | Queue, game-thread dispatch, registration shards, settings, responses |
+| Automation domains | `Private/Domains/` | Domain handlers grouped by responsibility |
+| Shared helpers | `Private/Foundation/` | Reflection, Blueprint, path, response, and handler primitives |
+| Native MCP | `Private/MCP/` | Read its nested `AGENTS.md`; separate registry/session/transport lifecycle |
+| Hazardous UE operations | `Private/Safety/` | Save/load/delete/material wrappers and verification |
+| WebSocket transport | `Private/Transport/` | Connection auth, sockets, framing, TLS, rate limits, telemetry |
+| Status UI | `Private/UI/` | Keep Slate presentation thin; do not move transport work here |
+
+## CROSS-SURFACE RULES
+- WebSocket actions enter through `UMcpAutomationBridgeSubsystem`, queue to the game thread, and resolve through `InitializeHandlers()` registration shards.
+- Native MCP metadata does not implement editor behavior; accepted tools dispatch back through the same subsystem queue.
+- A new behavior normally needs a domain implementation, Core registration, the TypeScript parent-tool/action contract, and tests. Add native metadata only when the native surface should expose it.
+- Keep editor API work off socket threads. Preserve deferral during package save, garbage collection, async load, and unsafe map transitions.
+- Optional engine features must compile away or fail clearly when their module/plugin is unavailable; retain the compatibility macros in `Build.cs`.
+- Keep action dispatchers thin. Put behavior in the matching `Private/Domains/<Domain>/<Responsibility>/` implementation and register it through the appropriate `Private/Core/Subsystem/*Registration.cpp` shard.
+- Reuse `Private/Foundation/` for shared reflection, path, Blueprint, JSON, response, and object-resolution behavior; do not grow domain-local copies.
+- Use `McpSafeAssetSave`, `McpSafeLevelSave`, `McpSafeLoadMap`, and the existing delete wrappers. Never call `UPackage::SavePackage()` directly from a domain handler.
+- WebSocket clients must complete `bridge_hello` before automation requests. Preserve request/socket correlation, heartbeat cleanup, frame-size limits, and delegate unbinding during shutdown.
+
+## VERSION AND SECURITY
+- `McpAutomationBridge.uplugin` owns bridge version fields; coordinated releases must also follow the repo-wide server version workflow.
+- Defaults are `127.0.0.1`, ports `8090,8091`, multi-listen enabled, and non-loopback disabled.
+- LAN binding requires explicit `bAllowNonLoopback`; never introduce an implicit `0.0.0.0` fallback.
+- `bRequireCapabilityToken` protects both transports. WebSocket uses the bridge hello token; native MCP uses `X-MCP-Capability-Token`.
+- TLS settings belong to the WebSocket transport. Preserve certificate/key validation, rate limits, heartbeat handling, and response sanitization.
+
+## PACKAGING
+- Package with `./scripts/package-plugin.sh <UnrealEngineRoot> [output-dir]` or `scripts/package-plugin.bat`.
+- The scripts run `RunUAT BuildPlugin`, set `Installed: true` in staged output, exclude `Intermediate/` content and debug symbols from the archive, and write the archive under root `build/` by default.
+- `Config/FilterPlugin.ini` explicitly includes plugin `README.md` and `CHANGELOG.md`; keep distribution-only additions there.
+- `npm run automation:sync` copies this source plugin into an Engine or Project plugin directory; it is not a build.
+- Never edit generated `Binaries/`, `Intermediate/`, `Saved/`, `DerivedDataCache/`, root `build/`, or uppercase staging mirrors.
+
+## VALIDATION
+```bash
+npm run test:native-parity
+npm run test:params
+./scripts/package-plugin.sh /data/UnrealEngine /tmp/mcp-plugin-package
 ```
-McpAutomationBridge/
-|-- McpAutomationBridge.uplugin
-|-- Config/                       # plugin defaults and packaging filters
-`-- Source/McpAutomationBridge/
-    |-- McpAutomationBridge.Build.cs
-    |-- Public/
-    |   |-- McpAutomationBridgeSettings.h
-    |   |-- McpAutomationBridgeSubsystem.h
-    |   `-- McpConnectionManager.h
-    `-- Private/
-        |-- Core/                 # module, settings, subsystem, request dispatch
-        |-- Domains/              # one folder per automation domain
-        |-- Foundation/           # reflection and shared implementation support
-        |-- MCP/                  # native MCP transport and self-describing tools
-        |-- Safety/               # UE-safe save/load/delete wrappers
-        |-- Transport/            # WebSocket and connection management
-        `-- UI/                   # plugin UI implementation
-```
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Add action handler | `Private/Domains/<Domain>/<Responsibility>/` | Keep dispatchers/contracts at the domain root and implementations in the matching responsibility folder |
-| Register handler | `Private/Core/Subsystem/` | Add to `InitializeHandlers()` |
-| Declare handler | matching `Private/Domains/<Domain>/` header or subsystem header | Match existing declaration location |
-| Route requests | `Private/Core/Requests/` | Game-thread dispatch, unsafe-state deferral, reentrancy guard |
-| WebSocket bridge | `Private/Transport/` | Listen host, ports, token auth, rate limits |
-| Native MCP | `Private/MCP/` | See nested AGENTS for `/mcp` transport and tool registry rules |
-| Settings | `Public/McpAutomationBridgeSettings.h`, `Private/Core/Settings/McpAutomationBridgeSettings.cpp` | Loopback, TLS, token, native MCP, debug knobs |
-| Shared implementation | `Private/Foundation/` | Bridge helpers, reflection, Blueprint and handler utilities |
-| Safe Unreal operations | `Private/Safety/` | Save/load/delete wrappers and guards |
-| Packaging | `scripts/package-plugin.*`, `Config/FilterPlugin.ini` | RunUAT package, installed flag, zip output |
-
-## CONVENTIONS
-- Handlers run through the subsystem request queue and game-thread dispatch. Do not execute editor API calls from socket threads.
-- `InitializeHandlers()` is the authoritative action string map for WebSocket automation requests.
-- Defer work while Unreal is saving packages, garbage collecting, or async loading; do not add bypasses around unsafe-state checks.
-- Build configuration is intentionally version-aware: keep `Build.cs` feature probes and optional dependency guards when adding engine modules.
-- Optional plugin features should fail gracefully when the UE module/plugin is unavailable.
-- Keep dense domain implementations grouped by responsibility; a source folder should not accumulate more than 25 direct `.cpp`/`.h` files.
-
-## UE SAFETY
-- Use `McpSafeAssetSave`, `McpSafeLevelSave`, and `McpSafeLoadMap` from `McpSafeOperations.h` instead of raw package save/load calls.
-- For Blueprint SCS work, create nodes/templates through SCS ownership patterns (`CreateNode`, `AddNode`) instead of assigning arbitrary outers.
-- Avoid `ANY_PACKAGE`; use modern lookup helpers or `nullptr`-based lookups.
-- Avoid modal asset saves on newly created assets; they can crash editor/D3D12 paths.
-
-## SECURITY
-- Default binding is loopback-only. `bAllowNonLoopback` must be explicit before binding LAN addresses.
-- Capability-token auth applies to both WebSocket and native MCP when `bRequireCapabilityToken` is enabled.
-- Path helpers must reject traversal and absolute host paths before touching the filesystem.
-- Message/request rate limits are settings-driven; do not remove enforcement in connection code.
-
-## ANTI-PATTERNS
-- Blocking the game thread from socket accept/read/write loops.
-- Adding handler actions without TS schema/action coverage and integration tests.
-- Hardcoded `C:\`/`X:\` paths or project-local absolute paths in handlers/scripts.
-- Editing generated plugin outputs: skip `Binaries/`, `Intermediate/`, `Saved/`, `DerivedDataCache/`, and repo-root `build/` packaging output.
+- Use the packaging build for C++/UBT validation across the intended engine version.
+- Keep the worktree's unrelated generated or user changes intact.

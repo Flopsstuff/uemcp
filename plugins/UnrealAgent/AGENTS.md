@@ -25,7 +25,7 @@ UnrealAgent/
 | Change Studio Kit/context/evidence | `Source/UnrealAgent/Private/Acp/` | Use the matching responsibility folder |
 | Change Slate panel | `Source/UnrealAgent/Private/UI/` | Use the matching panel responsibility folder |
 | Change module deps | `Source/UnrealAgent/UnrealAgent.Build.cs` | Keep editor-only Slate/Json/ToolMenus deps scoped here |
-| Verify UI/protocol | `Source/UnrealAgent/Private/Tests/` | Test names under `UnrealAgent.Acp.*` |
+| Verify UI/protocol | `Source/UnrealAgent/Private/Tests/` | Wrapper registrations plus split layout, history, transcript, Studio Kit, and protocol checks |
 | User-facing docs | `README.md` | Keep runtime prompt, MCP playbook, quick prompts, and verification guidance in one place |
 
 ## CONVENTIONS
@@ -50,7 +50,7 @@ UnrealAgent/
 ## COMMANDS
 ```bash
 /data/UnrealEngine/Engine/Build/BatchFiles/Linux/Build.sh UnrealEditor Linux Development -Plugin="/data/GitHub/Unreal_mcp_main/plugins/UnrealAgent/UnrealAgent.uplugin" -NoHotReloadFromIDE
-/data/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh BuildPlugin -Plugin="/data/GitHub/Unreal_mcp_main/plugins/UnrealAgent/UnrealAgent.uplugin" -Package="/tmp/opencode/UnrealAgentPackage-final" -TargetPlatforms=Linux -Rocket
+/data/UnrealEngine/Engine/Build/BatchFiles/RunUAT.sh BuildPlugin -Plugin="/data/GitHub/Unreal_mcp_main/plugins/UnrealAgent/UnrealAgent.uplugin" -Package="/tmp/opencode/UnrealAgentPackage-final" -TargetPlatforms=Linux -Rocket -WaitForUATMutex
 /data/UnrealEngine/Engine/Binaries/Linux/UnrealEditor-Cmd "/path/to/HostProject.uproject" -nosplash -unattended -nop4 -NullRHI -ExecCmds="Automation RunTests UnrealAgent.Acp" -TestExit="Automation Test Queue Empty" -ReportExportPath="/tmp/opencode/unreal-agent-report-final"
 ```
 

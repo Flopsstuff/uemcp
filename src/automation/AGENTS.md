@@ -1,47 +1,63 @@
 # src/automation
 
-TypeScript WebSocket automation bridge client. This subtree connects the stdio MCP server to the Unreal plugin WebSocket bridge; it is not the native plugin HTTP/SSE MCP transport.
+Client-side TypeScript WebSocket transport between the MCP server and Unreal's bridge. This is independent of the plugin's native HTTP/SSE `/mcp` transport.
 
 ## STRUCTURE
 ```
 automation/
-|-- bridge.ts                 # AutomationBridge facade and lifecycle
-|-- connection-manager.ts     # socket connect/reconnect, host policy, TLS/token plumbing
-|-- handshake.ts              # protocol/version/capability negotiation
-|-- message-handler.ts        # inbound frame parsing and dispatch
-|-- message-schema.ts         # message validation shapes
-|-- request-tracker.ts        # pending requests, timeouts, response correlation
-|-- types.ts                  # protocol interfaces
-|-- *.test.ts                 # Vitest coverage for connection, handshake, tracker
-`-- index.ts
+|-- bridge.ts                    # thin public facade and dependency wiring
+|-- bridge-config.ts             # options/env resolution, host policy, URL formatting
+|-- bridge-client.ts             # WebSocket lifecycle, inbound frames, send/broadcast
+|-- bridge-request-dispatcher.ts # lazy connect, backpressure queue, outbound requests
+|-- bridge-state.ts              # mutable diagnostic timestamps and errors
+|-- bridge-status.ts             # public status snapshot assembly
+|-- bridge-frame.ts              # byte length and UTF-8 conversion
+|-- connection-manager.ts        # active sockets, primary socket, heartbeat, rate limits
+|-- handshake.ts                 # bridge_hello/bridge_ack negotiation
+|-- message-handler.ts           # responses, events, progress, action correlation
+|-- message-schema.ts            # Zod wire-message validation
+|-- request-tracker.ts           # IDs, timeouts, progress extensions, coalescing
+|-- types.ts                     # protocol, event, status, and queue contracts
+`-- index.ts                     # public export surface
 ```
 
 ## WHERE TO LOOK
 | Task | File | Notes |
 |------|------|-------|
-| Send automation request | `bridge.ts` | Use the bridge queue/API, not raw socket sends |
-| Change connection behavior | `connection-manager.ts` | Host/port/TLS/token/reconnect logic |
-| Change protocol negotiation | `handshake.ts` | Keep capabilities in sync with plugin handshake |
-| Change frame handling | `message-handler.ts`, `message-schema.ts` | Validate before resolving requests |
-| Change timeout behavior | `request-tracker.ts` | Every request needs tracked timeout cleanup |
+| Add public bridge behavior | `bridge.ts` | Delegate to a focused component; keep facade small |
+| Change connection options | `bridge-config.ts` | Normalize hosts, ports, protocols, limits, TLS |
+| Change socket lifecycle | `bridge-client.ts` | Open/close/error handlers and validated inbound flow |
+| Change lazy connect or queueing | `bridge-request-dispatcher.ts` | Owns connection promise and queued request draining |
+| Change socket bookkeeping | `connection-manager.ts` | Primary selection, heartbeat, rate counters |
+| Change handshake | `handshake.ts` | Connection is usable only after valid `bridge_ack` |
+| Change response correlation | `message-handler.ts`, `request-tracker.ts` | Keep action checks and timer cleanup paired |
+| Change diagnostics | `bridge-state.ts`, `bridge-status.ts` | Status should read state, not drive lifecycle |
+| Change raw frame support | `bridge-frame.ts`, `message-schema.ts` | Enforce byte limits before protocol handling |
+
+## DATA FLOW
+1. `AutomationRequestDispatcher` lazily starts the client and waits for the `connected` event.
+2. `HandshakeHandler` sends `bridge_hello`; only a validated `bridge_ack` registers the socket.
+3. `RequestTracker` allocates the request ID before `AutomationBridgeClient.send()`.
+4. Inbound data is byte-checked, parsed, rate-checked, schema-validated, then correlated by `MessageHandler`.
+5. Completion, timeout, disconnect, or `stop()` must clear pending and queued work.
 
 ## CONVENTIONS
-- Every outbound request has a unique ID tracked by `RequestTracker` until resolved, rejected, or timed out.
-- Handshake must complete before automation commands are treated as connected.
-- WebSocket payload limits are byte limits; do not replace them with string-length checks.
-- Reconnect uses exponential backoff and emits connection/handshake events consumed by `src/unreal-bridge.ts`.
-- Loopback is default. Non-loopback hosts require explicit `MCP_AUTOMATION_ALLOW_NON_LOOPBACK=true`.
-- Capability tokens are secrets. Send them only through the configured handshake/header path and never log them.
+- `bridge.ts` wires components and exposes typed events; lifecycle details belong in the owning split file.
+- `bridge-client.ts` owns application frames; `handshake.ts` owns hello/ack; `connection-manager.ts` owns heartbeat frames.
+- Preserve byte-based payload limits for strings, buffers, buffer arrays, and array-buffer views.
+- Read-only requests may coalesce; mutations must retain independent request IDs.
+- Progress extensions remain bounded by stale-progress, extension-count, and absolute-timeout guards.
+- Keep capability tokens out of logs and diagnostic metadata; status exposes only whether a token is required.
+- On failed send, timeout, disconnect, or shutdown, reject work exactly once and clear all timers/listeners.
 
-## ENVIRONMENT
-- `MCP_AUTOMATION_HOST`, `MCP_AUTOMATION_PORT`, and `MCP_AUTOMATION_WS_PORTS` steer connection targets.
-- `MCP_AUTOMATION_CLIENT_MODE` flips client/server bridge behavior.
-- `MCP_AUTOMATION_USE_TLS` enables `wss://` behavior.
-- `MCP_CONNECTION_TIMEOUT_MS` and `MCP_REQUEST_TIMEOUT_MS` control wait bounds.
-- `MOCK_UNREAL_CONNECTION=true` is a test/development escape hatch, not production behavior.
+## VALIDATION
+```bash
+npm run type-check
+npx vitest run src/automation tests/unit/automation/bridge_host_validation.test.ts
+```
 
 ## ANTI-PATTERNS
-- Calling `ws.send()` or mutating sockets directly outside connection/bridge internals.
-- Leaving pending requests after disconnect or timeout.
-- Logging capability tokens, full auth headers, or unbounded payloads.
-- Treating a socket open as usable before handshake/capability negotiation succeeds.
+- Adding transport logic back into the facade.
+- Treating WebSocket `open` as connected before handshake completion.
+- Sending untracked requests or bypassing dispatcher backpressure.
+- Moving config normalization, auth headers, or raw frame parsing into callers.
