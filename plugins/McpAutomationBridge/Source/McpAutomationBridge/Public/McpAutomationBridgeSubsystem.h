@@ -121,6 +121,10 @@ public:
   UFUNCTION(BlueprintCallable, Category = "MCP Automation")
   bool SendRawMessage(const FString& Message);
 
+  void BroadcastAutomationEvent(
+      const TSharedPtr<FJsonObject>& Event,
+      TSharedPtr<FMcpBridgeWebSocket> TargetSocket = nullptr);
+
   UPROPERTY(BlueprintAssignable, Category = "MCP Automation")
   FMcpAutomationMessageReceived OnMessageReceived;
 
@@ -159,7 +163,8 @@ public:
       const TSharedPtr<FJsonObject>&,
       TSharedPtr<FMcpBridgeWebSocket>)>;
 
-  void RegisterHandler(const FString& Action, FAutomationHandler Handler);
+  bool RegisterHandler(const FString& Action, FAutomationHandler Handler);
+  bool RegisterActionAlias(const FString& AliasAction, const FString& TargetAction);
 
   struct FRequestErrorCapture
   {
@@ -242,8 +247,17 @@ public:
 private:
   FTSTicker::FDelegateHandle TickHandle;
   TMap<FString, FAutomationHandler> AutomationHandlers;
+  TSet<FString> AutomationAliasActions;
+  TMap<FString, FString> PendingAutomationActionAliases;
   void InitializeHandlers();
+  void LoadConfiguredHandlerAliases();
+  bool RegisterActionAliasInternal(
+      const FString& AliasAction,
+      const FString& TargetAction,
+      bool bAllowPendingTarget);
+  void TryActivatePendingActionAliases(const FString& TargetAction);
   void StartNativeTransport();
+  void ReconcileLogCaptureDevice();
   void RegisterCoreAndAssetHandlers();
   void RegisterEnvironmentMediaHandlers();
   void RegisterSystemAndEditorHandlers();
@@ -278,6 +292,7 @@ private:
   friend struct FMcpLevelHandlerAccess;
   friend struct FMcpEditorFunctionHandlerAccess;
   friend class FMcpNativeTransport;
+  friend class FMcpCustomHandlerAliasDispatchTest;
   friend bool McpProcessRequestDispatch::DispatchFallbackAutomationRequest(
       UMcpAutomationBridgeSubsystem* Bridge,
       const FString& RequestId,
