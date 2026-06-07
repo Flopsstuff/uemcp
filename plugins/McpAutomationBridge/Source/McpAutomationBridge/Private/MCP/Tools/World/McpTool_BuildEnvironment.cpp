@@ -86,9 +86,13 @@ public:
 			.String(TEXT("filename"), TEXT(""))
 			.String(TEXT("heightmapPath"), TEXT("Filesystem path to a heightmap file."))
 			.String(TEXT("outputPath"), TEXT("Filesystem output path."))
-			.String(TEXT("landscapePath"), TEXT("Landscape actor/object path."))
-			.String(TEXT("landscapeActorPath"), TEXT("Landscape actor object path."))
-			.String(TEXT("layerInfoPath"), TEXT("Landscape layer info asset path."))
+				.String(TEXT("landscapePath"), TEXT("Landscape actor/object path."))
+				.String(TEXT("landscapeActorPath"), TEXT("Landscape actor object path."))
+				.String(TEXT("directionalLightActorPath"),
+					TEXT("Optional directional light actor path for snapshot export."))
+				.String(TEXT("skyLightActorPath"),
+					TEXT("Optional skylight actor path for snapshot export."))
+				.String(TEXT("layerInfoPath"), TEXT("Landscape layer info asset path."))
 			.String(TEXT("physicalMaterialPath"), TEXT("Physical material asset path."))
 			.Bool(TEXT("noWeightBlend"), TEXT("Create a non-weight-blended landscape layer info."))
 			.Number(TEXT("hardness"), TEXT("Landscape layer hardness."))

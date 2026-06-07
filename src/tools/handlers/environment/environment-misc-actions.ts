@@ -1,8 +1,7 @@
 import { cleanObject } from '../../../utils/serialization/safe-json.js';
 import type { ITools } from '../../../types/tools/tool-interfaces.js';
+import { LONG_RUNNING_OP_TIMEOUT_MS } from '../../../constants.js';
 import { executeAutomationRequest } from '../foundation/dispatch/common-handlers.js';
-import { exportEnvironmentSnapshot } from '../../../utils/config/environment-snapshot.js';
-import { importEnvironmentSnapshot } from '../../../utils/config/environment-snapshot.js';
 import { type EnvironmentArgs, getNumber } from './environment-handler-utils.js';
 
 export async function handleEnvironmentMiscAction(
@@ -17,7 +16,10 @@ export async function handleEnvironmentMiscAction(
       return cleanObject(await executeAutomationRequest(tools, 'bake_lightmap', {
         quality: (argsRecord.quality as string) || 'Preview',
         buildOnlySelected: false,
-        buildReflectionCaptures: false
+        buildReflectionCaptures: false,
+        timeoutMs: typeof argsRecord.timeoutMs === 'number'
+          ? argsRecord.timeoutMs
+          : LONG_RUNNING_OP_TIMEOUT_MS
       }) as Record<string, unknown>);
     case 'create_landscape_grass_type':
       return cleanObject(await executeAutomationRequest(tools, 'create_landscape_grass_type', {
@@ -27,15 +29,15 @@ export async function handleEnvironmentMiscAction(
         staticMesh: argsRecord.staticMesh as string | undefined
       }) as Record<string, unknown>);
     case 'export_snapshot':
-      return cleanObject(await exportEnvironmentSnapshot({
-        path: argsRecord.path as string | undefined,
-        filename: argsRecord.filename as string | undefined
-      })) as Record<string, unknown>;
+      return cleanObject(await executeAutomationRequest(tools, 'build_environment', {
+        ...argsRecord,
+        action: 'export_snapshot'
+      }, 'Automation bridge not available for environment snapshot operations')) as Record<string, unknown>;
     case 'import_snapshot':
-      return cleanObject(await importEnvironmentSnapshot({
-        path: argsRecord.path as string | undefined,
-        filename: argsRecord.filename as string | undefined
-      })) as Record<string, unknown>;
+      return cleanObject(await executeAutomationRequest(tools, 'build_environment', {
+        ...argsRecord,
+        action: 'import_snapshot'
+      }, 'Automation bridge not available for environment snapshot operations')) as Record<string, unknown>;
     case 'set_landscape_material':
       return cleanObject(await executeAutomationRequest(tools, 'set_landscape_material', {
         landscapeName: argsTyped.landscapeName || argsTyped.name || '',
@@ -69,7 +71,10 @@ export async function handleEnvironmentMiscAction(
       }
       const res = await executeAutomationRequest(tools, 'build_environment', {
         action: 'delete',
-        names
+        names,
+        actorPath: argsRecord.actorPath as string | undefined,
+        actorName: argsRecord.actorName as string | undefined,
+        targetActor: argsRecord.targetActor as string | undefined
       }) as Record<string, unknown>;
       return cleanObject(res);
     }

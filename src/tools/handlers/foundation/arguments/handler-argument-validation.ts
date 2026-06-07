@@ -36,13 +36,20 @@ export function validateSecurityPatterns(args: Record<string, unknown>): string 
 
     if (key.toLowerCase().includes('path') && value.startsWith('/')) {
       const additional = getAdditionalPathPrefixes();
-      const allowedPrefixes = ['/Game/', '/Engine/', '/Script/', '/Temp/', '/Niagara/', ...additional];
-      const exactAllowed = ['/Game', '/Engine', '/Script', '/Temp', '/Niagara',
-        ...additional.map(prefix => prefix.replace(/\/$/, ''))];
-      const isAllowed = allowedPrefixes.some(prefix => value.startsWith(prefix)) ||
-                        exactAllowed.includes(value);
+      const action = typeof args.action === 'string' ? args.action.toLowerCase() : '';
+      const normalizedKey = key.toLowerCase();
+      const isSnapshotPath =
+        (normalizedKey === 'path' || normalizedKey === 'outputpath') &&
+        (action === 'export_snapshot' || action === 'import_snapshot');
+      const allowedRoots = ['/game', '/engine', '/script', '/temp', '/niagara',
+        ...(isSnapshotPath ? ['/saved'] : []),
+        ...additional.map(prefix => prefix.replace(/\/$/, '').toLowerCase())];
+      const isAllowed = allowedRoots.some(root =>
+        lowerValue === root || lowerValue.startsWith(`${root}/`)
+      );
       if (!isAllowed) {
-        return `Security violation: '${key}' uses unauthorized absolute path. Only /Game/, /Engine/, /Script/, /Temp/, /Niagara/ paths are allowed by default. Set MCP_ADDITIONAL_PATH_PREFIXES to whitelist custom plugin content mount points.`;
+        const savedNote = isSnapshotPath ? ', /Saved/' : '';
+        return `Security violation: '${key}' uses unauthorized absolute path. Only /Game/, /Engine/, /Script/, /Temp/${savedNote}, /Niagara/ paths are allowed by default. Set MCP_ADDITIONAL_PATH_PREFIXES to whitelist custom plugin content mount points.`;
       }
     }
   }

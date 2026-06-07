@@ -90,6 +90,8 @@ export const buildEnvironmentToolDefinition: ToolDefinition = {
         landscapePath: commonSchemas.assetPath,
         landscapeActorPath: commonSchemas.stringProp,
         actorPath: commonSchemas.stringProp,
+        directionalLightActorPath: commonSchemas.stringProp,
+        skyLightActorPath: commonSchemas.stringProp,
         layerInfoPath: commonSchemas.assetPath,
         physicalMaterialPath: commonSchemas.assetPath,
         noWeightBlend: commonSchemas.booleanProp,

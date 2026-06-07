@@ -114,6 +114,51 @@ describe('normalizePathFields', () => {
   it('allows dot characters inside normal path segments', () => {
     expect(validateSecurityPatterns({ assetPath: '/Game/Foo..Bar/Baz' })).toBeUndefined();
   });
+
+  it.each([
+    '/TEMP/unreal-mcp/snapshot.json',
+    '/temp/unreal-mcp/snapshot.json'
+  ])('allows native snapshot path alias %s', path => {
+    expect(validateSecurityPatterns({ outputPath: path })).toBeUndefined();
+  });
+
+  it.each([
+    '/Saved/unreal-mcp/snapshot.json',
+    '/saved/unreal-mcp/snapshot.json'
+  ])('allows snapshot-only Saved path alias %s', path => {
+    expect(validateSecurityPatterns({
+      action: 'export_snapshot',
+      path
+    })).toBeUndefined();
+    expect(validateSecurityPatterns({
+      action: 'import_snapshot',
+      path
+    })).toBeUndefined();
+  });
+
+  it('allows the native snapshot outputPath alias under Saved', () => {
+    expect(validateSecurityPatterns({
+      action: 'export_snapshot',
+      outputPath: '/Saved/unreal-mcp/snapshot.json'
+    })).toBeUndefined();
+  });
+
+  it('rejects Saved paths for unrelated actions', () => {
+    expect(validateSecurityPatterns({
+      action: 'create_asset',
+      path: '/Saved/unreal-mcp/snapshot.json'
+    })).toContain('Security violation');
+  });
+
+  it.each([
+    '/etc/passwd',
+    '/home/user/snapshot.json',
+    'C:\\Windows\\System32\\config\\SAM',
+    '/TEMP/unreal-mcp/../escape.json',
+    '/Saved/../escape.json'
+  ])('continues to reject host or traversing path %s', path => {
+    expect(validateSecurityPatterns({ outputPath: path })).toContain('Security violation');
+  });
 });
 
 describe('executeAutomationRequest console command validation', () => {

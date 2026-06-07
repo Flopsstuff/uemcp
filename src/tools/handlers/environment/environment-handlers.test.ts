@@ -1,9 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { executeAutomationRequestMock, exportEnvironmentSnapshotMock, importEnvironmentSnapshotMock } = vi.hoisted(() => ({
-  executeAutomationRequestMock: vi.fn(async () => ({ success: true, result: {} })),
-  exportEnvironmentSnapshotMock: vi.fn(async () => ({ success: true })),
-  importEnvironmentSnapshotMock: vi.fn(async () => ({ success: true }))
+const { executeAutomationRequestMock } = vi.hoisted(() => ({
+  executeAutomationRequestMock: vi.fn(async () => ({ success: true, result: {} }))
 }));
 
 vi.mock('../foundation/dispatch/common-handlers.js', async () => {
@@ -13,11 +11,6 @@ vi.mock('../foundation/dispatch/common-handlers.js', async () => {
     executeAutomationRequest: executeAutomationRequestMock
   };
 });
-
-vi.mock('../../../utils/config/environment-snapshot.js', () => ({
-  exportEnvironmentSnapshot: exportEnvironmentSnapshotMock,
-  importEnvironmentSnapshot: importEnvironmentSnapshotMock
-}));
 
 import { handleEnvironmentTools } from './environment-handlers.js';
 import { consolidatedToolDefinitions } from '../../catalog/consolidated-tool-definitions.js';
@@ -54,8 +47,6 @@ function getBuildEnvironmentProperties(): Record<string, unknown> {
 describe('handleEnvironmentTools path normalization', () => {
   beforeEach(() => {
     executeAutomationRequestMock.mockClear();
-    exportEnvironmentSnapshotMock.mockClear();
-    importEnvironmentSnapshotMock.mockClear();
   });
 
   it('normalizes landscape material path aliases before dispatch', async () => {
@@ -155,6 +146,15 @@ describe('handleEnvironmentTools path normalization', () => {
     expect(getBuildEnvironmentProperties()).toHaveProperty('steepness');
   });
 
+  it('exposes explicit snapshot light selectors', () => {
+    expect(getBuildEnvironmentProperties()).toHaveProperty(
+      'directionalLightActorPath',
+    );
+    expect(getBuildEnvironmentProperties()).toHaveProperty(
+      'skyLightActorPath',
+    );
+  });
+
   it('preserves foliageTypePath for targeted remove_foliage_instances', async () => {
     await handleEnvironmentTools('remove_foliage_instances', {
       action: 'remove_foliage_instances',
@@ -174,6 +174,24 @@ describe('handleEnvironmentTools path normalization', () => {
 
   it('exposes removeAll for explicit all-foliage removal', () => {
     expect(getBuildEnvironmentProperties()).toHaveProperty('removeAll');
+  });
+
+  it('forwards exact actor paths for safe environment deletion', async () => {
+    await handleEnvironmentTools('delete', {
+      action: 'delete',
+      actorPath: '/Game/TestMap.TestMap:PersistentLevel.TargetActor',
+      targetActor: 'TargetActor'
+    }, {} as never);
+
+    expect(executeAutomationRequestMock).toHaveBeenCalledWith(
+      {},
+      'build_environment',
+      expect.objectContaining({
+        action: 'delete',
+        actorPath: '/Game/TestMap.TestMap:PersistentLevel.TargetActor',
+        targetActor: 'TargetActor'
+      })
+    );
   });
 
   it.each([
@@ -263,16 +281,45 @@ describe('handleEnvironmentTools path normalization', () => {
     );
   });
 
-  it('preserves filesystem snapshot paths', async () => {
-    await handleEnvironmentTools('export_snapshot', {
-      action: 'export_snapshot',
-      path: './tmp/unreal-mcp/build-environment',
-      filename: 'snapshot.json'
+  it.each(['export_snapshot', 'import_snapshot'])(
+    'routes %s through Unreal with filesystem snapshot paths preserved',
+    async action => {
+      await handleEnvironmentTools(action, {
+        action,
+        path: './tmp/unreal-mcp/build-environment',
+        filename: 'snapshot.json'
+      }, {} as never);
+
+      expect(executeAutomationRequestMock).toHaveBeenCalledWith(
+        {},
+        'build_environment',
+        {
+          action,
+          path: './tmp/unreal-mcp/build-environment',
+          filename: 'snapshot.json'
+        },
+        'Automation bridge not available for environment snapshot operations'
+      );
+    }
+  );
+
+  it('forwards every supported single-actor deletion selector', async () => {
+    await handleEnvironmentTools('delete', {
+      action: 'delete',
+      actorPath: '/Game/Test.Test:PersistentLevel.PathActor',
+      actorName: 'NamedActor',
+      targetActor: 'TargetActor'
     }, {} as never);
 
-    expect(exportEnvironmentSnapshotMock).toHaveBeenCalledWith({
-      path: './tmp/unreal-mcp/build-environment',
-      filename: 'snapshot.json'
-    });
+    expect(executeAutomationRequestMock).toHaveBeenCalledWith(
+      {},
+      'build_environment',
+      expect.objectContaining({
+        action: 'delete',
+        actorPath: '/Game/Test.Test:PersistentLevel.PathActor',
+        actorName: 'NamedActor',
+        targetActor: 'TargetActor'
+      })
+    );
   });
 });

@@ -5,6 +5,23 @@
 #include "HAL/PlatformFileManager.h"
 #include "McpAutomationBridgeLog.h"
 #include "Misc/EngineVersionComparison.h"
+
+#ifndef MCP_PLATFORM_HOLOLENS
+#if defined(PLATFORM_HOLOLENS)
+#define MCP_PLATFORM_HOLOLENS PLATFORM_HOLOLENS
+#else
+#define MCP_PLATFORM_HOLOLENS 0
+#endif
+#endif
+
+#if PLATFORM_UNIX || PLATFORM_MAC
+#include <errno.h>
+#include <sys/stat.h>
+#endif
+
+#if PLATFORM_WINDOWS || MCP_PLATFORM_HOLOLENS
+#include "Windows/WindowsHWrapper.h"
+#endif
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 

@@ -1,3 +1,4 @@
+#include "Domains/Environment/Runtime/McpAutomationBridge_EnvironmentAssetValidation.h"
 #include "Domains/Environment/McpAutomationBridge_EnvironmentHandlersShared.h"
 
 #if WITH_EDITOR
@@ -25,9 +26,7 @@ bool McpConfigureFoliageType(const TSharedPtr<FJsonObject> &Payload, TSharedPtr<
     UFoliageType *FoliageType = McpLoadFoliageTypeFromPayload(Payload, FoliagePath);
     if (!FoliageType)
     {
-        OutMessage = TEXT("Foliage type asset not found");
-        OutErrorCode = TEXT("ASSET_NOT_FOUND");
-        return false;
+        return McpFailEnvironmentAction(OutMessage, OutErrorCode, TEXT("Foliage type asset not found"), TEXT("ASSET_NOT_FOUND"));
     }
 
     if (UFoliageType_InstancedStaticMesh *Instanced = Cast<UFoliageType_InstancedStaticMesh>(FoliageType))
@@ -87,7 +86,11 @@ bool McpConfigureFoliageType(const TSharedPtr<FJsonObject> &Payload, TSharedPtr<
     TArray<FString> Failed;
     const int32 ReflectedCount = McpApplyPayloadSettings(FoliageType, Payload, Applied, Failed);
     FoliageType->MarkPackageDirty();
-    McpSafeAssetSave(FoliageType);
+    if (!McpSafeAssetSave(FoliageType))
+    {
+        return McpFailEnvironmentAction(OutMessage, OutErrorCode,
+            TEXT("Failed to save foliage type"), TEXT("SAVE_FAILED"));
+    }
 
     Resp->SetStringField(TEXT("foliageTypePath"), FoliagePath);
     Resp->SetNumberField(TEXT("configuredPropertyCount"), ReflectedCount);
@@ -103,9 +106,8 @@ bool McpCreateLandscapeLayerInfo(const TSharedPtr<FJsonObject> &Payload, TShared
     FString LayerName = McpGetFirstStringField(Payload, {TEXT("layerName"), TEXT("name")});
     if (LayerName.IsEmpty())
     {
-        OutMessage = TEXT("layerName or name required for create_landscape_layer_info");
-        OutErrorCode = TEXT("INVALID_ARGUMENT");
-        return false;
+        return McpFailEnvironmentAction(OutMessage, OutErrorCode,
+            TEXT("layerName or name required for create_landscape_layer_info"), TEXT("INVALID_ARGUMENT"));
     }
 
     FString Path = McpGetFirstStringField(Payload, {TEXT("path"), TEXT("layerInfoPath")});
@@ -113,27 +115,24 @@ bool McpCreateLandscapeLayerInfo(const TSharedPtr<FJsonObject> &Payload, TShared
     {
         Path = TEXT("/Game/Landscape");
     }
-    FString SafePath = SanitizeProjectRelativePath(Path);
-    if (SafePath.IsEmpty())
+    FString PackagePath;
+    if (!McpBuildValidatedEnvironmentAssetPath(Path, LayerName, TEXT("layer info"),
+                                               PackagePath, OutMessage, OutErrorCode))
     {
-        OutMessage = FString::Printf(TEXT("Invalid layer info path: %s"), *Path);
-        OutErrorCode = TEXT("SECURITY_VIOLATION");
         return false;
-    }
-
-    FString PackagePath = SafePath;
-    if (!FPaths::GetBaseFilename(PackagePath).Equals(LayerName, ESearchCase::IgnoreCase))
-    {
-        PackagePath = SafePath / LayerName;
     }
 
     UPackage *Package = CreatePackage(*PackagePath);
+    if (!Package)
+    {
+        return McpFailEnvironmentAction(OutMessage, OutErrorCode,
+            TEXT("Failed to create landscape layer package"), TEXT("PACKAGE_CREATION_FAILED"));
+    }
     ULandscapeLayerInfoObject *LayerInfo = NewObject<ULandscapeLayerInfoObject>(Package, FName(*LayerName), RF_Public | RF_Standalone);
     if (!LayerInfo)
     {
-        OutMessage = TEXT("Failed to create landscape layer info");
-        OutErrorCode = TEXT("CREATION_FAILED");
-        return false;
+        return McpFailEnvironmentAction(OutMessage, OutErrorCode,
+            TEXT("Failed to create landscape layer info"), TEXT("CREATION_FAILED"));
     }
 
 #if ENGINE_MAJOR_VERSION >= 5 && ENGINE_MINOR_VERSION >= 7
@@ -177,7 +176,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
     FAssetRegistryModule::AssetCreated(LayerInfo);
     LayerInfo->MarkPackageDirty();
-    McpSafeAssetSave(LayerInfo);
+    if (!McpSafeAssetSave(LayerInfo))
+    {
+        return McpFailEnvironmentAction(OutMessage, OutErrorCode,
+            TEXT("Failed to save landscape layer info"), TEXT("SAVE_FAILED"));
+    }
 
     Resp->SetStringField(TEXT("layerName"), LayerName);
     Resp->SetStringField(TEXT("assetPath"), LayerInfo->GetPathName());
@@ -198,26 +201,24 @@ bool McpCreateLinearColorCurve(const TSharedPtr<FJsonObject> &Payload, const FSt
     {
         Path = TEXT("/Game/Environment/Curves");
     }
-    FString SafePath = SanitizeProjectRelativePath(Path);
-    if (SafePath.IsEmpty())
+    FString PackagePath;
+    if (!McpBuildValidatedEnvironmentAssetPath(Path, Name, TEXT("color curve"),
+                                               PackagePath, OutMessage, OutErrorCode))
     {
-        OutMessage = FString::Printf(TEXT("Invalid curve path: %s"), *Path);
-        OutErrorCode = TEXT("SECURITY_VIOLATION");
         return false;
     }
 
-    FString PackagePath = SafePath;
-    if (!FPaths::GetBaseFilename(PackagePath).Equals(Name, ESearchCase::IgnoreCase))
-    {
-        PackagePath = SafePath / Name;
-    }
     UPackage *Package = CreatePackage(*PackagePath);
+    if (!Package)
+    {
+        return McpFailEnvironmentAction(OutMessage, OutErrorCode,
+            TEXT("Failed to create color curve package"), TEXT("PACKAGE_CREATION_FAILED"));
+    }
     UCurveLinearColor *Curve = NewObject<UCurveLinearColor>(Package, FName(*Name), RF_Public | RF_Standalone);
     if (!Curve)
     {
-        OutMessage = TEXT("Failed to create color curve");
-        OutErrorCode = TEXT("CREATION_FAILED");
-        return false;
+        return McpFailEnvironmentAction(OutMessage, OutErrorCode,
+            TEXT("Failed to create color curve"), TEXT("CREATION_FAILED"));
     }
 
     Curve->FloatCurves[0].UpdateOrAddKey(0.0f, 1.0f);
@@ -226,7 +227,11 @@ bool McpCreateLinearColorCurve(const TSharedPtr<FJsonObject> &Payload, const FSt
     Curve->FloatCurves[3].UpdateOrAddKey(0.0f, 1.0f);
     FAssetRegistryModule::AssetCreated(Curve);
     Curve->MarkPackageDirty();
-    McpSafeAssetSave(Curve);
+    if (!McpSafeAssetSave(Curve))
+    {
+        return McpFailEnvironmentAction(OutMessage, OutErrorCode,
+            TEXT("Failed to save color curve"), TEXT("SAVE_FAILED"));
+    }
 
     Resp->SetStringField(TEXT("curvePath"), Curve->GetPathName());
     McpHandlerUtils::AddVerification(Resp, Curve);

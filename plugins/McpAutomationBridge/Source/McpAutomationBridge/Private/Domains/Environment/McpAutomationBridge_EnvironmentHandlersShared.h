@@ -209,6 +209,15 @@ bool McpConfigureWaterWavesOnActor(AActor *WaterActor, const TSharedPtr<FJsonObj
                                           TSharedPtr<FJsonObject> Resp, FString &OutMessage, FString &OutErrorCode);
 bool McpCreateBuoyancyComponent(const TSharedPtr<FJsonObject> &Payload, TSharedPtr<FJsonObject> Resp,
                                        FString &OutMessage, FString &OutErrorCode);
+bool McpParseEnvironmentSnapshotLighting(
+    const TSharedPtr<FJsonObject> &Snapshot, double &OutTimeOfDay,
+    double &OutSunIntensity, double &OutSkylightIntensity, FRotator &OutRotation);
+bool McpCaptureEnvironmentSnapshot(
+    TSharedPtr<FJsonObject> Snapshot, TSharedPtr<FJsonObject> Resp,
+    const FString &DirectionalLightActorPath, const FString &SkyLightActorPath,
+    FString &OutMessage, FString &OutErrorCode);
+bool McpApplyEnvironmentSnapshot(const TSharedPtr<FJsonObject> &Snapshot, TSharedPtr<FJsonObject> Resp,
+                                        FString &OutMessage, FString &OutErrorCode);
 UWorld *McpGetRuntimeInspectionWorld();
 FString McpGetWorldTypeName(UWorld *World);
 void McpAddActorTags(TSharedPtr<FJsonObject> Obj, const AActor *Actor);
@@ -219,7 +228,13 @@ bool HandleBuildEnvironmentEditorAction(
     UMcpAutomationBridgeSubsystem &Bridge, const FString &RequestId,
     const FString &LowerSub, const TSharedPtr<FJsonObject> &Payload,
     TSharedPtr<FMcpBridgeWebSocket> RequestingSocket);
+void MarkActorConfigurationResult(FEnvironmentBuildContext &Context, bool bResult,
+                                          const FString &Message, const FString &ErrorCode);
+bool ConfigureEnvironmentActor(FEnvironmentBuildContext &Context, const FString &ActorClassPath,
+                                      const FString &DefaultActorName,
+                                      const FString &ComponentClassPath = FString());
 bool HandleBuildSnapshotAndDeletionAction(const FString &LowerSub, FEnvironmentBuildContext &Context);
+bool HandleBuildSnapshotAction(const FString &LowerSub, FEnvironmentBuildContext &Context);
 bool HandleBuildLandscapeAndFoliageAction(const FString &LowerSub, FEnvironmentBuildContext &Context);
 bool HandleBuildSkyWeatherAction(const FString &LowerSub, FEnvironmentBuildContext &Context);
 bool HandleBuildWaterAction(const FString &LowerSub, FEnvironmentBuildContext &Context);
