@@ -202,7 +202,12 @@ bool ApplyJsonValueToProperty(void* TargetContainer, FProperty* Property, const 
     int64 IntValue = 0;
     if (FIntProperty* IntProp = CastField<FIntProperty>(Property))
     {
-        if (!JsonNumberOrStringToInt64(ValueField, IntValue)) { OutError = TEXT("Unsupported JSON type for int property"); return false; }
+        if (!JsonNumberOrStringToInt64(ValueField, IntValue) ||
+            IntValue < MIN_int32 || IntValue > MAX_int32)
+        {
+            OutError = TEXT("Int property requires a 32-bit signed integer");
+            return false;
+        }
         IntProp->SetPropertyValue_InContainer(TargetContainer, static_cast<int32>(IntValue));
         return true;
     }

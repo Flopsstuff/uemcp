@@ -186,6 +186,50 @@ bool FMcpPropertyReflectionRejectsInvalidEnumNumbersTest::RunTest(const FString 
 
     UCharacterMovementComponent *Movement =
         NewObject<UCharacterMovementComponent>();
+    FIntProperty *IntProperty = FindFProperty<FIntProperty>(
+        UCharacterMovementComponent::StaticClass(),
+        TEXT("MaxSimulationIterations"));
+    if (!TestNotNull(TEXT("Character movement int property exists"), IntProperty))
+    {
+        delete EnumProperty;
+        return false;
+    }
+    const int32 OriginalSimulationIterations =
+        Movement->MaxSimulationIterations;
+    Error.Empty();
+    TestFalse(
+        TEXT("Positive int32 overflow is rejected"),
+        McpPropertyReflection::ApplyJsonValueToProperty(
+            Movement, IntProperty,
+            MakeShared<FJsonValueNumber>(2147483648.0), Error));
+    TestEqual(
+        TEXT("Rejected positive overflow leaves the int property unchanged"),
+        Movement->MaxSimulationIterations,
+        OriginalSimulationIterations);
+    TestTrue(
+        TEXT("Positive overflow error identifies the 32-bit requirement"),
+        Error.Contains(TEXT("32-bit")));
+    Error.Empty();
+    TestFalse(
+        TEXT("Negative int32 overflow strings are rejected"),
+        McpPropertyReflection::ApplyJsonValueToProperty(
+            Movement, IntProperty,
+            MakeShared<FJsonValueString>(TEXT("-2147483649")), Error));
+    TestEqual(
+        TEXT("Rejected negative overflow leaves the int property unchanged"),
+        Movement->MaxSimulationIterations,
+        OriginalSimulationIterations);
+    Error.Empty();
+    TestTrue(
+        TEXT("Valid int32 strings remain supported"),
+        McpPropertyReflection::ApplyJsonValueToProperty(
+            Movement, IntProperty,
+            MakeShared<FJsonValueString>(TEXT("42")), Error));
+    TestEqual(
+        TEXT("Valid int32 value is assigned"),
+        Movement->MaxSimulationIterations,
+        42);
+
     FByteProperty *ByteProperty = FindFProperty<FByteProperty>(
         UCharacterMovementComponent::StaticClass(), TEXT("CustomMovementMode"));
     if (!TestNotNull(TEXT("Plain byte property exists"), ByteProperty))

@@ -51,6 +51,8 @@ describe('plugin runtime behavior contracts', () => {
       'Value < static_cast<double>(MIN_int64)',
     );
     expect(source).toContain('Value >= Int64UpperBound');
+    expect(source).toContain('IntValue < MIN_int32');
+    expect(source).toContain('IntValue > MAX_int32');
     expect(source).toContain('Enum->GetIndexByValue(OutValue)');
     expect(source).toContain('Enum->HasMetaData(TEXT("Hidden"), EnumIndex)');
     expect(source).toContain('Enum->NumEnums() - 1');
