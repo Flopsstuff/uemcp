@@ -55,7 +55,7 @@ This document tracks ongoing work to replace stubbed or registry-based fallbacks
 | `manage_asset` (render target / Nanite) | Implemented (`create_render_target`, `nanite_rebuild_mesh`). | ✅ Done |
 | `system_control` (lumen) | Implemented (`lumen_update_scene`). | ✅ Done |
 | `system_control` (pipeline) | Implemented (`run_ubt`). | ✅ Done (Streamed via Node) |
-| `system_control` (tests) | Implemented (`run_tests`). | Add result streaming. |
+| `system_control` (tests) | Implemented (`run_tests`). | ✅ Done (WebSocket/native event streaming verified) |
 | `system_control` (settings) | Implemented (`set_project_setting`). | ✅ Done |
 | `manage_blueprint` (events) | Implemented (`add_event` for Custom/Standard). | ✅ Done |
 
@@ -63,9 +63,9 @@ This document tracks ongoing work to replace stubbed or registry-based fallbacks
 
 | Action | Current State | Needed Work |
 | --- | --- | --- |
-| `system_control` (logs) | Implemented (`subscribe`). | Add real-time streaming. |
+| `system_control` (logs) | Implemented (`subscribe` / `unsubscribe`). | ✅ Done (WebSocket/native real-time streaming verified) |
 | `system_control` (debug) | Implemented (`spawn_category`). | Add GGameplayDebugger integration. |
-| `system_control` (insights) | Implemented (`start_session`). | Add deeper FTraceAuxiliary capture/analyze integration. |
+| `system_control` (insights) | Implemented (`start_session`, trace capture/status/pause/resume/stop, snapshot write/send, `analyze_trace`). | ✅ Done |
 | `control_editor` (ui) | Implemented (`simulate_input`). | Add FSlateApplication integration. |
 
 ## SCS (Simple Construction Script) Helpers
@@ -88,6 +88,7 @@ This document tracks ongoing work to replace stubbed or registry-based fallbacks
 | **Pointer Safety** | ✅ Verified | Robust `nullptr` checks and weak pointers in C++ handlers. |
 | **Concurrency** | ✅ Verified | Thread-safe queue and GameThread dispatching for all automation requests. |
 | **Tool Registry Thread Safety** | ✅ Implemented | `CacheMutex` protects `Tools`, `ToolsByName`, `CachedToolSchemas`, `bCacheValid`. `GetAllTools()` returns copy. |
+| **Phase 5 Infrastructure** | ✅ Verified | Live headless UE validation covers WebSocket log/test event streaming, native `/mcp` SSE notifications, custom handler aliases, and Unreal Insights trace capture/snapshot/analyze workflows. |
 
 ## Blueprint Authoring (Recap)
 
@@ -425,8 +426,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 
 ## Next Steps
 
-1. Finish Phase 5 test/log real-time result streaming.
-2. Expand Phase 29 rendering/post-process coverage beyond seeded lighting, render-target, Lightmass-volume, and post-process-volume actions.
-3. Expand Phase 33 profiling/validation coverage beyond `start_session` and `validate_assets`.
-4. Continue Phase 30 cinematic/media expansion after the Phase 29 rendering surface is settled.
-5. Phases 22-28 are complete, including Phase 27 (PCG Framework). ✅ Done
+1. Expand Phase 29 rendering/post-process coverage beyond seeded lighting, render-target, Lightmass-volume, and post-process-volume actions.
+2. Expand Phase 33 profiling/validation coverage beyond the completed Phase 5 Insights trace workflow and existing `validate_assets` coverage.
+3. Continue Phase 30 cinematic/media expansion after the Phase 29 rendering surface is settled.
+4. Phases 5 and 22-28 are complete, including Phase 27 (PCG Framework). ✅ Done

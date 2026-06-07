@@ -4,7 +4,7 @@ This roadmap outlines the comprehensive development plan for expanding the Unrea
 
 **Target**: ~2,825 actions covering all Unreal Engine subsystems and major plugin integrations.
 
-**Current sync (2026-06-07)**: Phases 1-4 and 6-28 are implemented and tracked through the consolidated 23-tool TypeScript/native canonical surface. Phase 5 has baseline infrastructure in place but still has streaming/profiling polish open. Phase 29+ remains the planned expansion area, with a few seeded actions already available through existing canonical tools.
+**Current sync (2026-06-07)**: Phases 1-28 are implemented and tracked through the consolidated 23-tool TypeScript/native canonical surface. Phase 29+ remains the planned expansion area, with a few seeded actions already available through existing canonical tools.
 
 ---
 
@@ -38,13 +38,13 @@ This roadmap outlines the comprehensive development plan for expanding the Unrea
 - [x] **Metrics Dashboard**: `ue://health` view backed by bridge/server metrics.
 - [x] **UE 5.7 Support**: Full compatibility with Unreal Engine 5.7 (Control Rig, Subobject Data).
 
-## Phase 5: Infrastructure Improvements (Partially Implemented / Ongoing)
+## Phase 5: Infrastructure Improvements (Completed)
 
 - [x] **Native MCP Streaming Transport**: Optional native `/mcp` HTTP/SSE transport supports SSE sessions and streamed `tools/call` responses.
 - [x] **Baseline Observability Routes**: `system_control` dispatches `run_tests`, log `subscribe`/`unsubscribe`, and Unreal Insights `start_session`.
-- [ ] **Real-time Test/Log Streams**: Extend test results and log subscriptions to continuous result/event streams across client-visible transports.
-- [ ] **Extensibility Framework**: Dynamic handler registry via JSON config and support for custom C++ handlers.
-- [ ] **Remote Profiling**: Deep Unreal Insights integration beyond the current `start_session` trace route, including capture/analyze workflows.
+- [x] **Real-time Test/Log Streams**: Editor automation/log events stream through WebSocket notifications and native `/mcp` SSE notification streams.
+- [x] **Extensibility Framework**: Dynamic handler registration supports lower-snake-case C++ handlers and JSON-configured action aliases.
+- [x] **Remote Profiling**: Unreal Insights workflows cover trace status, capture, pause/resume, snapshot write/send, stop, and local trace metadata analysis.
 
 ## Context Reduction Initiative (Completed Workstream)
 
@@ -1425,7 +1425,7 @@ The following phases represent the comprehensive expansion to enable **full proj
 
 **Tools**: `system_control` for current baseline testing/profiling/validation; expanded test/profiling/validation actions are planned.
 
-**Status**: `run_tests`, `start_session`, and `validate_assets` are implemented on `system_control`. The checklist below tracks the broader named action surface still planned unless marked complete.
+**Status**: `run_tests`, `validate_assets`, and the Phase 5 Unreal Insights trace workflow are implemented on `system_control`. The checklist below tracks the broader named action surface still planned unless marked complete.
 
 ### 33.1 Automation Testing
 - [x] `run_tests`
@@ -1439,9 +1439,15 @@ The following phases represent the comprehensive expansion to enable **full proj
 
 ### 33.2 Profiling
 - [x] `start_session`
-- [ ] `start_unreal_insights`
-- [ ] `capture_insights_trace`
-- [ ] `analyze_trace`
+- [x] `start_unreal_insights`
+- [x] `capture_insights_trace`
+- [x] `get_trace_status`
+- [x] `pause_session`
+- [x] `resume_session`
+- [x] `stop_session`
+- [x] `write_snapshot`
+- [x] `send_snapshot`
+- [x] `analyze_trace`
 - [ ] `start_memory_report`
 - [ ] `start_network_profiler`
 - [ ] `enable_visual_logger`
@@ -2197,7 +2203,7 @@ The following phases represent the comprehensive expansion to enable **full proj
 | Category | Phases | Estimated Actions |
 |----------|--------|-------------------|
 | Completed Foundation (1-4) | 4 | ~160 |
-| Infrastructure (5, partial) | 1 | ~20 |
+| Completed Infrastructure (5) | 1 | ~20 |
 | Completed Content Creation (6-12) | 7 | ~400 |
 | Completed Gameplay Systems (13-18) | 6 | ~300 |
 | Completed UI/UX (19) | 1 | ~80 |
@@ -2225,7 +2231,7 @@ The following phases represent the comprehensive expansion to enable **full proj
 | Modding & UGC (48) | 1 | ~25 |
 | **TOTAL** | **48** | **~2,825** |
 
-Current implementation is complete through Phase 28 except for the explicitly ongoing Phase 5 infrastructure polish. Phases 29, 31-33, 35, and 45 have seeded actions on existing canonical tools, but their expanded roadmap surfaces remain planned.
+Current implementation is complete through Phase 28. Phases 29, 31-33, 35, and 45 have seeded actions on existing canonical tools, but their expanded roadmap surfaces remain planned.
 
 ## What This Enables
 
