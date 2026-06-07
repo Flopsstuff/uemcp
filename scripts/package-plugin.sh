@@ -102,6 +102,8 @@ ZIP_NAME="McpAutomationBridge-v${PLUGIN_VER}-UE${UE_VER}-${PLATFORM}.zip"
 ZIP_PATH="$OUTPUT_DIR/$ZIP_NAME"
 STAGING_DIR="$(mktemp -d "${TMPDIR:-/tmp}/McpAutomationBridge-package.XXXXXX")"
 PACKAGE_DIR="$STAGING_DIR/McpAutomationBridge"
+SOURCE_PLUGIN_DIR="$STAGING_DIR/source/McpAutomationBridge"
+SOURCE_PLUGIN_FILE="$SOURCE_PLUGIN_DIR/McpAutomationBridge.uplugin"
 
 cleanup_staging() {
     rm -rf "$STAGING_DIR"
@@ -123,8 +125,26 @@ echo ""
 
 echo "Building plugin..."
 rm -f "$ZIP_PATH"
+mkdir -p "$(dirname "$SOURCE_PLUGIN_DIR")"
+cp -R "$REPO_ROOT/plugins/McpAutomationBridge" "$SOURCE_PLUGIN_DIR"
+
+if [ "${UE_MAJOR:-0}" -gt 5 ] || { [ "${UE_MAJOR:-0}" -eq 5 ] && [ "${UE_MINOR:-0}" -ge 2 ]; }; then
+    python3 -c "
+import json, sys
+path = sys.argv[1]
+with open(path, 'r') as handle:
+    data = json.load(handle)
+for dependency in data.get('Plugins', []):
+    if dependency.get('Name') == 'PCG':
+        dependency.pop('Optional', None)
+with open(path, 'w') as handle:
+    json.dump(data, handle, indent=2)
+    handle.write('\n')
+" "$SOURCE_PLUGIN_FILE"
+fi
+
 "$RUN_UAT" BuildPlugin \
-    -Plugin="$PLUGIN_FILE" \
+    -Plugin="$SOURCE_PLUGIN_FILE" \
     -Package="$PACKAGE_DIR" \
     -TargetPlatforms="$PLATFORM" \
     -Rocket "${EXTRA_ARGS[@]}"
@@ -161,10 +181,45 @@ fi
 # ─── Zip ─────────────────────────────────────────────────────────────────────
 
 echo "Creating archive: $ZIP_NAME"
+rm -f "$ZIP_PATH"
+find "$OUTPUT_PLUGIN_DIR" -type d -iname "*.dSYM" -prune -exec rm -rf {} +
+find "$OUTPUT_PLUGIN_DIR" -type f \( \
+    -iname "*.pdb" -o \
+    -iname "*.debug" -o \
+    -iname "*.sym" \
+\) -delete
 cd "$(dirname "$OUTPUT_PLUGIN_DIR")"
 zip -r "$ZIP_PATH" McpAutomationBridge/ \
     -x "*.pdb" \
+    -x "*.debug" \
+    -x "*.sym" \
+    -x "*.dSYM/" \
+    -x "*.dSYM/*" \
     -x "McpAutomationBridge/Intermediate/*"
+python3 -c "
+import sys
+import zipfile
+
+archive_path = sys.argv[1]
+forbidden_extensions = ('.pdb', '.debug', '.sym')
+with zipfile.ZipFile(archive_path) as archive:
+    forbidden_entries = [
+        name
+        for name in archive.namelist()
+        if name.lower().endswith(forbidden_extensions)
+        or any(
+            part.endswith('.dsym')
+            for part in name.replace('\\\\', '/').lower().rstrip('/').split('/')
+        )
+    ]
+if forbidden_entries:
+    print(
+        'ERROR: Distribution archive contains debug symbols: '
+        + ', '.join(forbidden_entries),
+        file=sys.stderr,
+    )
+    sys.exit(1)
+" "$ZIP_PATH"
 echo ""
 
 FINAL_SIZE=$(du -sh "$ZIP_PATH" | cut -f1)

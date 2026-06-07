@@ -11,10 +11,16 @@ const pluginDependencySchema = z.object({
 });
 
 const pluginManifestSchema = z.object({
+  FileVersion: z.number(),
+  Version: z.number(),
+  VersionName: z.string(),
+  EngineVersion: z.string().optional(),
+  Installed: z.boolean().optional(),
+  CanContainContent: z.boolean(),
   Plugins: z.array(pluginDependencySchema),
 });
 
-const readPluginManifest = () =>
+const readPluginManifest = (): z.infer<typeof pluginManifestSchema> =>
   pluginManifestSchema.parse(
     JSON.parse(
       readFileSync(
@@ -28,36 +34,121 @@ const readPluginManifest = () =>
   );
 
 describe('plugin manifest contracts', () => {
-  it('enables PCG during early startup when PCG registers shader types', () => {
+  it('keeps the source descriptor portable across supported engine versions', () => {
+    // Given
     const manifest = readPluginManifest();
-    const pcgDependency = manifest.Plugins.find(
-      (dependency) => dependency.Name === 'PCG',
-    );
 
-    expect(pcgDependency).toBeDefined();
-    expect(pcgDependency?.Enabled).toBe(true);
-    expect(pcgDependency?.Optional).not.toBe(true);
+    // When
+    const sourceDistributionFields = {
+      EngineVersion: manifest.EngineVersion,
+      Installed: manifest.Installed,
+    };
+
+    // Then
+    expect(sourceDistributionFields).toEqual({
+      EngineVersion: undefined,
+      Installed: undefined,
+    });
   });
 
-  it('enables GameplayAbilities when the bridge exposes GAS actions', () => {
+  it('preserves the plugin release version', () => {
+    // Given
     const manifest = readPluginManifest();
-    const gameplayAbilitiesDependency = manifest.Plugins.find(
-      (dependency) => dependency.Name === 'GameplayAbilities',
-    );
 
-    expect(gameplayAbilitiesDependency).toBeDefined();
-    expect(gameplayAbilitiesDependency?.Enabled).toBe(true);
-    expect(gameplayAbilitiesDependency?.Optional).not.toBe(true);
+    // When
+    const version = {
+      FileVersion: manifest.FileVersion,
+      Version: manifest.Version,
+      VersionName: manifest.VersionName,
+    };
+
+    // Then
+    expect(version).toEqual({
+      FileVersion: 3,
+      Version: 530,
+      VersionName: '0.5.30',
+    });
   });
 
-  it('enables SmartObjects when the bridge exposes Smart Object actions', () => {
+  it('keeps required engine integrations enabled and nonoptional', () => {
+    // Given
     const manifest = readPluginManifest();
-    const smartObjectsDependency = manifest.Plugins.find(
-      (dependency) => dependency.Name === 'SmartObjects',
+    const requiredDependencies = [
+      'PythonScriptPlugin',
+      'EditorScriptingUtilities',
+      'Niagara',
+      'GameplayAbilities',
+      'SmartObjects',
+    ] as const;
+
+    // When
+    const dependencyContracts = requiredDependencies.map((name) =>
+      manifest.Plugins.find((dependency) => dependency.Name === name),
     );
 
-    expect(smartObjectsDependency).toBeDefined();
-    expect(smartObjectsDependency?.Enabled).toBe(true);
-    expect(smartObjectsDependency?.Optional).not.toBe(true);
+    // Then
+    for (const [index, dependency] of dependencyContracts.entries()) {
+      expect(dependency).toEqual({
+        Name: requiredDependencies[index],
+        Enabled: true,
+      });
+    }
+  });
+
+  it('keeps supported optional integrations enabled when available', () => {
+    // Given
+    const manifest = readPluginManifest();
+    const optionalDependencies = [
+      'LevelSequenceEditor',
+      'NiagaraEditor',
+      'BehaviorTreeEditor',
+      'EnvironmentQueryEditor',
+      'ControlRig',
+      'RigVM',
+      'IKRig',
+      'ChaosVehiclesPlugin',
+      'AnimationData',
+      'ProceduralMeshComponent',
+      'Interchange',
+      'InterchangeOpenUSD',
+      'DataValidation',
+      'EnhancedInput',
+      'GeometryScripting',
+      'GeometryProcessing',
+      'ChaosCloth',
+      'StructUtils',
+      'Metasound',
+      'StateTree',
+      'MassGameplay',
+      'OnlineSubsystem',
+      'OnlineSubsystemUtils',
+      'Synthesis',
+      'PCG',
+    ] as const;
+
+    // When
+    const dependencyContracts = optionalDependencies.map((name) =>
+      manifest.Plugins.find((dependency) => dependency.Name === name),
+    );
+
+    // Then
+    for (const [index, dependency] of dependencyContracts.entries()) {
+      expect(dependency).toEqual({
+        Name: optionalDependencies[index],
+        Enabled: true,
+        Optional: true,
+      });
+    }
+  });
+
+  it('retains a code-only descriptor for the packaging placeholder', () => {
+    // Given
+    const manifest = readPluginManifest();
+
+    // When
+    const canContainContent = manifest.CanContainContent;
+
+    // Then
+    expect(canContainContent).toBe(false);
   });
 });

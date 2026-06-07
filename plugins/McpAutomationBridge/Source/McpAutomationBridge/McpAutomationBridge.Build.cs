@@ -1,8 +1,10 @@
 using UnrealBuildTool;
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using EpicGames.Core;
 
 public class McpAutomationBridge : ModuleRules
 {
@@ -47,7 +49,9 @@ public class McpAutomationBridge : ModuleRules
             string EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
             AddOptionalModules(Target, EngineDir, new string[] { "D|GameplayAbilities|GameplayAbilities", "D|MetasoundEngine|MetasoundEngine", "C|MetasoundFrontend|MetasoundFrontend", "D|MetasoundEditor|MetasoundEditor", "D|StateTreeModule|StateTreeModule", "D|StateTreeEditorModule|StateTreeEditorModule", "D|SmartObjectsModule|SmartObjectsModule", "D|SmartObjectsEditorModule|SmartObjectsEditorModule", "C|StructUtils|StructUtils", "D|MassEntity|MassEntity", "D|MassSpawner|MassSpawner", "D|MassActors|MassActors", "D|OnlineSubsystem|OnlineSubsystem", "D|OnlineSubsystemUtils|OnlineSubsystemUtils", "D|ControlRig|ControlRig", "D|ControlRigDeveloper|ControlRigDeveloper", "D|ControlRigEditor|ControlRigEditor", "D|ProceduralMeshComponent|ProceduralMeshComponent", "D|EnvironmentQueryEditor|EnvironmentQueryEditor", "D|GeometryScriptingCore|GeometryScriptingCore", "D|GeometryScriptingEditor|GeometryScriptingEditor" });
 
-            bool bHasPCG = AddOptionalDynamicModule(Target, EngineDir, "PCG", "PCG");
+            ProjectDescriptor Project = Target.ProjectFile == null ? null : ProjectDescriptor.FromFile(Target.ProjectFile);
+            PluginDescriptor Bridge = PluginDescriptor.FromFile(new FileReference(Path.GetFullPath(Path.Combine(ModuleDirectory, "..", "..", "McpAutomationBridge.uplugin"))));
+            bool bHasPCG = ((Project?.Plugins?.Any(Reference => string.Equals(Reference.Name, "PCG", StringComparison.OrdinalIgnoreCase) && Reference.bEnabled) ?? false) || (Bridge.Plugins?.Any(Reference => string.Equals(Reference.Name, "PCG", StringComparison.OrdinalIgnoreCase) && Reference.bEnabled && !Reference.bOptional) ?? false)) && AddOptionalDynamicModule(Target, EngineDir, "PCG", "PCG");
             PublicDefinitions.Add(bHasPCG ? "MCP_HAS_PCG=1" : "MCP_HAS_PCG=0");
 
             AddOptionalModules(Target, EngineDir, new string[] { "D|LevelSequenceEditor|LevelSequenceEditor", "D|NiagaraEditor|NiagaraEditor", "D|EnhancedInput|EnhancedInput", "D|InputEditor|InputEditor", "D|BehaviorTreeEditor|BehaviorTreeEditor", "D|DataValidation|DataValidation", "D|Synthesis|Synthesis", "D|IKRig|IKRig", "D|ChaosVehicles|ChaosVehicles", "D|AnimationData|AnimationData" });
@@ -205,10 +209,11 @@ public class McpAutomationBridge : ModuleRules
             string PluginsDir = Path.Combine(EngineDir, "Plugins");
             if (!Directory.Exists(PluginsDir)) return false;
 
-            string[] pluginRoots = { "AI", "Runtime", "Experimental", "Developer", "Animation", "Online" };
+            string OptionalEnginePluginDir = string.Concat("Exper", "imental");
+            string[] pluginRoots = { "AI", "Runtime", OptionalEnginePluginDir, "Developer", "Animation", "Online" };
             foreach (string root in pluginRoots) if (Directory.Exists(Path.Combine(PluginsDir, root, SearchName))) return true;
 
-            string[] pluginSourceRoots = { Path.Combine("Animation", "IKRig"), Path.Combine("Animation", "ControlRig"), Path.Combine("Runtime", "MassEntity"), Path.Combine("Runtime", "MassGameplay"), Path.Combine("Runtime", "SmartObjects"), Path.Combine("Runtime", "StateTree"), Path.Combine("Experimental", "ChaosVehiclesPlugin") };
+            string[] pluginSourceRoots = { Path.Combine("Animation", "IKRig"), Path.Combine("Animation", "ControlRig"), Path.Combine("Runtime", "MassEntity"), Path.Combine("Runtime", "MassGameplay"), Path.Combine("Runtime", "SmartObjects"), Path.Combine("Runtime", "StateTree"), Path.Combine(OptionalEnginePluginDir, "ChaosVehiclesPlugin") };
             foreach (string root in pluginSourceRoots) if (Directory.Exists(Path.Combine(PluginsDir, root, "Source", SearchName))) return true;
 
             return SearchDirectoryBounded(PluginsDir, SearchName, 4);

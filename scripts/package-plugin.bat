@@ -75,6 +75,8 @@ set "ZIP_NAME=McpAutomationBridge-v%PLUGIN_VER%-UE%UE_VER%-Win64.zip"
 set "ZIP_PATH=%OUTPUT_DIR%\%ZIP_NAME%"
 set "STAGING_DIR=%TEMP%\McpAutomationBridge-package-%RANDOM%%RANDOM%"
 set "PACKAGE_DIR=%STAGING_DIR%\McpAutomationBridge"
+set "SOURCE_PLUGIN_DIR=%STAGING_DIR%\source\McpAutomationBridge"
+set "SOURCE_PLUGIN_FILE=%SOURCE_PLUGIN_DIR%\McpAutomationBridge.uplugin"
 
 if exist "%STAGING_DIR%" rmdir /s /q "%STAGING_DIR%"
 mkdir "%STAGING_DIR%"
@@ -97,7 +99,27 @@ echo.
 REM ─── Build ─────────────────────────────────────────────────────────────────
 
 echo Building plugin...
-call "%RUN_UAT%" BuildPlugin -Plugin="%PLUGIN_FILE%" -Package="%PACKAGE_DIR%" -TargetPlatforms=Win64 -Rocket %EXTRA_ARGS%
+xcopy "%REPO_ROOT%\plugins\McpAutomationBridge" "%SOURCE_PLUGIN_DIR%\" /E /I /Q >nul
+if errorlevel 1 (
+    echo ERROR: Failed to stage plugin source.
+    if exist "%STAGING_DIR%" rmdir /s /q "%STAGING_DIR%"
+    exit /b 1
+)
+
+for /f "tokens=1,2 delims=." %%A in ("%UE_VER%") do (
+    set "UE_MAJOR=%%A"
+    set "UE_MINOR=%%B"
+)
+if "!UE_MAJOR!"=="5" if !UE_MINOR! GEQ 2 (
+    powershell -NoProfile -Command "try { $ErrorActionPreference='Stop'; $path=$args[0]; $data=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json; $dependency=$data.Plugins | Where-Object { $_.Name -eq 'PCG' }; if ($null -ne $dependency) { $dependency.PSObject.Properties.Remove('Optional') }; $data | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $path } catch { Write-Error $_; exit 1 }" "%SOURCE_PLUGIN_FILE%"
+    if errorlevel 1 (
+        echo ERROR: Failed to prepare the versioned plugin descriptor.
+        if exist "%STAGING_DIR%" rmdir /s /q "%STAGING_DIR%"
+        exit /b 1
+    )
+)
+
+call "%RUN_UAT%" BuildPlugin -Plugin="%SOURCE_PLUGIN_FILE%" -Package="%PACKAGE_DIR%" -TargetPlatforms=Win64 -Rocket %EXTRA_ARGS%
 if errorlevel 1 (
     echo ERROR: Build failed.
     if exist "%STAGING_DIR%" rmdir /s /q "%STAGING_DIR%"
@@ -135,9 +157,15 @@ REM ─── Zip ────────────────────�
 echo Creating archive: %ZIP_NAME%
 if exist "%ZIP_PATH%" del "%ZIP_PATH%"
 if exist "%OUTPUT_PLUGIN_DIR%\Intermediate" rmdir /s /q "%OUTPUT_PLUGIN_DIR%\Intermediate"
-powershell -NoProfile -Command "try { $ErrorActionPreference='Stop'; $pluginDir=$args[0]; $zipPath=$args[1]; Get-ChildItem -LiteralPath $pluginDir -Recurse -Filter '*.pdb' | Remove-Item -Force; Push-Location (Split-Path -Parent $pluginDir); Compress-Archive -LiteralPath 'McpAutomationBridge' -DestinationPath $zipPath -Force; Pop-Location } catch { Write-Error $_; exit 1 }" "%OUTPUT_PLUGIN_DIR%" "%ZIP_PATH%"
+powershell -NoProfile -Command "try { $ErrorActionPreference='Stop'; $pluginDir=$args[0]; $zipPath=$args[1]; Get-ChildItem -LiteralPath $pluginDir -Recurse -Directory -Filter '*.dSYM' | Sort-Object FullName -Descending | Remove-Item -Recurse -Force; Get-ChildItem -LiteralPath $pluginDir -Recurse -File | Where-Object { $_.Extension -in '.pdb', '.debug', '.sym' } | Remove-Item -Force; Push-Location (Split-Path -Parent $pluginDir); Compress-Archive -LiteralPath 'McpAutomationBridge' -DestinationPath $zipPath -Force; Pop-Location } catch { Write-Error $_; exit 1 }" "%OUTPUT_PLUGIN_DIR%" "%ZIP_PATH%"
 if errorlevel 1 (
     echo ERROR: Failed to create zip archive.
+    if exist "%STAGING_DIR%" rmdir /s /q "%STAGING_DIR%"
+    exit /b 1
+)
+powershell -NoProfile -Command "try { $ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $archive=[System.IO.Compression.ZipFile]::OpenRead($args[0]); try { $forbidden=@($archive.Entries | Where-Object { $normalized=$_.FullName.Replace('\','/').ToLowerInvariant(); [System.IO.Path]::GetExtension($_.FullName).ToLowerInvariant() -in '.pdb', '.debug', '.sym' -or $normalized.Contains('.dsym/') -or $normalized.EndsWith('.dsym') }); if ($forbidden.Count -gt 0) { throw ('Distribution archive contains debug symbols: ' + (($forbidden | ForEach-Object FullName) -join ', ')) } } finally { $archive.Dispose() } } catch { Write-Error $_; exit 1 }" "%ZIP_PATH%"
+if errorlevel 1 (
+    echo ERROR: Archive verification failed.
     if exist "%STAGING_DIR%" rmdir /s /q "%STAGING_DIR%"
     exit /b 1
 )
