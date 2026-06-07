@@ -39,7 +39,10 @@ export class AutomationBridge extends EventEmitter {
         );
         this.requestTracker = new RequestTracker(this.config.maxPendingRequests);
         this.handshakeHandler = new HandshakeHandler(this.config.capabilityToken);
-        this.messageHandler = new MessageHandler(this.requestTracker);
+        this.messageHandler = new MessageHandler(
+            this.requestTracker,
+            (event) => this.emitAutomation('automationEvent', event)
+        );
         this.client = new AutomationBridgeClient({
             config: this.config,
             state: this.state,

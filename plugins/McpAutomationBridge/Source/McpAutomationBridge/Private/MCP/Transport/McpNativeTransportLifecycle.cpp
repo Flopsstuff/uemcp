@@ -245,6 +245,10 @@ void FMcpNativeTransport::Shutdown()
 		FScopeLock Lock(&SessionMutex);
 		ActiveSessions.Empty();
 	}
+	{
+		FScopeLock Lock(&LogEventSubscriptionsMutex);
+		LogEventSubscribedSessions.Empty();
+	}
 
 	ListenSocket = nullptr;
 

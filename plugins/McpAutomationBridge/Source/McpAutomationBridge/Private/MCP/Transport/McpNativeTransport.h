@@ -60,6 +60,18 @@ public:
 	void SendSSEProgressUpdate(const FString& RequestId, float Percent,
 		const FString& Message);
 
+	/** Broadcast a JSON-RPC notification to persistent GET /mcp streams. */
+	int32 BroadcastNotification(const FString& Method,
+		const TSharedPtr<FJsonObject>& Params = nullptr);
+
+	bool SetLogEventSubscriptionForRequest(
+		const FString& RequestId, bool bSubscribed);
+
+	bool HasLogEventSubscribers() const;
+
+	int32 BroadcastLogEventNotification(
+		const TSharedPtr<FJsonObject>& Params);
+
 	/** Clean up requests that have exceeded the timeout. Called from Tick. */
 	void CleanupStaleRequests();
 
@@ -154,6 +166,9 @@ private:
 	static bool WriteNotificationEvent(FNotificationStream& Stream, const FString& EventData);
 	static bool WriteNotificationKeepalive(FNotificationStream& Stream);
 	void CloseNotificationStream(TSharedPtr<FNotificationStream> Stream);
+	int32 QueueNotificationEventWrites(
+		const TArray<TSharedPtr<FNotificationStream>>& Streams,
+		const FString& NotificationJson);
 
 	UMcpAutomationBridgeSubsystem* Subsystem;
 	FMcpDynamicToolManager ToolManager;
@@ -195,8 +210,13 @@ private:
 	// Persistent notification streams (GET /mcp — StreamId → stream)
 	TMap<FString, TSharedPtr<FNotificationStream>> NotificationStreams;
 	mutable FCriticalSection NotificationStreamsMutex;
+	TSet<FString> LogEventSubscribedSessions;
+	mutable FCriticalSection LogEventSubscriptionsMutex;
 
 	static constexpr int32 MaxNotificationStreamsPerSession = 4;
+	static constexpr int32 MaxTotalNotificationStreams = 16;
+	static constexpr int32 MaxPendingNotificationWrites =
+		MaxTotalNotificationStreams * 4;
 	static constexpr double NotificationStreamTimeoutSeconds = 3600.0;  // 1 hour
 	static constexpr double KeepaliveIntervalSeconds = 30.0;
 };

@@ -34,6 +34,10 @@ public:
 	bool IsReconnectPending() const { return TimeUntilReconnect > 0.0f; }
 
     bool SendRawMessage(const FString& Message);
+    bool SendRawMessageToSocket(
+        TSharedPtr<FMcpBridgeWebSocket> TargetSocket,
+        const FString& Message);
+    bool SendRawMessageToLogSubscribers(const FString& Message);
     void SendAutomationResponse(TSharedPtr<FMcpBridgeWebSocket> TargetSocket, const FString& RequestId, bool bSuccess, const FString& Message, const TSharedPtr<FJsonObject>& Result, const FString& ErrorCode);
     void SendControlMessage(const TSharedPtr<FJsonObject>& Message);
 
@@ -53,6 +57,8 @@ public:
 	// Request tracking helpers
 	int32 GetActiveSocketCount() const;
 	void RegisterRequestSocket(const FString& RequestId, TSharedPtr<FMcpBridgeWebSocket> Socket);
+	void SetLogSubscription(TSharedPtr<FMcpBridgeWebSocket> Socket, bool bSubscribed);
+	bool HasLogSubscribers() const;
 
 	// Telemetry helpers
 	void StartRequestTelemetry(const FString& RequestId, const FString& Action);
@@ -79,6 +85,7 @@ private:
 	TArray<TSharedPtr<FMcpBridgeWebSocket>> ActiveSockets;
 	TMap<FString, TSharedPtr<FMcpBridgeWebSocket>> PendingRequestsToSockets;
 	TSet<FMcpBridgeWebSocket*> AuthenticatedSockets;
+	TSet<FMcpBridgeWebSocket*> LogSubscriberSockets;
 	FTSTicker::FDelegateHandle TickerHandle;
 	FMcpMessageReceivedCallback OnMessageReceived;
 
@@ -141,4 +148,5 @@ private:
 
 	mutable FCriticalSection PendingRequestsMutex;
 	mutable FCriticalSection RateLimitMutex;
+	mutable FCriticalSection LogSubscribersMutex;
 };

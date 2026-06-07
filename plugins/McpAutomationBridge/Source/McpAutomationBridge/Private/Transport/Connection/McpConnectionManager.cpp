@@ -109,6 +109,10 @@ void FMcpConnectionManager::Stop() {
   ActiveSockets.Empty();
   AuthenticatedSockets.Empty();
   {
+    FScopeLock Lock(&LogSubscribersMutex);
+    LogSubscriberSockets.Empty();
+  }
+  {
     FScopeLock Lock(&RateLimitMutex);
     SocketRateLimits.Empty();
   }

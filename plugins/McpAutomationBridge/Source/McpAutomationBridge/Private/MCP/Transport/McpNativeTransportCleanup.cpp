@@ -28,9 +28,9 @@ void FMcpNativeTransport::CleanupStaleRequests()
 	}
 
 	// Clean up inactive sessions
+	TArray<FString> ExpiredSessions;
 	{
 		FScopeLock Lock(&SessionMutex);
-		TArray<FString> ExpiredSessions;
 		for (const auto& [SessionId, LastActivity] : ActiveSessions)
 		{
 			if (Now - LastActivity > SessionTimeoutSeconds)
@@ -44,6 +44,14 @@ void FMcpNativeTransport::CleanupStaleRequests()
 			UE_LOG(LogMcpNativeTransport, Log,
 				TEXT("Session %s expired after %.0f min inactivity (remaining: %d)"),
 				*SessionId, SessionTimeoutSeconds / 60.0, ActiveSessions.Num());
+		}
+	}
+	if (ExpiredSessions.Num() > 0)
+	{
+		FScopeLock Lock(&LogEventSubscriptionsMutex);
+		for (const FString& SessionId : ExpiredSessions)
+		{
+			LogEventSubscribedSessions.Remove(SessionId);
 		}
 	}
 

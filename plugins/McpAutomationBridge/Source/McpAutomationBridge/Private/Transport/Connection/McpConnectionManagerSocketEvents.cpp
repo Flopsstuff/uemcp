@@ -76,6 +76,10 @@ void FMcpConnectionManager::HandleConnectionError(
   if (Socket.IsValid()) {
     AuthenticatedSockets.Remove(Socket.Get());
     {
+      FScopeLock Lock(&LogSubscribersMutex);
+      LogSubscriberSockets.Remove(Socket.Get());
+    }
+    {
       FScopeLock Lock(&RateLimitMutex);
       SocketRateLimits.Remove(Socket.Get());
     }
@@ -112,6 +116,10 @@ void FMcpConnectionManager::HandleClosed(TSharedPtr<FMcpBridgeWebSocket> Socket,
          StatusCode, *Reason, bWasClean ? TEXT("true") : TEXT("false"));
   if (Socket.IsValid()) {
     AuthenticatedSockets.Remove(Socket.Get());
+    {
+      FScopeLock Lock(&LogSubscribersMutex);
+      LogSubscriberSockets.Remove(Socket.Get());
+    }
     {
       FScopeLock Lock(&RateLimitMutex);
       SocketRateLimits.Remove(Socket.Get());

@@ -1,5 +1,4 @@
 #include "Domains/Blueprint/McpAutomationBridge_BlueprintActionContext.h"
-#include "McpConnectionManager.h"
 #include "Foundation/HandlerUtils/McpHandlerUtils.h"
 
 #if WITH_EDITOR
@@ -71,9 +70,7 @@ void SendBlueprintAddEventResult(
   Notify->SetStringField(TEXT("event"), TEXT("add_event_completed"));
   Notify->SetStringField(TEXT("requestId"), RequestId);
   Notify->SetObjectField(TEXT("result"), Resp);
-  if (Bridge.ConnectionManager.IsValid()) {
-    Bridge.ConnectionManager->SendControlMessage(Notify);
-  }
+  Bridge.BroadcastAutomationEvent(Notify, RequestingSocket);
 }
 #endif
 }

@@ -31,6 +31,8 @@
 // Core Includes
 // -----------------------------------------------------------------------------
 #include "McpAutomationBridgeSubsystem.h"
+#include "MCP/Transport/McpNativeTransport.h"
+#include "McpConnectionManager.h"
 #include "Transport/WebSocket/McpBridgeWebSocket.h"
 #include "Foundation/BridgeHelpers/McpAutomationBridgeHelpers.h"
 #include "Core/Module/McpAutomationBridgeGlobals.h"
@@ -42,8 +44,6 @@
 #include "Dom/JsonObject.h"
 #include "Misc/OutputDevice.h"
 #include "Async/Async.h"
-#include "Serialization/JsonSerializer.h"
-#include "Serialization/JsonWriter.h"
 
 // =============================================================================
 // FMcpLogOutputDevice - Custom Log Capture Device
@@ -124,36 +124,25 @@ public:
             default:                         VerbosityString = TEXT("Log");         break;
         }
 
-        // ---------------------------------------------------------------------
-        // Build JSON payload and dispatch to game thread
-        // ---------------------------------------------------------------------
         const FString Message = FString(V);
-        const FString CategoryString = Category.ToString();
-
-        TSharedRef<FJsonObject> Payload = MakeShared<FJsonObject>();
-        Payload->SetStringField(TEXT("category"), CategoryString);
-        Payload->SetStringField(TEXT("verbosity"), VerbosityString);
-        Payload->SetStringField(TEXT("message"), Message);
-
-        TSharedRef<FJsonObject> Event = MakeShared<FJsonObject>();
-        Event->SetStringField(TEXT("type"), TEXT("automation_event"));
-        Event->SetStringField(TEXT("event"), TEXT("log"));
-        Event->SetObjectField(TEXT("payload"), Payload);
-
-        FString SerializedEvent;
-        const TSharedRef<TJsonWriter<>> Writer =
-            TJsonWriterFactory<>::Create(&SerializedEvent);
-        FJsonSerializer::Serialize(Event, Writer);
-
-        // Use weak pointer to prevent crash if subsystem destroyed during async
         TWeakObjectPtr<UMcpAutomationBridgeSubsystem> WeakSubsystem(Subsystem);
 
-        // Dispatch to game thread for safe socket access
-        AsyncTask(ENamedThreads::GameThread, [WeakSubsystem, SerializedEvent]()
+        AsyncTask(ENamedThreads::GameThread,
+            [WeakSubsystem, CategoryStr, VerbosityString, Message]()
         {
             if (UMcpAutomationBridgeSubsystem* StrongSubsystem = WeakSubsystem.Get())
             {
-                StrongSubsystem->SendRawMessage(SerializedEvent);
+                TSharedRef<FJsonObject> Payload = MakeShared<FJsonObject>();
+                Payload->SetStringField(TEXT("category"), CategoryStr);
+                Payload->SetStringField(TEXT("verbosity"), VerbosityString);
+                Payload->SetStringField(TEXT("message"), Message);
+
+                TSharedRef<FJsonObject> Event = MakeShared<FJsonObject>();
+                Event->SetStringField(TEXT("type"), TEXT("automation_event"));
+                Event->SetStringField(TEXT("event"), TEXT("log"));
+                Event->SetObjectField(TEXT("payload"), Payload);
+
+                StrongSubsystem->BroadcastAutomationEvent(Event);
             }
         });
     }
@@ -165,6 +154,29 @@ private:
 // =============================================================================
 // Handler Implementation
 // =============================================================================
+
+void UMcpAutomationBridgeSubsystem::ReconcileLogCaptureDevice()
+{
+    if (!LogCaptureDevice.IsValid())
+    {
+        return;
+    }
+
+    const bool bHasNativeSubscribers =
+        NativeTransport && NativeTransport->HasLogEventSubscribers();
+    const bool bHasWebSocketSubscribers =
+        ConnectionManager.IsValid() && ConnectionManager->HasLogSubscribers();
+    if (bHasNativeSubscribers || bHasWebSocketSubscribers)
+    {
+        return;
+    }
+
+    if (GLog)
+    {
+        GLog->RemoveOutputDevice(LogCaptureDevice.Get());
+    }
+    LogCaptureDevice.Reset();
+}
 
 bool UMcpAutomationBridgeSubsystem::HandleLogAction(
     const FString& RequestId,
@@ -205,25 +217,13 @@ bool UMcpAutomationBridgeSubsystem::HandleLogAction(
             Result->SetBoolField(TEXT("wasAlreadySubscribed"), bWasAlreadySubscribed);
         }
 
-        TSharedRef<FJsonObject> Response = MakeShared<FJsonObject>();
-        Response->SetStringField(TEXT("type"), TEXT("automation_response"));
-        Response->SetStringField(TEXT("requestId"), RequestId);
-        Response->SetBoolField(TEXT("success"), true);
-        Response->SetStringField(TEXT("message"), Message);
-        Response->SetStringField(TEXT("error"), TEXT(""));
-        Response->SetObjectField(TEXT("result"), Result);
-
-        FString Serialized;
-        const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Serialized);
-        FJsonSerializer::Serialize(Response, Writer);
-
-        if (RequestingSocket.IsValid() && RequestingSocket->IsConnected())
-        {
-            RequestingSocket->Send(Serialized);
-            return;
-        }
-
-        SendRawMessage(Serialized);
+        SendAutomationResponse(
+            RequestingSocket,
+            RequestId,
+            true,
+            Message,
+            Result,
+            FString());
     };
 
     // -------------------------------------------------------------------------
@@ -232,6 +232,15 @@ bool UMcpAutomationBridgeSubsystem::HandleLogAction(
     if (SubAction == TEXT("subscribe"))
     {
         const bool bWasAlreadySubscribed = LogCaptureDevice.IsValid();
+        if (NativeTransport)
+        {
+            NativeTransport->SetLogEventSubscriptionForRequest(
+                RequestId, true);
+        }
+        if (ConnectionManager.IsValid() && RequestingSocket.IsValid())
+        {
+            ConnectionManager->SetLogSubscription(RequestingSocket, true);
+        }
         SendLogSubscriptionResponse(TEXT("subscribe"), true, bWasAlreadySubscribed,
             TEXT("Subscribed to editor logs."));
 
@@ -251,15 +260,19 @@ bool UMcpAutomationBridgeSubsystem::HandleLogAction(
     // -------------------------------------------------------------------------
     if (SubAction == TEXT("unsubscribe"))
     {
+        if (NativeTransport)
+        {
+            NativeTransport->SetLogEventSubscriptionForRequest(
+                RequestId, false);
+        }
+        if (ConnectionManager.IsValid() && RequestingSocket.IsValid())
+        {
+            ConnectionManager->SetLogSubscription(RequestingSocket, false);
+        }
         SendLogSubscriptionResponse(TEXT("unsubscribe"), false, LogCaptureDevice.IsValid(),
             TEXT("Unsubscribed from editor logs."));
 
-        if (LogCaptureDevice.IsValid())
-        {
-            // Remove and destroy log capture device
-		GLog->RemoveOutputDevice(LogCaptureDevice.Get());
-			LogCaptureDevice.Reset();
-		}
+        ReconcileLogCaptureDevice();
         return true;
     }
 

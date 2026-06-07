@@ -2,6 +2,7 @@ export { AutomationBridge } from './bridge.js';
 export type {
     AutomationBridgeOptions,
     AutomationBridgeMessage,
+    AutomationBridgeAutomationEvent,
     AutomationBridgeResponseMessage,
     PendingRequestDetail,
     AutomationBridgeConnectionInfo,

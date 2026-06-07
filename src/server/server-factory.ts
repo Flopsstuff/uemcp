@@ -127,6 +127,18 @@ export function createServer() {
     },
   );
 
+  automationBridge.on('automationEvent', (event) => {
+    server.notification({
+      method: 'notifications/unreal/automation_event',
+      params: event,
+    }).catch((error: unknown) => {
+      log.error(
+        'Failed to forward Unreal automation event notification',
+        error instanceof Error ? error : String(error),
+      );
+    });
+  });
+
   const serverSetup = new ServerSetup(
     server,
     bridge,

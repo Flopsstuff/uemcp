@@ -1,6 +1,5 @@
 #include "Domains/Blueprint/McpAutomationBridge_BlueprintActionContext.h"
 #include "Domains/BlueprintGraph/McpAutomationBridge_BlueprintGraphCompatibility.h"
-#include "McpConnectionManager.h"
 #include "Foundation/HandlerUtils/McpHandlerUtils.h"
 
 namespace McpBlueprintHandlers {
@@ -43,9 +42,7 @@ void SendBlueprintAddNodeResult(
   Notify->SetStringField(TEXT("event"), TEXT("add_node_completed"));
   Notify->SetStringField(TEXT("requestId"), RequestId);
   Notify->SetObjectField(TEXT("result"), Result);
-  if (Bridge.ConnectionManager.IsValid()) {
-    Bridge.ConnectionManager->SendControlMessage(Notify);
-  }
+  Bridge.BroadcastAutomationEvent(Notify, RequestingSocket);
   UE_LOG(LogMcpAutomationBridgeSubsystem, Log,
          TEXT("HandleBlueprintAction: blueprint_add_node completed Path=%s "
               "nodeGuid=%s"),

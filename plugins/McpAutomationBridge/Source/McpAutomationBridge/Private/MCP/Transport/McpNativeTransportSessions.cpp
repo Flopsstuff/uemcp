@@ -21,6 +21,10 @@ FMcpNativeTransport::ESessionValidationResult FMcpNativeTransport::ValidateSessi
 	if (Now - *LastActivity > SessionTimeoutSeconds)
 	{
 		ActiveSessions.Remove(SessionId);
+		{
+			FScopeLock SubscriptionLock(&LogEventSubscriptionsMutex);
+			LogEventSubscribedSessions.Remove(SessionId);
+		}
 		OutError = TEXT("Invalid or expired session ID");
 		return ESessionValidationResult::Invalid;
 	}
@@ -69,42 +73,12 @@ void FMcpNativeTransport::OnToolsListChanged()
 
 void FMcpNativeTransport::BroadcastToolsListChanged()
 {
-	FString NotificationJson = FMcpJsonRpc::BuildNotification(
+	const int32 SentCount = BroadcastNotification(
 		TEXT("notifications/tools/list_changed"));
-
-	// Broadcast only to persistent notification streams (GET /mcp). Per-request
-	// tools/call streams must contain only progress and the final response.
-	TArray<TSharedPtr<FNotificationStream>> NotifSnapshot;
-	{
-		FScopeLock Lock(&NotificationStreamsMutex);
-		NotifSnapshot.Reserve(NotificationStreams.Num());
-		for (auto& [StreamId, Stream] : NotificationStreams)
-		{
-			if (Stream.IsValid() && !Stream->bMarkedForRemoval.load())
-			{
-				NotifSnapshot.Add(Stream);
-			}
-		}
-	}
-
-	for (const auto& Stream : NotifSnapshot)
-	{
-		if (!WriteNotificationEvent(*Stream, NotificationJson))
-		{
-			Stream->bMarkedForRemoval.store(true);
-			UE_LOG(LogMcpNativeTransport, Warning,
-				TEXT("Failed to send list_changed to notification stream %s — marking for removal"),
-				*Stream->StreamId);
-		}
-		else
-		{
-			TouchSession(Stream->SessionId);
-		}
-	}
 
 	UE_LOG(LogMcpNativeTransport, Log,
 		TEXT("Broadcast list_changed to %d notification stream(s)"),
-		NotifSnapshot.Num());
+		SentCount);
 }
 
 int32 FMcpNativeTransport::GetActiveSessionCount() const

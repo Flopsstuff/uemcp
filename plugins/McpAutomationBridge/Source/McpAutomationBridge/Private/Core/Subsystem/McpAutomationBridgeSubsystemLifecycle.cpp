@@ -144,6 +144,7 @@ bool UMcpAutomationBridgeSubsystem::Tick(float DeltaTime)
     {
         NativeTransport->CleanupStaleRequests();
     }
+    ReconcileLogCaptureDevice();
     return true;
 }
 

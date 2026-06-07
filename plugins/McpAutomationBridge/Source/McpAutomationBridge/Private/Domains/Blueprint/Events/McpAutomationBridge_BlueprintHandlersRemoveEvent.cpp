@@ -4,7 +4,6 @@
 #include "Foundation/BridgeHelpers/Blueprints/McpAutomationBridgeHelpersBlueprintAssetLoad.h"
 #include "Foundation/BridgeHelpers/Blueprints/McpAutomationBridgeHelpersBlueprintCompilation.h"
 #include "Foundation/BridgeHelpers/Blueprints/McpAutomationBridgeHelpersBlueprintPaths.h"
-#include "McpConnectionManager.h"
 #include "Foundation/HandlerUtils/McpHandlerUtils.h"
 
 #if WITH_EDITOR
@@ -105,9 +104,7 @@ bool HandleBlueprintRemoveEvent(const FBlueprintActionContext &Context) {
       Notify->SetStringField(TEXT("event"), TEXT("remove_event_completed"));
       Notify->SetStringField(TEXT("requestId"), RequestId);
       Notify->SetObjectField(TEXT("result"), Resp);
-      if (Bridge.ConnectionManager.IsValid()) {
-        Bridge.ConnectionManager->SendControlMessage(Notify);
-      }
+      Bridge.BroadcastAutomationEvent(Notify, RequestingSocket);
       return true;
     }
 
@@ -157,9 +154,7 @@ bool HandleBlueprintRemoveEvent(const FBlueprintActionContext &Context) {
     Notify->SetStringField(TEXT("event"), TEXT("remove_event_completed"));
     Notify->SetStringField(TEXT("requestId"), RequestId);
     Notify->SetObjectField(TEXT("result"), Resp);
-    if (Bridge.ConnectionManager.IsValid()) {
-      Bridge.ConnectionManager->SendControlMessage(Notify);
-    }
+    Bridge.BroadcastAutomationEvent(Notify, RequestingSocket);
     UE_LOG(LogMcpAutomationBridgeSubsystem, Log,
            TEXT("HandleBlueprintAction: event '%s' removed from '%s'"),
            *EventName, *RegistryPath);

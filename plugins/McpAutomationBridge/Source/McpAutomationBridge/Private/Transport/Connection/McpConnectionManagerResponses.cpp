@@ -15,6 +15,41 @@ bool FMcpConnectionManager::SendRawMessage(const FString &Message) {
   return bSent;
 }
 
+bool FMcpConnectionManager::SendRawMessageToSocket(
+    TSharedPtr<FMcpBridgeWebSocket> TargetSocket, const FString &Message) {
+  if (Message.IsEmpty() || !TargetSocket.IsValid() ||
+      !TargetSocket->IsConnected()) {
+    return false;
+  }
+  return TargetSocket->Send(Message);
+}
+
+bool FMcpConnectionManager::SendRawMessageToLogSubscribers(
+    const FString &Message) {
+  if (Message.IsEmpty()) {
+    return false;
+  }
+
+  TArray<TSharedPtr<FMcpBridgeWebSocket>> Subscribers;
+  {
+    FScopeLock Lock(&LogSubscribersMutex);
+    for (const TSharedPtr<FMcpBridgeWebSocket> &Sock : ActiveSockets) {
+      if (Sock.IsValid() && Sock->IsConnected() &&
+          LogSubscriberSockets.Contains(Sock.Get())) {
+        Subscribers.Add(Sock);
+      }
+    }
+  }
+
+  bool bSent = false;
+  for (const TSharedPtr<FMcpBridgeWebSocket> &Sock : Subscribers) {
+    if (Sock->Send(Message)) {
+      bSent = true;
+    }
+  }
+  return bSent;
+}
+
 void FMcpConnectionManager::SendControlMessage(
     const TSharedPtr<FJsonObject> &Message) {
   if (!Message.IsValid())

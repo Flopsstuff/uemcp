@@ -80,6 +80,25 @@ void FMcpConnectionManager::RegisterRequestSocket(
   }
 }
 
+void FMcpConnectionManager::SetLogSubscription(
+    TSharedPtr<FMcpBridgeWebSocket> Socket, const bool bSubscribed) {
+  if (!Socket.IsValid()) {
+    return;
+  }
+
+  FScopeLock Lock(&LogSubscribersMutex);
+  if (bSubscribed) {
+    LogSubscriberSockets.Add(Socket.Get());
+  } else {
+    LogSubscriberSockets.Remove(Socket.Get());
+  }
+}
+
+bool FMcpConnectionManager::HasLogSubscribers() const {
+  FScopeLock Lock(&LogSubscribersMutex);
+  return LogSubscriberSockets.Num() > 0;
+}
+
 void FMcpConnectionManager::StartRequestTelemetry(const FString &RequestId,
                                                   const FString &Action) {
   if (!ActiveRequestTelemetry.Contains(RequestId)) {

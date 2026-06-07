@@ -30,6 +30,16 @@ export interface AutomationBridgeMessage {
     [key: string]: unknown;
 }
 
+export interface AutomationBridgeAutomationEvent {
+    [key: string]: unknown;
+    type: 'automation_event';
+    event: string;
+    requestId?: string;
+    payload?: unknown;
+    result?: unknown;
+    message?: string;
+}
+
 export interface AutomationBridgeResponseMessage extends AutomationBridgeMessage {
     requestId: string;
     success?: boolean;
@@ -147,6 +157,7 @@ export type AutomationBridgeEvents = {
     connected: (info: AutomationBridgeConnectedEvent) => void;
     disconnected: (info: AutomationBridgeDisconnectedEvent) => void;
     message: (message: AutomationBridgeMessage) => void;
+    automationEvent: (event: AutomationBridgeAutomationEvent) => void;
     error: (error: AutomationBridgePortError) => void;
     handshakeFailed: (info: { reason: string; port: number }) => void;
 };

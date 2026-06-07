@@ -91,6 +91,10 @@ void FMcpNativeTransport::HandleConnection(FSocket* ClientSocket)
 						*HttpReq.SessionId, ActiveSessions.Num());
 				}
 			}
+			{
+				FScopeLock Lock(&LogEventSubscriptionsMutex);
+				LogEventSubscribedSessions.Remove(HttpReq.SessionId);
+			}
 
 			// Close notification streams belonging to this session
 			TArray<FString> StreamsToClose;

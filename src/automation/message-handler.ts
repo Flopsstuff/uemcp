@@ -1,5 +1,10 @@
 import { Logger } from '../utils/logging/logger.js';
-import { AutomationBridgeMessage, AutomationBridgeResponseMessage, ProgressUpdateMessage } from './types.js';
+import type {
+    AutomationBridgeAutomationEvent,
+    AutomationBridgeMessage,
+    AutomationBridgeResponseMessage,
+    ProgressUpdateMessage
+} from './types.js';
 import { RequestTracker } from './request-tracker.js';
 
 function FStringSafe(val: unknown): string {
@@ -49,7 +54,8 @@ export class MessageHandler {
     private log = new Logger('MessageHandler');
 
     constructor(
-        private requestTracker: RequestTracker
+        private requestTracker: RequestTracker,
+        private readonly emitAutomationEvent?: (event: AutomationBridgeAutomationEvent) => void
     ) { }
 
     public handleMessage(message: AutomationBridgeMessage): void {
@@ -163,7 +169,38 @@ export class MessageHandler {
             }
         }
 
-        this.log.debug('Received automation_event (no pending request):', message);
+        const normalized = this.normalizeAutomationEvent(evt);
+        if (!normalized) {
+            this.log.warn('Dropped automation_event without a valid event name');
+            return;
+        }
+
+        this.emitAutomationEvent?.(normalized);
+        this.log.debug('Received automation_event (no pending request):', normalized);
+    }
+
+    private normalizeAutomationEvent(evt: EventMessage): AutomationBridgeAutomationEvent | null {
+        if (typeof evt.event !== 'string' || evt.event.trim().length === 0) {
+            return null;
+        }
+
+        const normalized: AutomationBridgeAutomationEvent = {
+            type: 'automation_event',
+            event: evt.event.trim()
+        };
+        if (typeof evt.requestId === 'string' && evt.requestId.length > 0) {
+            normalized.requestId = evt.requestId;
+        }
+        if (evt.payload !== undefined) {
+            normalized.payload = evt.payload;
+        }
+        if (evt.result !== undefined) {
+            normalized.result = evt.result;
+        }
+        if (typeof evt.message === 'string' && evt.message.length > 0) {
+            normalized.message = evt.message;
+        }
+        return normalized;
     }
 
     /**

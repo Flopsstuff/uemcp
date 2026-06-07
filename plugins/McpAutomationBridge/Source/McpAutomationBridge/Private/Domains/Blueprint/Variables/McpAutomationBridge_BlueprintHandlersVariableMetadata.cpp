@@ -3,7 +3,6 @@
 #include "Foundation/BridgeHelpers/Assets/McpAutomationBridgeHelpersAssetSaveRegistry.h"
 #include "Foundation/BridgeHelpers/Blueprints/McpAutomationBridgeHelpersBlueprintAssetLoad.h"
 #include "Foundation/BridgeHelpers/Blueprints/McpAutomationBridgeHelpersBlueprintCompilation.h"
-#include "McpConnectionManager.h"
 #include "Foundation/HandlerUtils/McpHandlerUtils.h"
 #include "Misc/ScopeExit.h"
 
@@ -175,9 +174,7 @@ bool HandleBlueprintSetVariableMetadata(const FBlueprintActionContext &Context) 
                            TEXT("set_variable_metadata_completed"));
     Notify->SetStringField(TEXT("requestId"), RequestId);
     Notify->SetObjectField(TEXT("result"), Resp);
-    if (Bridge.ConnectionManager.IsValid()) {
-      Bridge.ConnectionManager->SendControlMessage(Notify);
-    }
+    Bridge.BroadcastAutomationEvent(Notify, RequestingSocket);
     return true;
 #else
     Bridge.SendAutomationResponse(

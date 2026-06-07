@@ -4,8 +4,65 @@
 #include "Core/Subsystem/McpAutomationBridgeSubsystemResponseSanitization.h"
 #include "Transport/WebSocket/McpBridgeWebSocket.h"
 #include "McpConnectionManager.h"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
 
 using namespace McpAutomationBridgeSubsystemResponse;
+
+namespace
+{
+bool IsLogAutomationEvent(const TSharedPtr<FJsonObject>& Event)
+{
+    FString EventName;
+    return Event.IsValid() &&
+        Event->TryGetStringField(TEXT("event"), EventName) &&
+        EventName.Equals(TEXT("log"), ESearchCase::CaseSensitive);
+}
+}
+
+void UMcpAutomationBridgeSubsystem::BroadcastAutomationEvent(
+    const TSharedPtr<FJsonObject>& Event,
+    TSharedPtr<FMcpBridgeWebSocket> TargetSocket)
+{
+    if (!Event.IsValid())
+    {
+        UE_LOG(
+            LogMcpAutomationBridgeSubsystem,
+            Warning,
+            TEXT("Automation event broadcast skipped because the event object was invalid"));
+        return;
+    }
+
+    FString SerializedEvent;
+    const TSharedRef<TJsonWriter<>> Writer =
+        TJsonWriterFactory<>::Create(&SerializedEvent);
+    if (!FJsonSerializer::Serialize(Event.ToSharedRef(), Writer))
+    {
+        UE_LOG(
+            LogMcpAutomationBridgeSubsystem,
+            Warning,
+            TEXT("Automation event broadcast skipped because serialization failed"));
+        return;
+    }
+
+    const bool bLogEvent = IsLogAutomationEvent(Event);
+    if (ConnectionManager.IsValid())
+    {
+        if (bLogEvent)
+        {
+            ConnectionManager->SendRawMessageToLogSubscribers(SerializedEvent);
+        }
+        else if (TargetSocket.IsValid())
+        {
+            ConnectionManager->SendRawMessageToSocket(TargetSocket, SerializedEvent);
+        }
+    }
+
+    if (bLogEvent && NativeTransport)
+    {
+        NativeTransport->BroadcastLogEventNotification(Event);
+    }
+}
 
 void UMcpAutomationBridgeSubsystem::SendAutomationResponse(
     TSharedPtr<FMcpBridgeWebSocket> TargetSocket,

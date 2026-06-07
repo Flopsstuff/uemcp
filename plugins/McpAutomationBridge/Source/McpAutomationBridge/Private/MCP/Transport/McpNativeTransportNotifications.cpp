@@ -1,5 +1,110 @@
 #include "MCP/Transport/McpNativeTransportPrivate.h"
 
+namespace
+{
+bool IsLogAutomationEvent(const TSharedPtr<FJsonObject>& Event)
+{
+	FString EventName;
+	return Event.IsValid() &&
+		Event->TryGetStringField(TEXT("event"), EventName) &&
+		EventName.Equals(TEXT("log"), ESearchCase::CaseSensitive);
+}
+}
+
+int32 FMcpNativeTransport::BroadcastNotification(
+	const FString& Method, const TSharedPtr<FJsonObject>& Params)
+{
+	if (Method.IsEmpty())
+	{
+		return 0;
+	}
+
+	const FString NotificationJson = FMcpJsonRpc::BuildNotification(Method, Params);
+	TArray<TSharedPtr<FNotificationStream>> StreamSnapshot;
+	{
+		FScopeLock Lock(&NotificationStreamsMutex);
+		StreamSnapshot.Reserve(NotificationStreams.Num());
+		for (auto& [StreamId, Stream] : NotificationStreams)
+		{
+			if (Stream.IsValid() && !Stream->bMarkedForRemoval.load())
+			{
+				StreamSnapshot.Add(Stream);
+			}
+		}
+	}
+
+	return QueueNotificationEventWrites(StreamSnapshot, NotificationJson);
+}
+
+bool FMcpNativeTransport::SetLogEventSubscriptionForRequest(
+	const FString& RequestId, const bool bSubscribed)
+{
+	FString SessionId;
+	{
+		FScopeLock Lock(&SSEConnectionsMutex);
+		const TSharedPtr<FSSEConnection>* Connection = SSEConnections.Find(RequestId);
+		if (!Connection || !Connection->IsValid())
+		{
+			return false;
+		}
+		SessionId = (*Connection)->SessionId;
+	}
+
+	FScopeLock Lock(&LogEventSubscriptionsMutex);
+	if (bSubscribed)
+	{
+		LogEventSubscribedSessions.Add(SessionId);
+	}
+	else
+	{
+		LogEventSubscribedSessions.Remove(SessionId);
+	}
+	return true;
+}
+
+bool FMcpNativeTransport::HasLogEventSubscribers() const
+{
+	FScopeLock Lock(&LogEventSubscriptionsMutex);
+	return LogEventSubscribedSessions.Num() > 0;
+}
+
+int32 FMcpNativeTransport::BroadcastLogEventNotification(
+	const TSharedPtr<FJsonObject>& Params)
+{
+	if (!IsLogAutomationEvent(Params))
+	{
+		return 0;
+	}
+
+	TSet<FString> SubscribedSessions;
+	{
+		FScopeLock Lock(&LogEventSubscriptionsMutex);
+		SubscribedSessions = LogEventSubscribedSessions;
+	}
+	if (SubscribedSessions.IsEmpty())
+	{
+		return 0;
+	}
+
+	const FString NotificationJson = FMcpJsonRpc::BuildNotification(
+		TEXT("notifications/unreal/automation_event"), Params);
+	TArray<TSharedPtr<FNotificationStream>> StreamSnapshot;
+	{
+		FScopeLock Lock(&NotificationStreamsMutex);
+		for (auto& [StreamId, Stream] : NotificationStreams)
+		{
+			if (Stream.IsValid() &&
+				!Stream->bMarkedForRemoval.load() &&
+				SubscribedSessions.Contains(Stream->SessionId))
+			{
+				StreamSnapshot.Add(Stream);
+			}
+		}
+	}
+
+	return QueueNotificationEventWrites(StreamSnapshot, NotificationJson);
+}
+
 void FMcpNativeTransport::HandleGetMcp(FSocket* ClientSocket, const FString& SessionId,
 	const FString& CorsOrigin)
 {
@@ -8,16 +113,31 @@ void FMcpNativeTransport::HandleGetMcp(FSocket* ClientSocket, const FString& Ses
 	// Check per-session stream limit
 	{
 		FScopeLock Lock(&NotificationStreamsMutex);
-		int32 Count = 0;
+		int32 SessionStreamCount = 0;
+		int32 ActiveStreamCount = 0;
 		for (const auto& [Id, Stream] : NotificationStreams)
 		{
-			if (Stream.IsValid() && Stream->SessionId == SessionId
-				&& !Stream->bMarkedForRemoval.load())
+			if (!Stream.IsValid() || Stream->bMarkedForRemoval.load())
 			{
-				++Count;
+				continue;
+			}
+			++ActiveStreamCount;
+			if (Stream->SessionId == SessionId)
+			{
+				++SessionStreamCount;
 			}
 		}
-		if (Count >= MaxNotificationStreamsPerSession)
+		if (ActiveStreamCount >= MaxTotalNotificationStreams)
+		{
+			Lock.Unlock();
+			SendHttpResponse(ClientSocket, 429, TEXT("text/plain"),
+				FString::Printf(TEXT("Too Many Requests: max %d notification streams"),
+					MaxTotalNotificationStreams), {}, CorsOrigin);
+			ClientSocket->Close();
+			SocketSub->DestroySocket(ClientSocket);
+			return;
+		}
+		if (SessionStreamCount >= MaxNotificationStreamsPerSession)
 		{
 			Lock.Unlock();
 			SendHttpResponse(ClientSocket, 429, TEXT("text/plain"),

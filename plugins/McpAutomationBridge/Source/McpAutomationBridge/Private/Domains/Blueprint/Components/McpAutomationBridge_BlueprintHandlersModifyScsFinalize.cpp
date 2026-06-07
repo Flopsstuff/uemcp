@@ -3,7 +3,6 @@
 #include "Foundation/BridgeHelpers/Assets/McpAutomationBridgeHelpersAssetSaveRegistry.h"
 #include "Foundation/BridgeHelpers/Blueprints/McpAutomationBridgeHelpersBlueprintCompilation.h"
 #include "Foundation/BridgeHelpers/Responses/McpAutomationBridgeHelpersJsonFields.h"
-#include "McpConnectionManager.h"
 #include "Foundation/HandlerUtils/McpHandlerUtils.h"
 
 #if WITH_EDITOR
@@ -42,9 +41,7 @@ void FinalizeModifyScsResponse(const FBlueprintActionContext &Context,
   Notify->SetStringField(TEXT("event"), TEXT("modify_scs_completed"));
   Notify->SetStringField(TEXT("requestId"), RequestId);
   Notify->SetObjectField(TEXT("result"), State.CompletionResult);
-  if (Bridge.ConnectionManager.IsValid()) {
-    Bridge.ConnectionManager->SendControlMessage(Notify);
-  }
+  Bridge.BroadcastAutomationEvent(Notify, RequestingSocket);
   TSharedPtr<FJsonObject> ResultPayload = McpHandlerUtils::CreateResultObject();
   ResultPayload->SetStringField(TEXT("blueprintPath"), State.NormalizedBlueprintPath);
   ResultPayload->SetArrayField(TEXT("operations"), State.FinalSummaries);

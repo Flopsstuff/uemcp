@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -181,6 +183,21 @@ describe('plugin runtime behavior contracts', () => {
       'Log',
       'McpAutomationBridge_LogHandlers.cpp',
     );
+    const responseSource = privateSource(
+      'Core',
+      'Subsystem',
+      'McpAutomationBridgeSubsystemResponses.cpp',
+    );
+    const transportHeader = privateSource(
+      'MCP',
+      'Transport',
+      'McpNativeTransport.h',
+    );
+    const transportNotifications = privateSource(
+      'MCP',
+      'Transport',
+      'McpNativeTransportNotifications.cpp',
+    );
 
     expect(source).toContain(
       'Event->SetStringField(TEXT("type"), TEXT("automation_event"))',
@@ -188,9 +205,129 @@ describe('plugin runtime behavior contracts', () => {
     expect(source).toContain(
       'Event->SetObjectField(TEXT("payload"), Payload)',
     );
+    expect(source).toContain('StrongSubsystem->BroadcastAutomationEvent(Event)');
+    expect(source).not.toContain('StrongSubsystem->SendRawMessage');
+    expect(source).toContain('SendAutomationResponse(');
+    expect(source).not.toContain('SendRawMessage(Serialized)');
+    expect(responseSource).toContain(
+      'UMcpAutomationBridgeSubsystem::BroadcastAutomationEvent',
+    );
+    expect(responseSource).toContain('SendRawMessageToLogSubscribers');
+    expect(responseSource).toContain('SendRawMessageToSocket');
+    expect(responseSource).toContain(
+      'BroadcastLogEventNotification(Event)',
+    );
+    expect(transportHeader).toContain('BroadcastNotification(');
+    expect(transportHeader).toContain(
+      'BroadcastLogEventNotification(',
+    );
+    expect(transportNotifications).toContain(
+      'FMcpNativeTransport::BroadcastNotification',
+    );
+    expect(transportNotifications).toContain('IsLogAutomationEvent');
+    expect(transportNotifications).toContain('QueueNotificationEventWrites');
+    expect(transportNotifications).toContain(
+      'SubscribedSessions.Contains(Stream->SessionId)',
+    );
+    expect(transportNotifications).toContain(
+      'TEXT("notifications/unreal/automation_event")',
+    );
+    expect(source).toContain(
+      'SetLogEventSubscriptionForRequest',
+    );
+    expect(source).toContain('ConnectionManager->SetLogSubscription');
+    expect(source).toContain('HasLogEventSubscribers');
+    expect(source).toContain('HasLogSubscribers');
     expect(source).not.toContain(
       'TEXT("{\\"event\\":\\"log\\",\\"category\\"',
     );
+  });
+
+  it('routes blueprint completion automation events through the subsystem broadcaster', () => {
+    const eventSources = [
+      privateSource('Domains', 'Blueprint', 'Graph', 'McpAutomationBridge_BlueprintHandlersAddNodeResponse.cpp'),
+      privateSource('Domains', 'Blueprint', 'Components', 'McpAutomationBridge_BlueprintHandlersModifyScsFinalize.cpp'),
+      privateSource('Domains', 'Blueprint', 'Functions', 'McpAutomationBridge_BlueprintHandlersAddFunctionResult.cpp'),
+      privateSource('Domains', 'Blueprint', 'Variables', 'McpAutomationBridge_BlueprintHandlersVariableMetadata.cpp'),
+      privateSource('Domains', 'Blueprint', 'Events', 'McpAutomationBridge_BlueprintHandlersAddEventResult.cpp'),
+      privateSource('Domains', 'Blueprint', 'Events', 'McpAutomationBridge_BlueprintHandlersRemoveEvent.cpp'),
+    ];
+
+    for (const source of eventSources) {
+      expect(source).toContain(
+        'SetStringField(TEXT("type"), TEXT("automation_event"))',
+      );
+      expect(source).toContain('Bridge.BroadcastAutomationEvent(Notify, RequestingSocket)');
+      expect(source).not.toContain('SendControlMessage(Notify)');
+    }
+  });
+
+  it('locks Unreal Insights tracing to loopback and profiling trace files', () => {
+    const validation = privateSource(
+      'Domains',
+      'Insights',
+      'McpAutomationBridge_InsightsValidation.cpp',
+    );
+    const traceControl = privateSource(
+      'Domains',
+      'Insights',
+      'McpAutomationBridge_InsightsTraceControl.cpp',
+    );
+    const traceAnalysis = privateSource(
+      'Domains',
+      'Insights',
+      'McpAutomationBridge_InsightsTraceAnalysis.cpp',
+    );
+    const traceState = privateSource(
+      'Domains',
+      'Insights',
+      'McpAutomationBridge_InsightsTraceState.cpp',
+    );
+
+    expect(validation).toContain('IsLoopbackHost');
+    expect(validation).toContain('NON_LOOPBACK_HOST_DENIED');
+    expect(validation).toContain('FPaths::ProfilingDir()');
+    expect(validation).toContain(
+      'Trace file path must stay under the project Saved/Profiling directory.',
+    );
+    expect(validation).toMatch(
+      /bRequireExistingFile[\s\S]*GetExtension\(Path\)\.Equals\(TEXT\("utrace"\)/u,
+    );
+    expect(traceControl).toContain('Mode == TEXT("relay")');
+    expect(traceControl).toContain('Mode == TEXT("none")');
+    expect(traceControl).toContain('Mode == TEXT("memory")');
+    expect(traceControl).not.toContain(
+      'FTraceAuxiliary::EConnectionType::None',
+    );
+    expect(traceState).toMatch(
+      /if \(!HasActiveTraceForStateChange\(\)\)[\s\S]*TRACE_PAUSE_FAILED/u,
+    );
+    expect(traceState).toMatch(
+      /if \(!HasActiveTraceForStateChange\(\)\)[\s\S]*TRACE_RESUME_FAILED/u,
+    );
+    expect(traceAnalysis).toContain(
+      'TryResolveTracePath(Payload, true, false, false',
+    );
+  });
+
+  it('bounds custom handler alias config before parsing', () => {
+    const source = privateSource(
+      'Core',
+      'Subsystem',
+      'McpAutomationBridgeSubsystemCustomHandlerAliasConfig.cpp',
+    );
+
+    const sizeCheck = source.indexOf('MaxAliasConfigBytes');
+    const loadFile = source.indexOf('FFileHelper::LoadFileToString');
+    expect(sizeCheck).toBeGreaterThan(-1);
+    expect(loadFile).toBeGreaterThan(sizeCheck);
+    expect(source).toContain('FileSize > MaxAliasConfigBytes');
+    expect(source).toContain('unsupported size');
+    expect(source).toContain('TryGetNumberField(TEXT("version"), Version)');
+    expect(source).toContain('FMath::IsNearlyEqual(Version, 1.0)');
+    expect(source).not.toContain('TryGetArrayField(TEXT("handlerAliases")');
+    expect(source).not.toContain('TryGetStringField(TEXT("action")');
+    expect(source).not.toContain('TryGetStringField(TEXT("targetAction")');
   });
 
   it('does not attach a transient nested emitter to a new Niagara system', () => {
