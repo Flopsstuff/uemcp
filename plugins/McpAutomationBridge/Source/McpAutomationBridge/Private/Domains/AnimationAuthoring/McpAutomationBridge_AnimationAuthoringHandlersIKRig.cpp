@@ -77,6 +77,7 @@ if (SubAction == TEXT("create_ik_rig"))
 
     Response->SetStringField(TEXT("assetPath"), IKRig->GetPathName());
     ANIM_SUCCESS_RESPONSE(FString::Printf(TEXT("IK Rig '%s' created successfully"), *Name));
+    return Response;
 #elif MCP_HAS_IKRIG
     ANIM_ERROR_RESPONSE(
         TEXT("create_ik_rig requires the IKRigEditor factory module in this build"),
@@ -84,7 +85,6 @@ if (SubAction == TEXT("create_ik_rig"))
 #else
     ANIM_ERROR_RESPONSE(TEXT("IK Rig module not available"), TEXT("NOT_SUPPORTED"));
 #endif
-    return Response;
 }
 
     if (SubAction == TEXT("add_ik_chain"))
@@ -104,7 +104,6 @@ if (SubAction == TEXT("create_ik_rig"))
 #else
         ANIM_ERROR_RESPONSE(TEXT("IK Rig module not available"), TEXT("NOT_SUPPORTED"));
 #endif
-        return Response;
     }
     return nullptr;
 }

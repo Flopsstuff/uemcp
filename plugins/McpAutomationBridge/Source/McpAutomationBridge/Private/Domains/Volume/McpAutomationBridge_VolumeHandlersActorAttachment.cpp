@@ -84,7 +84,7 @@ bool HandleAddKillZVolume(UMcpAutomationBridgeSubsystem* Subsystem, const FStrin
         void operator()(VolumeHelpers::FVolumeAttachmentArgs& Args) const { if (KillZHeight != 0.0f) { Args.Location.Z = KillZHeight; } }
         void operator()(AKillZVolume* Volume, const TSharedPtr<FJsonObject>& ResponseJson) const { ResponseJson->SetNumberField(TEXT("killZHeight"), Volume->GetActorLocation().Z); }
     };
-    const float KillZHeight = GetJsonNumberField(Payload, TEXT("killZHeight"), 0.0f);
+    const float KillZHeight = static_cast<float>(GetJsonNumberField(Payload, TEXT("killZHeight"), 0.0));
     return AddVolumeToActor<AKillZVolume>(Subsystem, RequestId, Payload, Socket,
         FVector(1000.0f, 1000.0f, 100.0f), TEXT("_KillZVolume"), TEXT("AKillZVolume"),
         TEXT("KillZVolume"), TEXT("Failed to spawn KillZVolume"), FKillZConfig{KillZHeight});
@@ -109,7 +109,7 @@ bool HandleAddPhysicsVolume(UMcpAutomationBridgeSubsystem* Subsystem, const FStr
     return AddVolumeToActor<APhysicsVolume>(Subsystem, RequestId, Payload, Socket,
         FVector(300.0f, 300.0f, 300.0f), TEXT("_PhysicsVolume"), TEXT("APhysicsVolume"),
         TEXT("PhysicsVolume"), TEXT("Failed to spawn PhysicsVolume"),
-        FPhysicsConfig{GetJsonBoolField(Payload, TEXT("bWaterVolume"), false), GetJsonNumberField(Payload, TEXT("fluidFriction"), 0.3f), GetJsonNumberField(Payload, TEXT("terminalVelocity"), 4000.0f)});
+        FPhysicsConfig{GetJsonBoolField(Payload, TEXT("bWaterVolume"), false), static_cast<float>(GetJsonNumberField(Payload, TEXT("fluidFriction"), 0.3)), static_cast<float>(GetJsonNumberField(Payload, TEXT("terminalVelocity"), 4000.0))});
 }
 
 bool HandleAddCullDistanceVolume(UMcpAutomationBridgeSubsystem* Subsystem, const FString& RequestId, const TSharedPtr<FJsonObject>& Payload, TSharedPtr<FMcpBridgeWebSocket> Socket)
@@ -149,7 +149,7 @@ bool HandleAddPostProcessVolume(UMcpAutomationBridgeSubsystem* Subsystem, const 
     return AddVolumeToActor<APostProcessVolume>(Subsystem, RequestId, Payload, Socket,
         FVector(500.0f, 500.0f, 500.0f), TEXT("_PostProcessVolume"), TEXT("APostProcessVolume"),
         TEXT("PostProcessVolume"), TEXT("Failed to spawn PostProcessVolume"),
-        FPostProcessConfig{GetJsonNumberField(Payload, TEXT("priority"), 0.0f), GetJsonNumberField(Payload, TEXT("blendRadius"), 100.0f), GetJsonNumberField(Payload, TEXT("blendWeight"), 1.0f), GetJsonBoolField(Payload, TEXT("enabled"), true), GetJsonBoolField(Payload, TEXT("bUnbound"), false)});
+        FPostProcessConfig{static_cast<float>(GetJsonNumberField(Payload, TEXT("priority"), 0.0)), static_cast<float>(GetJsonNumberField(Payload, TEXT("blendRadius"), 100.0)), static_cast<float>(GetJsonNumberField(Payload, TEXT("blendWeight"), 1.0)), GetJsonBoolField(Payload, TEXT("enabled"), true), GetJsonBoolField(Payload, TEXT("bUnbound"), false)});
 }
 #endif
 #endif

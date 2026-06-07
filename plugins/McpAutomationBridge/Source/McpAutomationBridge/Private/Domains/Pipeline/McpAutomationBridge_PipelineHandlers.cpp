@@ -165,7 +165,7 @@ bool UMcpAutomationBridgeSubsystem::HandlePipelineAction(
             return true;
         }
 
-        // Construct the platform build wrapper path. On Linux/macOS the UBT .exe
+        // Construct the platform build wrapper path. On Linux/macOS the direct UBT binary
         // wrapper does not exist; Build.sh/Build.bat is the stable editor-owned
         // entry point across installed and source engine layouts.
 #if PLATFORM_WINDOWS

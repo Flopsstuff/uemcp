@@ -1,6 +1,7 @@
 import { cleanObject } from '../../../../utils/serialization/safe-json.js';
 import type { ITools } from '../../../../types/tools/tool-interfaces.js';
 import type { HandlerArgs, LevelArgs } from '../../../../types/handlers/handler-types.js';
+import { LONG_RUNNING_OP_TIMEOUT_MS } from '../../../../constants.js';
 import { executeAutomationRequest } from '../../foundation/dispatch/common-handlers.js';
 import { CREATE_LIGHT_TYPES, LIGHT_TYPE_CLASS_PATHS, normalizeLightType } from './level-handler-utils.js';
 
@@ -80,7 +81,10 @@ export async function handleBuildLighting(args: HandlerArgs, argsTyped: LevelArg
     action: 'build_lighting',
     quality: (argsTyped.quality as string) || 'Preview',
     buildOnlySelected: typeof argsRecord.buildOnlySelected === 'boolean' ? argsRecord.buildOnlySelected : false,
-    buildReflectionCaptures: typeof argsRecord.buildReflectionCaptures === 'boolean' ? argsRecord.buildReflectionCaptures : false
+    buildReflectionCaptures: typeof argsRecord.buildReflectionCaptures === 'boolean' ? argsRecord.buildReflectionCaptures : false,
+    timeoutMs: typeof argsTyped.timeoutMs === 'number'
+      ? argsTyped.timeoutMs
+      : LONG_RUNNING_OP_TIMEOUT_MS
   }) as Record<string, unknown>;
   return cleanObject(res);
 }

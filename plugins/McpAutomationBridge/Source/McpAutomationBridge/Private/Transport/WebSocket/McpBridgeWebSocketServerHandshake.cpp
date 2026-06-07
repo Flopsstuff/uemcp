@@ -121,6 +121,7 @@ bool FMcpBridgeWebSocket::PerformServerHandshake() {
   bool bValidConnection = false;
   bool bValidVersion = false;
   FString RequestedProtocols;
+  FString Origin;
 
   for (int32 i = 1; i < RequestLines.Num(); ++i) {
     FString Key, Value;
@@ -144,8 +145,18 @@ bool FMcpBridgeWebSocket::PerformServerHandshake() {
       } else if (Key.Equals(TEXT("Sec-WebSocket-Protocol"),
                             ESearchCase::IgnoreCase)) {
         RequestedProtocols = Value;
+      } else if (Key.Equals(TEXT("Origin"), ESearchCase::IgnoreCase)) {
+        Origin = Value;
       }
     }
+  }
+
+  if (!Origin.IsEmpty()) {
+    UE_LOG(LogMcpAutomationBridgeSubsystem, Warning,
+           TEXT("Server handshake rejected browser-origin WebSocket request."));
+    TearDown(TEXT("Browser-origin WebSocket requests are not allowed."), false,
+             4403);
+    return false;
   }
 
   if (!bValidUpgrade || !bValidConnection || !bValidVersion ||

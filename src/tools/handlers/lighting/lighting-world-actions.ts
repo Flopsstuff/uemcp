@@ -1,5 +1,6 @@
 import type { ITools } from '../../../types/tools/tool-interfaces.js';
 import type { LightingArgs } from '../../../types/handlers/handler-types.js';
+import { LONG_RUNNING_OP_TIMEOUT_MS } from '../../../constants.js';
 import { TOOL_ACTIONS } from '../../../utils/commands/action-constants.js';
 import { toBoolean, toLocationObj, toNumber, toString } from '../../../utils/validation/type-coercion.js';
 import { executeAutomationRequest } from '../foundation/dispatch/common-handlers.js';
@@ -10,7 +11,10 @@ export async function buildLighting(tools: ITools, args: LightingArgs): Promise<
     quality: toString(args.quality) || 'High',
     buildOnlySelected: toBoolean(args.buildOnlySelected) || false,
     buildReflectionCaptures: toBoolean(args.buildReflectionCaptures) !== false,
-    levelPath: toString(args.levelPath)
+    levelPath: toString(args.levelPath),
+    timeoutMs: typeof args.timeoutMs === 'number'
+      ? args.timeoutMs
+      : LONG_RUNNING_OP_TIMEOUT_MS
   };
 
   return await executeAutomationRequest(

@@ -15,7 +15,6 @@ TSharedPtr<FJsonObject> HandleRigUtilityActions(const FString& SubAction, const 
 #else
         ANIM_ERROR_RESPONSE(TEXT("Control Rig module not available"), TEXT("NOT_SUPPORTED"));
 #endif
-        return Response;
     }
 
     if (SubAction == TEXT("create_pose_library"))
@@ -43,7 +42,6 @@ TSharedPtr<FJsonObject> HandleRigUtilityActions(const FString& SubAction, const 
 #else
         ANIM_ERROR_RESPONSE(TEXT("Pose Asset not available in this engine version"), TEXT("NOT_SUPPORTED"));
 #endif
-        return Response;
     }
 
     // ===== 10.6 Retargeting =====

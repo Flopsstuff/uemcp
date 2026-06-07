@@ -1,5 +1,6 @@
 #include "Core/Compatibility/McpVersionCompatibility.h"
 
+#include "Domains/Lighting/McpAutomationBridge_LightingBuildCompatibility.h"
 #include "Domains/Lighting/McpAutomationBridge_LightingHandlersPrivate.h"
 
 #include "Foundation/BridgeHelpers/McpAutomationBridgeHelpers.h"
@@ -11,9 +12,52 @@
 #include "GameFramework/WorldSettings.h"
 #include "Lightmass/LightmassImportanceVolume.h"
 
+#if __has_include("Subsystems/LevelEditorSubsystem.h")
+  #include "Subsystems/LevelEditorSubsystem.h"
+#elif __has_include("LevelEditorSubsystem.h")
+  #include "LevelEditorSubsystem.h"
+#endif
+
 #if WITH_EDITOR
 namespace McpLightingHandlers
 {
+namespace
+{
+
+bool TryParseLightingQuality(
+    const FString& Quality,
+    ELightingBuildQuality& OutQuality,
+    FString& OutQualityName)
+{
+    const FString LowerQuality = Quality.IsEmpty() ? TEXT("production") : Quality.ToLower();
+    if (LowerQuality == TEXT("preview") || LowerQuality == TEXT("0"))
+    {
+        OutQuality = ELightingBuildQuality::Quality_Preview;
+        OutQualityName = TEXT("Preview");
+        return true;
+    }
+    if (LowerQuality == TEXT("medium") || LowerQuality == TEXT("1"))
+    {
+        OutQuality = ELightingBuildQuality::Quality_Medium;
+        OutQualityName = TEXT("Medium");
+        return true;
+    }
+    if (LowerQuality == TEXT("high") || LowerQuality == TEXT("2"))
+    {
+        OutQuality = ELightingBuildQuality::Quality_High;
+        OutQualityName = TEXT("High");
+        return true;
+    }
+    if (LowerQuality == TEXT("production") || LowerQuality == TEXT("3"))
+    {
+        OutQuality = ELightingBuildQuality::Quality_Production;
+        OutQualityName = TEXT("Production");
+        return true;
+    }
+    return false;
+}
+
+}
 
 bool HandleBuildLighting(
     UMcpAutomationBridgeSubsystem& Subsystem,
@@ -29,6 +73,43 @@ bool HandleBuildLighting(
     }
 
     UWorld* World = GEditor->GetEditorWorldContext().World();
+    FString Quality;
+    bool bBuildOnlySelected = false;
+    bool bBuildReflectionCaptures = false;
+    if (Payload.IsValid())
+    {
+        Payload->TryGetStringField(TEXT("quality"), Quality);
+        Payload->TryGetBoolField(TEXT("buildOnlySelected"), bBuildOnlySelected);
+        Payload->TryGetBoolField(TEXT("buildReflectionCaptures"), bBuildReflectionCaptures);
+    }
+
+    if (bBuildOnlySelected)
+    {
+        TSharedPtr<FJsonObject> Err = McpHandlerUtils::CreateResultObject();
+        Err->SetStringField(TEXT("option"), TEXT("buildOnlySelected"));
+        Subsystem.SendAutomationResponse(
+            RequestingSocket,
+            RequestId,
+            false,
+            TEXT("Selected-only lighting builds are not supported by this bridge"),
+            Err,
+            TEXT("UNSUPPORTED_BUILD_OPTION"));
+        return true;
+    }
+
+    ELightingBuildQuality QualityEnum = ELightingBuildQuality::Quality_Production;
+    FString QualityName;
+    if (!TryParseLightingQuality(Quality, QualityEnum, QualityName))
+    {
+        TSharedPtr<FJsonObject> Err = McpHandlerUtils::CreateResultObject();
+        Err->SetStringField(TEXT("error"), TEXT("unknown_quality"));
+        Err->SetStringField(TEXT("quality"), Quality);
+        Err->SetStringField(TEXT("validValues"), TEXT("preview/0, medium/1, high/2, production/3"));
+        Subsystem.SendAutomationResponse(
+            RequestingSocket, RequestId, false, TEXT("Unknown lighting quality"), Err, TEXT("UNKNOWN_QUALITY"));
+        return true;
+    }
+
     if (AWorldSettings* WS = World->GetWorldSettings())
     {
         if (WS->bForceNoPrecomputedLighting)
@@ -50,53 +131,45 @@ bool HandleBuildLighting(
         }
     }
 
-    FString Quality;
-    Payload->TryGetStringField(TEXT("quality"), Quality);
-
-    FString QualityCmd = TEXT("Production");
-    if (!Quality.IsEmpty())
+#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 3
+    ULevelEditorSubsystem* LevelEditorSubsystem =
+        GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
+    if (!LevelEditorSubsystem)
     {
-        const FString LowerQuality = Quality.ToLower();
-        if (LowerQuality == TEXT("preview") || LowerQuality == TEXT("0"))
-        {
-            QualityCmd = TEXT("Preview");
-        }
-        else if (LowerQuality == TEXT("medium") || LowerQuality == TEXT("1"))
-        {
-            QualityCmd = TEXT("Medium");
-        }
-        else if (LowerQuality == TEXT("high") || LowerQuality == TEXT("2"))
-        {
-            QualityCmd = TEXT("High");
-        }
-        else if (LowerQuality == TEXT("production") || LowerQuality == TEXT("3"))
-        {
-            QualityCmd = TEXT("Production");
-        }
-        else
-        {
-            TSharedPtr<FJsonObject> Err = McpHandlerUtils::CreateResultObject();
-            Err->SetStringField(TEXT("error"), TEXT("unknown_quality"));
-            Err->SetStringField(TEXT("quality"), Quality);
-            Err->SetStringField(TEXT("validValues"), TEXT("preview/0, medium/1, high/2, production/3"));
-            Subsystem.SendAutomationResponse(
-                RequestingSocket, RequestId, false, TEXT("Unknown lighting quality"), Err, TEXT("UNKNOWN_QUALITY"));
-            return true;
-        }
+        Subsystem.SendAutomationError(
+            RequestingSocket,
+            RequestId,
+            TEXT("Level editor subsystem not available"),
+            TEXT("SUBSYSTEM_NOT_FOUND"));
+        return true;
     }
-
-    const FString Command = FString::Printf(TEXT("BuildLighting %s"), *QualityCmd);
-    GEditor->Exec(World, *Command);
+    const bool bBuildSucceeded =
+        LevelEditorSubsystem->BuildLightMaps(QualityEnum, bBuildReflectionCaptures);
+    const FString BuildApi = TEXT("LevelEditorSubsystem.BuildLightMaps");
+#else
+    const bool bBuildSucceeded =
+        RunLegacyLightingBuild(*World, QualityEnum);
+    if (bBuildSucceeded && bBuildReflectionCaptures)
+    {
+        GEditor->BuildReflectionCaptures();
+    }
+    const FString BuildApi = TEXT("EditorBuildUtils.EditorBuild");
+#endif
 
     TSharedPtr<FJsonObject> Resp = McpHandlerUtils::CreateResultObject();
-    Resp->SetStringField(TEXT("quality"), QualityCmd);
-    Resp->SetBoolField(TEXT("started"), true);
+    Resp->SetBoolField(TEXT("success"), bBuildSucceeded);
+    Resp->SetStringField(TEXT("quality"), QualityName);
+    Resp->SetBoolField(TEXT("buildReflectionCaptures"), bBuildReflectionCaptures);
+    Resp->SetStringField(TEXT("buildApi"), BuildApi);
     Subsystem.SendAutomationResponse(
         RequestingSocket,
         RequestId,
-        true,
-        FString::Printf(TEXT("Lighting build started with quality: %s"), *QualityCmd),
-        Resp);
+        bBuildSucceeded,
+        bBuildSucceeded
+            ? FString::Printf(TEXT("Lighting build completed with quality: %s"), *QualityName)
+            : FString::Printf(TEXT("Lighting build failed with quality: %s"), *QualityName),
+        Resp,
+        bBuildSucceeded ? FString() : TEXT("BUILD_FAILED"));
     return true;
 }
 

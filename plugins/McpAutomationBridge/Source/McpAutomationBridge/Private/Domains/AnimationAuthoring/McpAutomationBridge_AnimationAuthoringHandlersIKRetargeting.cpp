@@ -93,6 +93,7 @@ Retargeter->TargetIKRigAsset = TargetRig;
 
         Response->SetStringField(TEXT("assetPath"), Retargeter->GetPathName());
         ANIM_SUCCESS_RESPONSE(FString::Printf(TEXT("IK Retargeter '%s' created successfully"), *Name));
+        return Response;
 #elif MCP_HAS_IKRETARGETER
         ANIM_ERROR_RESPONSE(
             TEXT("create_ik_retargeter requires the IKRigEditor factory module in this build"),
@@ -100,7 +101,6 @@ Retargeter->TargetIKRigAsset = TargetRig;
 #else
         ANIM_ERROR_RESPONSE(TEXT("IK Retargeter module not available"), TEXT("NOT_SUPPORTED"));
 #endif
-        return Response;
     }
 
     if (SubAction == TEXT("set_retarget_chain_mapping"))

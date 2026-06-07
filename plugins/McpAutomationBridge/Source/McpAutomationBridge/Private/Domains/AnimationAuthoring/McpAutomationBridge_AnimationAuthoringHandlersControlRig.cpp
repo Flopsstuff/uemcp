@@ -177,7 +177,6 @@ TSharedPtr<FJsonObject> HandleControlRigActions(const FString& SubAction, const 
 #else
         ANIM_ERROR_RESPONSE(TEXT("Control Rig module not available"), TEXT("NOT_SUPPORTED"));
 #endif
-        return Response;
     }
 
     if (SubAction == TEXT("add_rig_unit"))
@@ -192,7 +191,6 @@ TSharedPtr<FJsonObject> HandleControlRigActions(const FString& SubAction, const 
 #else
         ANIM_ERROR_RESPONSE(TEXT("Control Rig module not available"), TEXT("NOT_SUPPORTED"));
 #endif
-        return Response;
     }
     return nullptr;
 }

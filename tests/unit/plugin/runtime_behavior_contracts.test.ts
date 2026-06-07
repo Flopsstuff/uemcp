@@ -14,6 +14,52 @@ const privateSource = (...parts: string[]): string =>
   );
 
 describe('plugin runtime behavior contracts', () => {
+  it('applies byte and enum JSON settings before rejecting unsupported properties', () => {
+    const source = privateSource(
+      'Foundation',
+      'Reflection',
+      'McpPropertyReflectionImport.cpp',
+    );
+
+    const byteHandler = source.indexOf(
+      'if (FByteProperty* ByteProp = CastField<FByteProperty>(Property))',
+    );
+    const enumHandler = source.indexOf(
+      'if (FEnumProperty* EnumProp = CastField<FEnumProperty>(Property))',
+    );
+    const unsupportedFallback = source.indexOf(
+      'Unsupported property type: %s',
+    );
+
+    expect(byteHandler).toBeGreaterThan(-1);
+    expect(enumHandler).toBeGreaterThan(byteHandler);
+    expect(unsupportedFallback).toBeGreaterThan(enumHandler);
+  });
+
+  it('validates enum inputs before conversion and rejects hidden sentinels', () => {
+    const source = privateSource(
+      'Foundation',
+      'Reflection',
+      'McpPropertyReflectionImport.cpp',
+    );
+
+    expect(source).toContain("Name[Index] == TEXT('\\0')");
+    expect(source).toContain('if (bContainsEmbeddedNull)');
+    expect(source).toContain('FMath::IsFinite(Value)');
+    expect(source).toContain('FMath::Frac(Value) != 0.0');
+    expect(source).toContain(
+      'Value < static_cast<double>(MIN_int64)',
+    );
+    expect(source).toContain('Value >= Int64UpperBound');
+    expect(source).toContain('Enum->GetIndexByValue(OutValue)');
+    expect(source).toContain('Enum->HasMetaData(TEXT("Hidden"), EnumIndex)');
+    expect(source).toContain('Enum->NumEnums() - 1');
+    expect(source).not.toContain('GenerateFullEnumName');
+    expect(source).not.toContain(
+      'OutValue == INDEX_NONE || !Enum->IsValidEnumValue(OutValue)',
+    );
+  });
+
   it('distinguishes omitted channel textures from failed channel texture loads', () => {
     const source = privateSource(
       'Domains',
