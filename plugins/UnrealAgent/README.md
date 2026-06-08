@@ -85,7 +85,7 @@ The Claude-Code-Game-Studios repo is useful as a reference for studio structure,
 ## Built-In Quick Prompts
 
 - **Architecture review**: reviews shippable-game architecture, ownership boundaries, content conventions, and risks.
-- **Gameplay plan**: turns a concept into prototype, vertical-slice, production, polish, and release-readiness phases mapped to MCP tool domains.
+- **Gameplay plan**: turns a concept into prototype, vertical-slice, production, polish, and release-readiness stages mapped to MCP tool domains.
 - **QA risk pass**: defines ship-readiness criteria, regression risks, deterministic verification, and release blockers.
 - **Editor tooling**: designs or executes reversible MCP-backed automation workflows with explicit validation.
 

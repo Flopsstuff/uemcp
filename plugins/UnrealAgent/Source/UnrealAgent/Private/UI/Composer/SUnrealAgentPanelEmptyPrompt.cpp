@@ -108,7 +108,7 @@ TSharedRef<SWidget> SUnrealAgentPanel::MakeEmptyPromptArea()
                                 .HAlign(HAlign_Center)
                                 .ContentPadding(FMargin(6.0f, 3.0f))
                                 .Text(LOCTEXT("QuickPromptGameplayPlan", "Gameplay plan"))
-                                .OnClicked(this, &SUnrealAgentPanel::OnQuickPromptClicked, FString(TEXT("Create a complete Unreal game production plan for the concept I describe next. Start from the smallest playable prototype, then vertical slice, production, polish, and release readiness. Map each phase to concrete MCP tool domains for assets, Blueprints, levels, actors, UI, AI, audio, VFX, animation, combat, networking, inventory, interaction, tests, screenshots, profiling, and packaging. Include acceptance criteria, non-goals, risks, and what you need to inspect before implementation.")))
+                                .OnClicked(this, &SUnrealAgentPanel::OnQuickPromptClicked, FString(TEXT("Create a complete Unreal game production plan for the concept I describe next. Start from the smallest playable prototype, then vertical slice, production, polish, and release readiness. Map each stage to concrete MCP tool domains for assets, Blueprints, levels, actors, UI, AI, audio, VFX, animation, combat, networking, inventory, interaction, tests, screenshots, profiling, and packaging. Include acceptance criteria, non-goals, risks, and what you need to inspect before implementation.")))
                             ]
                         ]
                         + SVerticalBox::Slot()

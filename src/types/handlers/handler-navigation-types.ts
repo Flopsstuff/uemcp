@@ -4,11 +4,11 @@
 import type { HandlerArgs, Rotator, Vector3 } from './handler-common-types.js';
 
 // ============================================================================
-// Navigation System Types (Phase 25)
+// Navigation System Types
 // ============================================================================
 
 /**
- * Arguments for manage_navigation tool (Phase 25)
+ * Arguments for manage_navigation tool
  *
  * Covers:
  * - NavMesh: settings configuration, agent properties, rebuild

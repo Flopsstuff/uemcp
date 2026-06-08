@@ -4,11 +4,11 @@
 import type { HandlerArgs, Rotator, Vector3 } from './handler-common-types.js';
 
 // ============================================================================
-// Level Structure Types (Phase 23)
+// Level Structure Types
 // ============================================================================
 
 /**
- * Arguments for manage_level_structure tool (Phase 23)
+ * Arguments for manage_level_structure tool
  *
  * Covers:
  * - Levels: create levels, sublevels, streaming, bounds

@@ -1,5 +1,5 @@
 /**
- * Game Framework Handlers (Phase 21)
+ * Game Framework Handlers
  *
  * Complete game framework system including:
  * - Core Classes (GameMode, GameState, PlayerController, PlayerState, GameInstance, HUD)

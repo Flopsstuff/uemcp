@@ -4,7 +4,7 @@
 import type { HandlerArgs } from './handler-common-types.js';
 
 // ============================================================================
-// Sessions & Local Multiplayer Types (Phase 22)
+// Sessions & Local Multiplayer Types
 // ============================================================================
 
 /**
@@ -24,7 +24,7 @@ export interface VoiceSettings {
 }
 
 /**
- * Arguments for manage_sessions tool (Phase 22)
+ * Arguments for manage_sessions tool
  *
  * Covers:
  * - Session Management: local session settings, session interface

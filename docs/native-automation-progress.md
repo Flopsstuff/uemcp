@@ -88,7 +88,7 @@ This document tracks ongoing work to replace stubbed or registry-based fallbacks
 | **Pointer Safety** | ✅ Verified | Robust `nullptr` checks and weak pointers in C++ handlers. |
 | **Concurrency** | ✅ Verified | Thread-safe queue and GameThread dispatching for all automation requests. |
 | **Tool Registry Thread Safety** | ✅ Implemented | `CacheMutex` protects `Tools`, `ToolsByName`, `CachedToolSchemas`, `bCacheValid`. `GetAllTools()` returns copy. |
-| **Phase 5 Infrastructure** | ✅ Verified | Live headless UE validation covers WebSocket log/test event streaming, native `/mcp` SSE notifications, custom handler aliases, and Unreal Insights trace capture/snapshot/analyze workflows. |
+| **Infrastructure** | ✅ Verified | Live headless UE validation covers WebSocket log/test event streaming, native `/mcp` SSE notifications, custom handler aliases, and Unreal Insights trace capture/snapshot/analyze workflows. |
 
 ## Blueprint Authoring (Recap)
 
@@ -125,9 +125,9 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 - `CALL_SUBSYSTEM` added for generic subsystem access.
 - `ADD_WIDGET_TO_VIEWPORT` implemented.
 
-## Advanced Authoring Tools (Phases 7-20)
+## Advanced Authoring Tools
 
-### Phase 7: Skeleton & Rigging (`animation_physics`)
+### Skeleton & Rigging (`animation_physics`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -138,7 +138,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `bind_cloth_to_skeletal_mesh` | ✅ Done | Uses `UClothingAssetBase::BindToSkeletalMesh()` |
 | `create_morph_target`, `set_morph_target_deltas` | ✅ Done | Morph target authoring |
 
-### Phase 8: Material Authoring (`manage_asset`)
+### Material Authoring (`manage_asset`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -150,7 +150,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `add_landscape_layer` | ✅ Done | Uses `ULandscapeLayerInfoObject` |
 | `configure_layer_blend` | ✅ Guidance | Layer blending via material expressions |
 
-### Phase 9: Texture (`manage_asset`)
+### Texture (`manage_asset`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -162,7 +162,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `adjust_curves`, `channel_extract` | ✅ Done | LUT-based curve adjustment, channel extraction |
 | Texture processing (blur, resize, levels) | ✅ Done | Implemented via FImageUtils and platform texture ops |
 
-### Phase 10: Animation Authoring (`animation_physics`)
+### Animation Authoring (`animation_physics`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -174,7 +174,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `create_ik_rig` | ✅ Done | Uses `UIKRigDefinitionFactory` |
 | `create_ik_retargeter` | ✅ Done | Uses `UIKRetargetFactory` |
 
-### Phase 11: Audio Authoring (`manage_audio`)
+### Audio Authoring (`manage_audio`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -184,7 +184,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `create_attenuation_settings`, `configure_spatialization` | ✅ Done | 3D audio settings |
 | `create_dialogue_voice`, `create_dialogue_wave` | ✅ Done | Dialogue system |
 
-### Phase 12: Niagara Authoring (`manage_effect`)
+### Niagara Authoring (`manage_effect`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -195,7 +195,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `add_user_parameter`, `bind_parameter_to_source` | ✅ Done | Parameter binding |
 | `enable_gpu_simulation`, `add_simulation_stage` | ✅ Done | GPU simulation |
 
-### Phase 13: Gameplay Ability System (`manage_gas`)
+### Gameplay Ability System (`manage_gas`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -204,7 +204,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `create_gameplay_effect`, `add_effect_modifier` | ✅ Done | Effect creation |
 | `create_gameplay_cue_notify`, `set_cue_effects` | ✅ Done | Gameplay cues |
 
-### Phase 14: Character System (`manage_character`)
+### Character System (`manage_character`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -213,7 +213,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `setup_mantling`, `setup_vaulting`, `setup_climbing` | ✅ Done | Advanced movement |
 | `setup_footstep_system`, `map_surface_to_sound` | ✅ Done | Footstep system |
 
-### Phase 15: Combat System (`manage_combat`)
+### Combat System (`manage_combat`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -223,7 +223,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `create_damage_type`, `setup_hitbox_component` | ✅ Done | Damage system |
 | `configure_combo_system`, `create_hit_pause` | ✅ Done | Melee combat |
 
-### Phase 16: AI System (`manage_ai`)
+### AI System (`manage_ai`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -234,7 +234,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `create_state_tree`, `add_state_tree_state` | ✅ Done | State Trees (UE5.3+) |
 | `create_smart_object_definition`, `add_smart_object_slot` | ✅ Done | Smart Objects |
 
-### Phase 17: Inventory System (`manage_inventory`)
+### Inventory System (`manage_inventory`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -244,7 +244,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `create_loot_table`, `add_loot_entry` | ✅ Done | Loot system |
 | `create_crafting_recipe`, `create_crafting_station` | ✅ Done | Crafting |
 
-### Phase 18: Interaction System (`manage_interaction`)
+### Interaction System (`manage_interaction`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -253,7 +253,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `setup_destructible_mesh`, `configure_destruction_effects` | ✅ Done | Destructibles |
 | `create_trigger_actor`, `configure_trigger_events` | ✅ Done | Triggers |
 
-### Phase 19: Widget Authoring (`manage_blueprint`)
+### Widget Authoring (`manage_blueprint`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -272,7 +272,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | UI templates (main_menu, HUD, etc.) | ✅ Guidance | Composite widgets |
 | `preview_widget` | ✅ Done | Triggers recompile |
 
-### Phase 20: Networking (`manage_networking`)
+### Networking (`manage_networking`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -283,7 +283,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `configure_client_prediction`, `configure_server_correction` | ✅ Done | Network prediction |
 | `configure_replicated_movement` | ✅ Done | Movement replication |
 
-### Phase 20.5: Audio Authoring (`manage_audio`)
+### Audio Authoring (`manage_audio`)
 
 `manage_audio` exposes 50 actions. Regular playback/runtime actions route through `HandleAudioAction`; the 30 graph and asset-authoring actions route through the internal native `manage_audio_authoring` bridge action.
 
@@ -299,7 +299,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `configure_distance_attenuation`, `configure_spatialization`, `configure_occlusion`, `configure_reverb_send` | ✅ Done | Attenuation authoring |
 | `create_reverb_effect`, `create_source_effect_chain`, `add_source_effect`, `create_submix_effect`, `get_audio_info` | ✅ Done | Effects and info |
 
-### Phase 21: Game Framework (`manage_networking`)
+### Game Framework (`manage_networking`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -315,7 +315,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `set_respawn_rules`, `configure_spectating` | ✅ Done | Player management |
 | `get_game_framework_info` | ✅ Done | Query game mode info |
 
-### Phase 22: Sessions & Local Multiplayer (`manage_networking`)
+### Sessions & Local Multiplayer (`manage_networking`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -336,7 +336,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `configure_push_to_talk` | ✅ Done | PTT settings |
 | `get_sessions_info` | ✅ Done | Query session info |
 
-### Phase 23: Level Structure (`manage_level_structure`)
+### Level Structure (`manage_level_structure`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -357,7 +357,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `create_packed_level_actor` | ✅ Done | APackedLevelActor creation |
 | `get_level_structure_info` | ✅ Done | Query level structure info |
 
-### Phase 24: Volumes & Zones (`manage_level_structure`)
+### Volumes & Zones (`manage_level_structure`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -371,7 +371,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | `create_camera_blocking_volume` | ✅ Done | Camera volumes |
 | `set_volume_extent`, `set_volume_properties`, `get_volumes_info` | ✅ Done | Configuration & utility |
 
-### Phase 25: Navigation System (`manage_ai`)
+### Navigation System (`manage_ai`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -392,7 +392,7 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 | **Utility** | | |
 | `get_navigation_info` | ✅ Done | Returns NavMesh stats, agent properties, link/volume counts |
 
-### Phase 26: Spline System (`build_environment`)
+### Spline System (`build_environment`)
 
 | Action | Status | Notes |
 |--------|--------|-------|
@@ -426,7 +426,6 @@ All `blueprint_*` authoring commands now require editor support and execute nati
 
 ## Next Steps
 
-1. Expand Phase 29 rendering/post-process coverage beyond seeded lighting, render-target, Lightmass-volume, and post-process-volume actions.
-2. Expand Phase 33 profiling/validation coverage beyond the completed Phase 5 Insights trace workflow and existing `validate_assets` coverage.
-3. Continue Phase 30 cinematic/media expansion after the Phase 29 rendering surface is settled.
-4. Phases 5 and 22-28 are complete, including Phase 27 (PCG Framework). ✅ Done
+1. Expand profiling/validation coverage beyond the completed Insights trace workflow and existing `validate_assets` coverage.
+2. Continue cinematic/media expansion now that the rendering surface is complete.
+3. Infrastructure, multiplayer/session, world-building, PCG, and advanced lighting/rendering surfaces are complete. ✅ Done

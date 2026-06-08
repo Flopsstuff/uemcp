@@ -1,5 +1,5 @@
 /**
- * Geometry Script handlers for Phase 6
+ * Geometry Script handlers
  *
  * Routes all geometry actions to the C++ automation bridge.
  * Uses UE Geometry Script plugin for mesh operations.

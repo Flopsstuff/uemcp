@@ -9,7 +9,7 @@ import {
 
 const READ_ONLY_ACTION_PREFIXES = ['list', 'get_', 'exists', 'search', 'find'];
 
-// Note: The two-phase event pattern was disabled because C++ handlers send a single response,
+// Note: The two-step event pattern was disabled because C++ handlers send a single response,
 // not request+event. All actions now use simple request-response. The PendingRequest interface
 // retains waitForEvent/eventTimeout fields for potential future use.
 

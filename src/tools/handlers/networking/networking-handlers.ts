@@ -1,5 +1,5 @@
 /**
- * Networking & Multiplayer Handlers (Phase 20)
+ * Networking & Multiplayer Handlers
  *
  * Complete networking and replication system including:
  * - Replication (property replication, conditions, net update frequency, dormancy)

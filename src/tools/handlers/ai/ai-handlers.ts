@@ -1,5 +1,5 @@
 /**
- * AI System Handlers (Phase 16)
+ * AI System Handlers
  *
  * Complete AI implementation including:
  * - AI Controller (creation, behavior tree assignment, blackboard)

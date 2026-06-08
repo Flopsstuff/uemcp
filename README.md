@@ -416,7 +416,7 @@ docker run -it --rm -e UE_PROJECT_PATH=/project unreal-mcp
 | [Handler Mappings](docs/handler-mapping.md) | TypeScript to C++ routing |
 | [Plugin Extension](docs/editor-plugin-extension.md) | C++ plugin architecture |
 | [Testing Guide](docs/testing-guide.md) | How to run and write tests |
-| [Roadmap](docs/Roadmap.md) | Development phases |
+| [Roadmap](docs/Roadmap.md) | Development roadmap |
 
 
 ---
@@ -436,7 +436,7 @@ npm run test:all    # Run all tests
 
 | Resource | Description |
 |----------|-------------|
-| [Project Roadmap](https://github.com/users/ChiR24/projects/3) | Track development progress across 48 phases |
+| [Project Roadmap](https://github.com/users/ChiR24/projects/3) | Track roadmap progress and priorities |
 | [Discussions](https://github.com/ChiR24/Unreal_mcp/discussions) | Ask questions, share ideas, get help |
 | [Issues](https://github.com/ChiR24/Unreal_mcp/issues) | Report bugs and request features |
 

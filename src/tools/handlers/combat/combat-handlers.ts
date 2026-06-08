@@ -1,5 +1,5 @@
 /**
- * Combat & Weapons System Handlers (Phase 15)
+ * Combat & Weapons System Handlers
  *
  * Complete combat implementation including:
  * - Weapon Base (creation, mesh, sockets, stats)

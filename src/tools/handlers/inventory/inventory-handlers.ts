@@ -1,5 +1,5 @@
 /**
- * Inventory & Items System Handlers (Phase 17)
+ * Inventory & Items System Handlers
  *
  * Complete inventory implementation including:
  * - Data Assets (item creation, properties, stacking)

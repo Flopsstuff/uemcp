@@ -1,5 +1,5 @@
 /**
- * Volume Handlers (Phase 24)
+ * Volume Handlers
  *
  * Complete volume and trigger system management including:
  * - Trigger Volumes: create_trigger_volume, add_trigger_volume, trigger_box, trigger_sphere, trigger_capsule

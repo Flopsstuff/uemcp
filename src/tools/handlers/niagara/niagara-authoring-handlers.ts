@@ -1,5 +1,5 @@
 /**
- * Niagara Authoring Handlers (Phase 12)
+ * Niagara Authoring Handlers
  *
  * Complete Niagara VFX system authoring including:
  * - Systems & Emitters (create, configure, add emitters)

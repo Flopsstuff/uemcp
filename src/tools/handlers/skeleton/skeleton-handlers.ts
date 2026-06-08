@@ -1,5 +1,5 @@
 /**
- * Skeleton and Rigging handlers for Phase 7
+ * Skeleton and Rigging handlers
  *
  * Routes all skeleton actions to the C++ automation bridge.
  * Handles skeleton structure, sockets, physics assets, skin weights, and morph targets.

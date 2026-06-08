@@ -4,7 +4,7 @@ This roadmap outlines the comprehensive development plan for expanding the Unrea
 
 **Target**: ~2,825 actions covering all Unreal Engine subsystems and major plugin integrations.
 
-**Current sync (2026-06-07)**: Phases 1-28 are implemented and tracked through the consolidated 23-tool TypeScript/native canonical surface. Phase 29+ remains the planned expansion area, with a few seeded actions already available through existing canonical tools.
+**Current sync (2026-06-08)**: Phases 1-29 are implemented and tracked through the consolidated 23-tool TypeScript/native canonical surface. Phase 30+ remains the planned expansion area, with a few seeded actions already available through existing canonical tools.
 
 ---
 
@@ -1225,61 +1225,61 @@ The following phases represent the comprehensive expansion to enable **full proj
 
 ---
 
-## Phase 29: Advanced Lighting & Rendering (Planned / Partially Seeded)
+## Phase 29: Advanced Lighting & Rendering (Complete)
 
 **Goal**: Complete lighting and post-processing.
 
-**Tool**: `build_environment` plus seeded `manage_asset` and `manage_level_structure` actions; expanded post-process/render actions remain planned on the consolidated surface.
+**Tool**: `build_environment` exposes the Phase 29 rendering actions, with seeded `manage_asset` and `manage_level_structure` support for render targets and volumes. The native bridge routes the public `build_environment` actions through the internal `manage_render` domain.
 
-**Status**: Baseline lighting, Lightmass volume creation, render target creation, and post-process volume creation are already available. The detailed ray-tracing, reflection, post-process tuning, and scene-capture actions below remain planned unless marked complete.
+**Status**: Complete and live-tested against a headless Unreal Editor project, including happy-path, adversarial, native MCP, and combined interactive scenarios.
 
 ### 29.1 Ray Tracing
-- [ ] `configure_ray_traced_shadows`
-- [ ] `configure_ray_traced_gi`
-- [ ] `configure_ray_traced_reflections`
-- [ ] `configure_ray_traced_ao`
-- [ ] `configure_path_tracing`
+- [x] `configure_ray_traced_shadows`
+- [x] `configure_ray_traced_gi`
+- [x] `configure_ray_traced_reflections`
+- [x] `configure_ray_traced_ao`
+- [x] `configure_path_tracing`
 
 ### 29.2 Light Channels
-- [ ] `set_light_channel`
-- [ ] `set_actor_light_channel`
+- [x] `set_light_channel`
+- [x] `set_actor_light_channel`
 
 ### 29.3 Lightmass
 - [x] `create_lightmass_volume`
 - [x] `create_lightmass_importance_volume`
-- [ ] `configure_lightmass_settings`
-- [ ] `build_lighting_quality`
-- [ ] `configure_indirect_lighting_cache`
+- [x] `configure_lightmass_settings`
+- [x] `build_lighting_quality`
+- [x] `configure_indirect_lighting_cache`
 
 ### 29.4 Reflections
-- [ ] `create_sphere_reflection_capture`
-- [ ] `create_box_reflection_capture`
-- [ ] `configure_capture_resolution`, `configure_capture_offset`
-- [ ] `recapture_scene`
-- [ ] `create_planar_reflection`
-- [ ] `configure_planar_reflection` (resolution, clip_plane)
-- [ ] `configure_ssr_settings`
-- [ ] `configure_lumen_reflection_settings`
+- [x] `create_sphere_reflection_capture`
+- [x] `create_box_reflection_capture`
+- [x] `configure_capture_resolution`, `configure_capture_offset`
+- [x] `recapture_scene`
+- [x] `create_planar_reflection`
+- [x] `configure_planar_reflection` (resolution, clip_plane)
+- [x] `configure_ssr_settings`
+- [x] `configure_lumen_reflection_settings`
 
 ### 29.5 Post Processing
 - [x] `create_post_process_volume`
 - [x] `add_post_process_volume`
-- [ ] `configure_pp_blend` (infinite_unbound, weight)
-- [ ] Color Grading: `set_pp_white_balance`, `set_pp_color_grading`, `set_pp_lut`, saturation, contrast, gamma, gain, offset
-- [ ] `configure_tonemapper`, `set_tonemapper_type`
-- [ ] Bloom: `configure_bloom`, `set_bloom_intensity`, `set_bloom_threshold`, `configure_lens_flare`
-- [ ] DOF: `configure_dof`, `set_dof_method`, `set_focal_distance`, `set_aperture`, `configure_bokeh`
-- [ ] Motion Blur: `configure_motion_blur`, `set_motion_blur_amount`, `set_motion_blur_max`
-- [ ] Exposure: `configure_exposure`, `set_exposure_method`, `set_exposure_compensation`, `set_exposure_min_max`
-- [ ] AO: `configure_ssao`, `configure_gtao`
-- [ ] Effects: `configure_vignette`, `configure_chromatic_aberration`, `configure_grain`, `configure_screen_percentage`
+- [x] `configure_pp_blend` (infinite_unbound, weight)
+- [x] Color Grading: `set_pp_white_balance`, `set_pp_color_grading`, `set_pp_lut`, saturation, contrast, gamma, gain, offset
+- [x] `configure_tonemapper`, `set_tonemapper_type`
+- [x] Bloom: `configure_bloom`, `set_bloom_intensity`, `set_bloom_threshold`, `configure_lens_flare`
+- [x] DOF: `configure_dof`, `set_dof_method`, `set_focal_distance`, `set_aperture`, `configure_bokeh`
+- [x] Motion Blur: `configure_motion_blur`, `set_motion_blur_amount`, `set_motion_blur_max`
+- [x] Exposure: `configure_exposure`, `set_exposure_method`, `set_exposure_compensation`, `set_exposure_min_max`
+- [x] AO: `configure_ssao`, `configure_gtao`
+- [x] Effects: `configure_vignette`, `configure_chromatic_aberration`, `configure_grain`, `configure_screen_percentage`
 
 ### 29.6 Scene Capture
-- [ ] `create_scene_capture_2d`, `create_scene_capture_cube`
-- [ ] `configure_capture_resolution`, `configure_capture_source`
+- [x] `create_scene_capture_2d`, `create_scene_capture_cube`
+- [x] `configure_capture_resolution`, `configure_capture_source`
 - [x] `create_render_target`
-- [ ] `assign_render_target`
-- [ ] `capture_scene`
+- [x] `assign_render_target`
+- [x] `capture_scene`
 
 ---
 
@@ -2209,7 +2209,7 @@ The following phases represent the comprehensive expansion to enable **full proj
 | Completed UI/UX (19) | 1 | ~80 |
 | Completed Networking & Framework (20-22) | 3 | ~100 |
 | Completed World & Environment (23-28) | 6 | ~200 |
-| Rendering & Post (29, partial/planned) | 1 | ~80 |
+| Completed Rendering & Post (29) | 1 | ~80 |
 | Cinematics & Media (30) | 1 | ~80 |
 | Data & Persistence (31, partial/planned) | 1 | ~50 |
 | Build & Deploy (32, partial/planned) | 1 | ~35 |
@@ -2231,7 +2231,7 @@ The following phases represent the comprehensive expansion to enable **full proj
 | Modding & UGC (48) | 1 | ~25 |
 | **TOTAL** | **48** | **~2,825** |
 
-Current implementation is complete through Phase 28. Phases 29, 31-33, 35, and 45 have seeded actions on existing canonical tools, but their expanded roadmap surfaces remain planned.
+Current implementation is complete through Phase 29. Phases 31-33, 35, and 45 have seeded actions on existing canonical tools, but their expanded roadmap surfaces remain planned.
 
 ## What This Enables
 

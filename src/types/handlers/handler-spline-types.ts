@@ -4,7 +4,7 @@
 import type { HandlerArgs, Rotator, Vector3 } from './handler-common-types.js';
 
 // ============================================================================
-// Splines Types (Phase 26)
+// Splines Types
 // ============================================================================
 
 /**
@@ -23,7 +23,7 @@ export type SplineMeshAxis = 'X' | 'Y' | 'Z';
 export type SplineCoordinateSpace = 'Local' | 'World';
 
 /**
- * Arguments for manage_splines tool (Phase 26)
+ * Arguments for manage_splines tool
  *
  * Covers:
  * - Spline Creation: create_spline_actor, add_spline_point, remove_spline_point, set_spline_point_position

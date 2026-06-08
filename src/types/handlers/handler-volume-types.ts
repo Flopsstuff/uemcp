@@ -4,7 +4,7 @@
 import type { HandlerArgs, Rotator, Vector3 } from './handler-common-types.js';
 
 // ============================================================================
-// Volumes & Zones Types (Phase 24)
+// Volumes & Zones Types
 // ============================================================================
 
 /**
@@ -45,14 +45,14 @@ export interface VolumeProperties {
     areaClass?: string;
     bDynamicModifier?: boolean;
 
-    // Post Process Volume (Note: Full PP config is Phase 29.5)
+    // Post Process Volume (full configuration is handled by rendering actions)
     bUnbound?: boolean;
     blendRadius?: number;
     blendWeight?: number;
 }
 
 /**
- * Arguments for manage_volumes tool (Phase 24)
+ * Arguments for manage_volumes tool
  *
  * Covers:
  * - Trigger Volumes: trigger_volume, trigger_box, trigger_sphere, trigger_capsule
@@ -113,7 +113,7 @@ export interface VolumesArgs extends HandlerArgs {
     areaClass?: string;
     bDynamicModifier?: boolean;
 
-    // Post Process Volume (basic - full config in Phase 29.5)
+    // Post Process Volume (basic; full configuration is handled by rendering actions)
     bUnbound?: boolean;
     blendRadius?: number;
     blendWeight?: number;

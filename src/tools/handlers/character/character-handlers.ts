@@ -1,5 +1,5 @@
 /**
- * Character & Movement System Handlers (Phase 14)
+ * Character & Movement System Handlers
  *
  * Complete character setup with advanced movement including:
  * - Character Creation & Components

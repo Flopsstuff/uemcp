@@ -4,7 +4,7 @@
 import type { HandlerArgs } from './handler-common-types.js';
 
 // ============================================================================
-// Game Framework Types (Phase 21)
+// Game Framework Types
 // ============================================================================
 
 /**
@@ -17,7 +17,7 @@ export interface MatchStateDefinition {
 }
 
 /**
- * Arguments for manage_game_framework tool (Phase 21)
+ * Arguments for manage_game_framework tool
  *
  * Covers:
  * - Core Classes: GameMode, GameState, PlayerController, PlayerState, GameInstance, HUD

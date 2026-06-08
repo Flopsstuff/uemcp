@@ -1,5 +1,5 @@
 /**
- * Spline Handlers (Phase 26)
+ * Spline Handlers
  *
  * Complete spline-based content creation system including:
  * - Spline Creation: create_spline_actor, add_spline_point, remove_spline_point, set_spline_point_position

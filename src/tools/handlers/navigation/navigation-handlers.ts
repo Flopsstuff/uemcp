@@ -1,5 +1,5 @@
 /**
- * Navigation Handlers (Phase 25)
+ * Navigation Handlers
  *
  * Complete navigation mesh and pathfinding system management including:
  * - NavMesh: configure_nav_mesh_settings, set_nav_agent_properties, rebuild_navigation

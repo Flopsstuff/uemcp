@@ -1,5 +1,5 @@
 /**
- * Level Structure Handlers (Phase 23)
+ * Level Structure Handlers
  *
  * Complete level and world structure management including:
  * - Levels: create levels, sublevels, streaming, bounds
