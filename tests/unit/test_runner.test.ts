@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { evaluateAssertions } from '../test-runner-response-utils.mjs';
 import { evaluateExpectation, resolveCapturedValues, summarizeResponseForReport } from '../test-runner.mjs';
 
 describe('test runner response evaluation', () => {
@@ -55,6 +56,77 @@ describe('test runner response evaluation', () => {
 
     expect(result.passed).toBe(true);
     expect(result.reason).toContain('world partition');
+  });
+
+  it('does not treat empty unsupported-setting metadata as a failed success response', () => {
+    const result = evaluateExpectation(
+      { expected: 'success' },
+      {
+        isError: false,
+        structuredContent: {
+          success: true,
+          message: 'Post-process settings applied.',
+          result: {
+            success: true,
+            applied: true,
+            unsupportedSettings: []
+          }
+        }
+      }
+    );
+
+    expect(result.passed).toBe(true);
+  });
+
+  it('fails success expectations when success true still reports a placeholder implementation', () => {
+    const result = evaluateExpectation(
+      { expected: 'success' },
+      {
+        isError: false,
+        structuredContent: {
+          success: true,
+          message: 'Render action not implemented yet',
+          result: { success: true }
+        }
+      }
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.reason).toContain('plugin reported failure');
+  });
+
+  it('fails success-primary alternatives when success true reports a placeholder implementation', () => {
+    const result = evaluateExpectation(
+      { expected: 'success|unsupported|not available' },
+      {
+        isError: false,
+        structuredContent: {
+          success: true,
+          message: 'Render action not implemented yet',
+          result: { success: true }
+        }
+      }
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.reason).toContain('plugin reported failure');
+  });
+
+  it('fails success-primary alternatives when failure response reports a placeholder implementation', () => {
+    const result = evaluateExpectation(
+      { expected: 'success|unsupported|not available' },
+      {
+        isError: true,
+        structuredContent: {
+          success: false,
+          error: 'NOT_IMPLEMENTED',
+          message: 'Render action not implemented yet and not available'
+        }
+      }
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.reason).toContain('plugin reported failure');
   });
 
   it('rejects unrelated failures when a success-primary expectation allows a specific editor-state fallback', () => {
@@ -217,4 +289,54 @@ describe('test runner response evaluation', () => {
     expect(missingKeys).toEqual(['missingNodeId']);
   });
 
+});
+
+
+describe('test runner response assertions', () => {
+  it('passes notIncludes assertions when an array omits the forbidden value', () => {
+    const result = evaluateAssertions(
+      {
+        assertions: [
+          {
+            path: 'structuredContent.result.appliedCVars',
+            notIncludes: 'r.PathTracing.MaxBounces',
+            label: 'omitted path tracing bounces'
+          }
+        ]
+      },
+      {
+        structuredContent: {
+          result: {
+            appliedCVars: ['r.PathTracing', 'r.PathTracing.SamplesPerPixel']
+          }
+        }
+      }
+    );
+
+    expect(result.passed).toBe(true);
+  });
+
+  it('fails notIncludes assertions when an array contains the forbidden value', () => {
+    const result = evaluateAssertions(
+      {
+        assertions: [
+          {
+            path: 'structuredContent.result.appliedCVars',
+            notIncludes: 'r.PathTracing.MaxBounces',
+            label: 'omitted path tracing bounces'
+          }
+        ]
+      },
+      {
+        structuredContent: {
+          result: {
+            appliedCVars: ['r.PathTracing.MaxBounces']
+          }
+        }
+      }
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.reason).toContain('r.PathTracing.MaxBounces');
+  });
 });

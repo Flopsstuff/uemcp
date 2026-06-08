@@ -15,7 +15,7 @@ vi.mock('../foundation/dispatch/common-handlers.js', async () => {
 import { handleEnvironmentTools } from './environment-handlers.js';
 import { consolidatedToolDefinitions } from '../../catalog/consolidated-tool-definitions.js';
 
-const PHASE_28_ENVIRONMENT_ACTIONS = [
+const ENVIRONMENT_ACTIONS = [
   'create_landscape', 'import_heightmap', 'export_heightmap', 'sculpt_landscape',
   'paint_landscape_layer', 'create_landscape_layer_info', 'configure_landscape_material',
   'create_landscape_grass_type', 'configure_landscape_splines', 'configure_landscape_lod',
@@ -114,15 +114,15 @@ describe('handleEnvironmentTools path normalization', () => {
     );
   });
 
-  it('exposes every Phase 28 roadmap action on the build_environment schema', () => {
-    expect(getBuildEnvironmentActionEnum()).toEqual(expect.arrayContaining([...PHASE_28_ENVIRONMENT_ACTIONS]));
+  it('exposes every environment action on the build_environment schema', () => {
+    expect(getBuildEnvironmentActionEnum()).toEqual(expect.arrayContaining([...ENVIRONMENT_ACTIONS]));
   });
 
-  it('routes the Phase 28 create_foliage_type alias to foliage type creation', async () => {
+  it('routes the create_foliage_type alias to foliage type creation', async () => {
     await handleEnvironmentTools('create_foliage_type', {
       action: 'create_foliage_type',
-      name: 'Phase28FoliageType',
-      foliageTypePath: 'Content/Foliage/Phase28FoliageType',
+      name: 'EnvironmentFoliageType',
+      foliageTypePath: 'Content/Foliage/EnvironmentFoliageType',
       meshPath: 'Engine/BasicShapes/Cone',
       path: 'Content/Foliage',
       density: 12
@@ -132,8 +132,8 @@ describe('handleEnvironmentTools path normalization', () => {
       {},
       'add_foliage_type',
       expect.objectContaining({
-        name: 'Phase28FoliageType',
-        foliageTypePath: '/Game/Foliage/Phase28FoliageType',
+        name: 'EnvironmentFoliageType',
+        foliageTypePath: '/Game/Foliage/EnvironmentFoliageType',
         meshPath: '/Engine/BasicShapes/Cone',
         path: '/Game/Foliage',
         density: 12
@@ -158,7 +158,7 @@ describe('handleEnvironmentTools path normalization', () => {
   it('preserves foliageTypePath for targeted remove_foliage_instances', async () => {
     await handleEnvironmentTools('remove_foliage_instances', {
       action: 'remove_foliage_instances',
-      foliageTypePath: 'Game/Foliage/Phase28FoliageType'
+      foliageTypePath: 'Game/Foliage/EnvironmentFoliageType'
     }, {} as never);
 
     expect(executeAutomationRequestMock).toHaveBeenCalledWith(
@@ -166,7 +166,7 @@ describe('handleEnvironmentTools path normalization', () => {
       'build_environment',
       expect.objectContaining({
         action: 'remove_foliage_instances',
-        foliageTypePath: '/Game/Foliage/Phase28FoliageType'
+        foliageTypePath: '/Game/Foliage/EnvironmentFoliageType'
       }),
       'Automation bridge not available for environment building operations'
     );
@@ -200,7 +200,7 @@ describe('handleEnvironmentTools path normalization', () => {
     ['configure_landscape_material', 'landscapeActorPath', 'Content/MCPTest/Landscape.Landscape', '/Game/MCPTest/Landscape.Landscape'],
     ['configure_landscape_splines', 'landscapeActorPath', 'Content/MCPTest/Landscape.Landscape', '/Game/MCPTest/Landscape.Landscape'],
     ['configure_sky_light', 'cubemapPath', 'Content/HDRI/T_SkyCubemap', '/Game/HDRI/T_SkyCubemap']
-  ])('normalizes Phase 28 alias path field %s.%s before dispatch', async (action, fieldName, rawPath, normalizedPath) => {
+  ])('normalizes environment alias path field %s.%s before dispatch', async (action, fieldName, rawPath, normalizedPath) => {
     await handleEnvironmentTools(action, {
       action,
       [fieldName]: rawPath
@@ -224,7 +224,7 @@ describe('handleEnvironmentTools path normalization', () => {
     ['configure_lightning', 'particleSystemPath', 'Content/Weather/P_Lightning', '/Game/Weather/P_Lightning'],
     ['configure_light_color_curve', 'curvePath', 'Content/Environment/Curves/C_Light', '/Game/Environment/Curves/C_Light'],
     ['configure_sky_color_curve', 'curvePath', 'Content/Environment/Curves/C_Sky', '/Game/Environment/Curves/C_Sky']
-  ])('normalizes Phase 28 asset path field %s.%s before dispatch', async (action, fieldName, rawPath, normalizedPath) => {
+  ])('normalizes environment asset path field %s.%s before dispatch', async (action, fieldName, rawPath, normalizedPath) => {
     await handleEnvironmentTools(action, {
       action,
       [fieldName]: rawPath

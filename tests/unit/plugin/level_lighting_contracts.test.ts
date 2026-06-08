@@ -96,4 +96,30 @@ describe('level and lighting build contracts', () => {
     expect(source).not.toContain('GEditor->Exec(World, TEXT("Build"))');
     expect(source).not.toContain('NavSys->Build()');
   });
+
+  it('advertises rendering method values in the native build_environment schema', () => {
+    const source = pluginSource(
+      'MCP',
+      'Tools',
+      'World',
+      'McpBuildEnvironmentSchemaFields.h',
+    );
+
+    for (const value of ['Filmic', 'CinematicDOF', 'Manual']) {
+      expect(source).toContain(`TEXT("${value}")`);
+    }
+  });
+
+  it('does not report scene-capture resolution changes without a render target', () => {
+    const source = pluginSource(
+      'Domains',
+      'Render',
+      'McpAutomationBridge_RenderSceneCapture.cpp',
+    );
+
+    expect(source).toContain('RENDER_TARGET_NOT_ASSIGNED');
+    expect(source).toContain('Capture2D->TextureTarget->ResizeTarget(Resolution, Resolution);');
+    expect(source).toContain('Result->SetNumberField(TEXT("resolution")');
+  });
+
 });

@@ -351,6 +351,19 @@ export function evaluateExpectation(testCase, response) {
     ? findMatchedExplicitFailureAlternative(expectedConditions, combined)
     : null;
 
+  // Hard placeholder signals must fail before success alternatives are evaluated.
+  // Engine capability fallbacks such as "unsupported" or "not available" remain
+  // valid only when the expectation explicitly allows them.
+  const hardPluginFailureIndicators = ['does not match prefix', 'unknown', 'not implemented', 'not_implemented'];
+  const hardPluginFailureText = `${messageStr} ${errorStr}`;
+  const hasHardPluginFailure = hardPluginFailureIndicators.some(term => hardPluginFailureText.includes(term));
+  if (primaryExpectsSuccess && hasHardPluginFailure) {
+    return {
+      passed: false,
+      reason: `Expected success but plugin reported failure: ${actualMessage || actualError}`
+    };
+  }
+
   // Object expectations can intentionally assert exact controlled error codes
   // (for example NOT_PARTITIONED guards). Honor those before the generic
   // "expected success" rejection below so tests don't need broad `error|...`
@@ -536,7 +549,8 @@ export function evaluateExpectation(testCase, response) {
   // Also flag common automation/plugin failure phrases.
   // Placeholder/not-implemented responses must never satisfy success tests.
   const pluginFailureIndicators = ['does not match prefix', 'unknown', 'unavailable', 'unsupported', 'not implemented', 'not_implemented'];
-  const hasPluginFailure = pluginFailureIndicators.some(term => combined.includes(term));
+  const pluginFailureText = `${messageStr} ${errorStr}`;
+  const hasPluginFailure = pluginFailureIndicators.some(term => pluginFailureText.includes(term));
 
   if (!containsFailure && hasPluginFailure) {
     return {

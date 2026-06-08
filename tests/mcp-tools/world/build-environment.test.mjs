@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * build_environment Tool Integration Tests
- * Covers environment, lighting, spline, and Phase 28 action families with proper setup/teardown sequencing.
+ * Covers environment, lighting, spline, and environment action families with proper setup/teardown sequencing.
  */
 
 import { runToolTests } from '../../test-runner.mjs';
@@ -13,9 +13,9 @@ const LANDSCAPE_NAME = `TestLandscape_${ts}`;
 const FOLIAGE_TYPE_NAME = `TestFoliage_${ts}`;
 const FOLIAGE_TYPE_PATH = `/Game/Foliage/${FOLIAGE_TYPE_NAME}`;
 const FOLIAGE_TYPE_PATH_ALIAS = FOLIAGE_TYPE_PATH.slice(1);
-const PHASE28_FOLIAGE_TYPE_NAME = `Phase28Foliage_${ts}`;
-const PHASE28_FOLIAGE_TYPE_PATH = `/Game/Foliage/${PHASE28_FOLIAGE_TYPE_NAME}`;
-const PHASE28_FOLIAGE_TYPE_PATH_ALIAS = PHASE28_FOLIAGE_TYPE_PATH.slice(1);
+const ENVIRONMENT_FOLIAGE_TYPE_NAME = `EnvironmentFoliage_${ts}`;
+const ENVIRONMENT_FOLIAGE_TYPE_PATH = `/Game/Foliage/${ENVIRONMENT_FOLIAGE_TYPE_NAME}`;
+const ENVIRONMENT_FOLIAGE_TYPE_PATH_ALIAS = ENVIRONMENT_FOLIAGE_TYPE_PATH.slice(1);
 const TEST_MESH = '/Engine/BasicShapes/Sphere';
 const TEST_MESH_ALIAS = TEST_MESH.slice(1);
 const TEST_MATERIAL = '/Engine/BasicShapes/BasicShapeMaterial';
@@ -93,7 +93,7 @@ const testCases = [
   // === CREATE ===
   { scenario: 'CREATE: create_fog_volume', toolName: 'build_environment', arguments: {"action": "create_fog_volume", "name": `TestFogVolume_${ts}`, "path": TEST_FOLDER}, expected: 'success|already exists' },
 
-  // === PHASE 28: LANDSCAPE ===
+  // === LANDSCAPE ===
   { scenario: 'ACTION: export_heightmap', toolName: 'build_environment', arguments: { action: 'export_heightmap', landscapeName: LANDSCAPE_NAME, landscapePath: `/Game/${LANDSCAPE_NAME}`, outputPath: HEIGHTMAP_FILE, region: { minX: 0, minY: 0, maxX: 0, maxY: 0 } }, expected: 'success' },
   { scenario: 'ACTION: import_heightmap', toolName: 'build_environment', arguments: { action: 'import_heightmap', landscapeName: LANDSCAPE_NAME, landscapePath: `/Game/${LANDSCAPE_NAME}`, heightmapPath: HEIGHTMAP_FILE, region: { minX: 0, minY: 0, maxX: 0, maxY: 0 }, heightScale: 1, skipFlush: true }, expected: 'success' },
   { scenario: 'CREATE: create_landscape_layer_info', toolName: 'build_environment', arguments: { action: 'create_landscape_layer_info', name: `LayerInfo_${ts}`, path: TEST_FOLDER_ALIAS, layerName: 'TestLayer', physicalMaterialPath: TEST_MATERIAL_ALIAS, noWeightBlend: true, hardness: 0.5 }, expected: 'success|already exists|not found' },
@@ -106,17 +106,17 @@ const testCases = [
   { scenario: 'CONFIG: configure_landscape_lod', toolName: 'build_environment', arguments: { action: 'configure_landscape_lod', landscapeName: LANDSCAPE_NAME, landscapePath: `/Game/${LANDSCAPE_NAME}`, settings: { MaxLODLevel: 2 } }, expected: 'success|not found' },
   { scenario: 'CREATE: create_landscape_streaming_proxy', toolName: 'build_environment', arguments: { action: 'create_landscape_streaming_proxy', actorName: `LandscapeProxy_${ts}`, actorPath: '${captured:landscapeActorPath}', location: { x: 1000, y: 0, z: 0 } }, expected: 'success', assertions: [{ path: 'structuredContent.result.sourceLandscapeName', equals: LANDSCAPE_NAME, label: 'streaming proxy source landscape linked' }, { path: 'structuredContent.result.linkedToLandscape', equals: true, label: 'streaming proxy has landscape actor reference' }] },
 
-  // === PHASE 28: FOLIAGE ===
-  { scenario: 'CREATE: create_foliage_type', toolName: 'build_environment', arguments: { action: 'create_foliage_type', name: PHASE28_FOLIAGE_TYPE_NAME, meshPath: TEST_MESH_ALIAS, density: 12, minScale: 0.8, maxScale: 1.2, alignToNormal: true, randomYaw: true, cullDistance: 4000 }, expected: 'success|already exists', assertions: [{ path: 'structuredContent.result.asset_path', equals: `${PHASE28_FOLIAGE_TYPE_PATH}.${PHASE28_FOLIAGE_TYPE_NAME}`, label: 'phase 28 foliage type path returned' }] },
-  { scenario: 'CONFIG: configure_foliage_mesh', toolName: 'build_environment', arguments: { action: 'configure_foliage_mesh', foliageTypePath: PHASE28_FOLIAGE_TYPE_PATH_ALIAS, meshPath: TEST_MESH_ALIAS, staticMesh: TEST_MESH_ALIAS }, expected: 'success', assertions: [{ path: 'structuredContent.result.foliageTypePath', equals: PHASE28_FOLIAGE_TYPE_PATH, label: 'phase 28 foliage mesh targets created asset' }] },
-  { scenario: 'CONFIG: configure_foliage_placement', toolName: 'build_environment', arguments: { action: 'configure_foliage_placement', foliageTypePath: PHASE28_FOLIAGE_TYPE_PATH_ALIAS, density: 20, minScale: 0.9, maxScale: 1.4, alignToNormal: true, randomYaw: true }, expected: 'success', assertions: [{ path: 'structuredContent.result.foliageTypePath', equals: PHASE28_FOLIAGE_TYPE_PATH, label: 'phase 28 foliage placement targets created asset' }] },
-  { scenario: 'CONFIG: configure_foliage_lod', toolName: 'build_environment', arguments: { action: 'configure_foliage_lod', foliageTypePath: PHASE28_FOLIAGE_TYPE_PATH_ALIAS, cullDistance: 5000, settings: { MinLOD: 0 } }, expected: 'success', assertions: [{ path: 'structuredContent.result.foliageTypePath', equals: PHASE28_FOLIAGE_TYPE_PATH, label: 'phase 28 foliage lod targets created asset' }] },
-  { scenario: 'CONFIG: configure_foliage_collision', toolName: 'build_environment', arguments: { action: 'configure_foliage_collision', foliageTypePath: PHASE28_FOLIAGE_TYPE_PATH_ALIAS, collisionEnabled: true, settings: { CollisionWithWorld: true } }, expected: 'success', assertions: [{ path: 'structuredContent.result.foliageTypePath', equals: PHASE28_FOLIAGE_TYPE_PATH, label: 'phase 28 foliage collision targets created asset' }] },
-  { scenario: 'CONFIG: configure_foliage_culling', toolName: 'build_environment', arguments: { action: 'configure_foliage_culling', foliageTypePath: PHASE28_FOLIAGE_TYPE_PATH_ALIAS, cullDistance: 6000 }, expected: 'success', assertions: [{ path: 'structuredContent.result.foliageTypePath', equals: PHASE28_FOLIAGE_TYPE_PATH, label: 'phase 28 foliage culling targets created asset' }] },
-  { scenario: 'ACTION: paint_foliage_instances', toolName: 'build_environment', arguments: { action: 'paint_foliage_instances', foliageTypePath: PHASE28_FOLIAGE_TYPE_PATH_ALIAS, locations: [{ x: 0, y: 100, z: 100 }], position: { x: 0, y: 100, z: 100 }, radius: 100, density: 1 }, expected: 'success' },
-  { scenario: 'DELETE: remove_foliage_instances', toolName: 'build_environment', arguments: { action: 'remove_foliage_instances', foliageTypePath: PHASE28_FOLIAGE_TYPE_PATH_ALIAS, removeAll: false }, expected: 'success' },
+  // === FOLIAGE ===
+  { scenario: 'CREATE: create_foliage_type', toolName: 'build_environment', arguments: { action: 'create_foliage_type', name: ENVIRONMENT_FOLIAGE_TYPE_NAME, meshPath: TEST_MESH_ALIAS, density: 12, minScale: 0.8, maxScale: 1.2, alignToNormal: true, randomYaw: true, cullDistance: 4000 }, expected: 'success|already exists', assertions: [{ path: 'structuredContent.result.asset_path', equals: `${ENVIRONMENT_FOLIAGE_TYPE_PATH}.${ENVIRONMENT_FOLIAGE_TYPE_NAME}`, label: 'environment foliage type path returned' }] },
+  { scenario: 'CONFIG: configure_foliage_mesh', toolName: 'build_environment', arguments: { action: 'configure_foliage_mesh', foliageTypePath: ENVIRONMENT_FOLIAGE_TYPE_PATH_ALIAS, meshPath: TEST_MESH_ALIAS, staticMesh: TEST_MESH_ALIAS }, expected: 'success', assertions: [{ path: 'structuredContent.result.foliageTypePath', equals: ENVIRONMENT_FOLIAGE_TYPE_PATH, label: 'environment foliage mesh targets created asset' }] },
+  { scenario: 'CONFIG: configure_foliage_placement', toolName: 'build_environment', arguments: { action: 'configure_foliage_placement', foliageTypePath: ENVIRONMENT_FOLIAGE_TYPE_PATH_ALIAS, density: 20, minScale: 0.9, maxScale: 1.4, alignToNormal: true, randomYaw: true }, expected: 'success', assertions: [{ path: 'structuredContent.result.foliageTypePath', equals: ENVIRONMENT_FOLIAGE_TYPE_PATH, label: 'environment foliage placement targets created asset' }] },
+  { scenario: 'CONFIG: configure_foliage_lod', toolName: 'build_environment', arguments: { action: 'configure_foliage_lod', foliageTypePath: ENVIRONMENT_FOLIAGE_TYPE_PATH_ALIAS, cullDistance: 5000, settings: { MinLOD: 0 } }, expected: 'success', assertions: [{ path: 'structuredContent.result.foliageTypePath', equals: ENVIRONMENT_FOLIAGE_TYPE_PATH, label: 'environment foliage lod targets created asset' }] },
+  { scenario: 'CONFIG: configure_foliage_collision', toolName: 'build_environment', arguments: { action: 'configure_foliage_collision', foliageTypePath: ENVIRONMENT_FOLIAGE_TYPE_PATH_ALIAS, collisionEnabled: true, settings: { CollisionWithWorld: true } }, expected: 'success', assertions: [{ path: 'structuredContent.result.foliageTypePath', equals: ENVIRONMENT_FOLIAGE_TYPE_PATH, label: 'environment foliage collision targets created asset' }] },
+  { scenario: 'CONFIG: configure_foliage_culling', toolName: 'build_environment', arguments: { action: 'configure_foliage_culling', foliageTypePath: ENVIRONMENT_FOLIAGE_TYPE_PATH_ALIAS, cullDistance: 6000 }, expected: 'success', assertions: [{ path: 'structuredContent.result.foliageTypePath', equals: ENVIRONMENT_FOLIAGE_TYPE_PATH, label: 'environment foliage culling targets created asset' }] },
+  { scenario: 'ACTION: paint_foliage_instances', toolName: 'build_environment', arguments: { action: 'paint_foliage_instances', foliageTypePath: ENVIRONMENT_FOLIAGE_TYPE_PATH_ALIAS, locations: [{ x: 0, y: 100, z: 100 }], position: { x: 0, y: 100, z: 100 }, radius: 100, density: 1 }, expected: 'success' },
+  { scenario: 'DELETE: remove_foliage_instances', toolName: 'build_environment', arguments: { action: 'remove_foliage_instances', foliageTypePath: ENVIRONMENT_FOLIAGE_TYPE_PATH_ALIAS, removeAll: false }, expected: 'success' },
 
-  // === PHASE 28: SKY, WEATHER, TIME, WATER ===
+  // === SKY, WEATHER, TIME, WATER ===
   { scenario: 'CONFIG: configure_sky_atmosphere', toolName: 'build_environment', arguments: { action: 'configure_sky_atmosphere', actorName: `SkyAtmosphere_${ts}`, location: { x: 0, y: 0, z: 0 }, settings: { MieScatteringScale: 0.1 } }, expected: 'success|already exists|class not found' },
   { scenario: 'CONFIG: configure_exponential_height_fog', toolName: 'build_environment', arguments: { action: 'configure_exponential_height_fog', actorName: `HeightFog_${ts}`, intensity: 0.4, heightScale: 0.7, settings: { FogDensity: 0.02 } }, expected: 'success|already exists|class not found' },
   { scenario: 'CONFIG: configure_volumetric_cloud', toolName: 'build_environment', arguments: { action: 'configure_volumetric_cloud', actorName: `VolumetricCloud_${ts}`, settings: { LayerBottomAltitude: 2 } }, expected: 'success|already exists|class not found' },
@@ -144,7 +144,7 @@ const testCases = [
   { scenario: 'Cleanup: delete snapshot skylight', toolName: 'control_actor', arguments: { action: 'delete', actorName: SNAPSHOT_SKY_NAME }, expected: 'success|not found' },
   { scenario: 'Cleanup: delete test actor', toolName: 'control_actor', arguments: { action: 'delete', actorName: `TestActor_${ts}` }, expected: 'success|not found' },
   { scenario: 'Cleanup: delete base foliage type', toolName: 'manage_asset', arguments: { action: 'delete', path: FOLIAGE_TYPE_PATH, force: true }, expected: 'success|not found' },
-  { scenario: 'Cleanup: delete phase 28 foliage type', toolName: 'manage_asset', arguments: { action: 'delete', path: PHASE28_FOLIAGE_TYPE_PATH, force: true }, expected: 'success|not found' },
+  { scenario: 'Cleanup: delete environment foliage type', toolName: 'manage_asset', arguments: { action: 'delete', path: ENVIRONMENT_FOLIAGE_TYPE_PATH, force: true }, expected: 'success|not found' },
   { scenario: 'Cleanup: delete test folder', toolName: 'manage_asset', arguments: { action: 'delete', path: TEST_FOLDER, force: true }, expected: 'success|not found' },
 ];
 

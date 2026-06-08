@@ -46,14 +46,14 @@ const testCases = [
   { scenario: 'Sessions: Configure local session', toolName: 'manage_networking', arguments: { action: 'configure_local_session_settings', maxPlayers: 4, sessionName: 'TestSession' }, expected: 'success' },
   { scenario: 'Sessions: Configure split screen', toolName: 'manage_networking', arguments: { action: 'configure_split_screen', enabled: true, splitScreenType: 'TwoPlayer_Horizontal' }, expected: 'success' },
   { scenario: 'Sessions: Get info', toolName: 'manage_networking', arguments: { action: 'get_sessions_info' }, expected: 'success' },
-  // Phase 23: Level Structure
+  // Level Structure
   { scenario: 'Level Structure: Get info', toolName: 'manage_level_structure', arguments: { action: 'get_level_structure_info' }, expected: 'success' },
   { scenario: 'Level Structure: Enable World Partition', toolName: 'manage_level_structure', arguments: { action: 'enable_world_partition', bEnableWorldPartition: true }, expected: 'success|cannot enable' },
   { scenario: 'Level Structure: Configure grid size', toolName: 'manage_level_structure', arguments: { action: 'configure_grid_size', gridCellSize: 12800, loadingRange: 25600 }, expected: 'success|not enabled' },
   { scenario: 'Level Structure: Create data layer', toolName: 'manage_level_structure', arguments: { action: 'create_data_layer', dataLayerName: 'TestLayer', dataLayerType: 'Runtime' }, expected: 'success|world partition|not available' },
   { scenario: 'Level Structure: Configure HLOD', toolName: 'manage_level_structure', arguments: { action: 'configure_hlod_layer', hlodLayerName: 'DefaultHLOD', cellSize: 25600 }, expected: 'success' },
   { scenario: 'Level Structure: Open Level Blueprint', toolName: 'manage_level_structure', arguments: { action: 'open_level_blueprint' }, expected: 'success' },
-  // Phase 24: Volumes & Zones
+  // Volumes & Zones
   { scenario: 'Volumes: Create trigger box', toolName: 'manage_level_structure', arguments: { action: 'create_trigger_box', volumeName: 'IT_TriggerBox', location: { x: 500, y: 0, z: 100 }, extent: { x: 100, y: 100, z: 100 } }, expected: 'success' },
   { scenario: 'Volumes: Create blocking volume', toolName: 'manage_level_structure', arguments: { action: 'create_blocking_volume', volumeName: 'IT_BlockingVol', location: { x: 600, y: 0, z: 100 }, extent: { x: 200, y: 200, z: 200 } }, expected: 'success' },
   { scenario: 'Volumes: Create physics volume', toolName: 'manage_level_structure', arguments: { action: 'create_physics_volume', volumeName: 'IT_PhysicsVol', location: { x: 700, y: 0, z: 100 }, bWaterVolume: true, fluidFriction: 0.5 }, expected: 'success' },
@@ -61,14 +61,14 @@ const testCases = [
   { scenario: 'Volumes: Create nav mesh bounds', toolName: 'manage_level_structure', arguments: { action: 'create_nav_mesh_bounds_volume', volumeName: 'IT_NavBoundsVol', location: { x: 0, y: 500, z: 100 }, extent: { x: 2000, y: 2000, z: 500 } }, expected: 'success' },
   { scenario: 'Volumes: Get volumes info', toolName: 'manage_level_structure', arguments: { action: 'get_volumes_info', volumeType: 'Trigger' }, expected: 'success' },
   { scenario: 'Volumes: Set volume properties', toolName: 'manage_level_structure', arguments: { action: 'set_volume_properties', volumeName: 'IT_PhysicsVol', bWaterVolume: false, fluidFriction: 0.3 }, expected: 'success|not found' },
-  // Phase 25: Navigation System
+  // Navigation System
   { scenario: 'Navigation: Get navigation info', toolName: 'manage_ai', arguments: { action: 'get_navigation_info' }, expected: 'success' },
   { scenario: 'Navigation: Set nav agent properties', toolName: 'manage_ai', arguments: { action: 'set_nav_agent_properties', agentRadius: 35, agentHeight: 144, agentStepHeight: 35 }, expected: 'success' },
   { scenario: 'Navigation: Configure nav mesh settings', toolName: 'manage_ai', arguments: { action: 'configure_nav_mesh_settings', cellSize: 19, cellHeight: 10, tileSizeUU: 1000 }, expected: 'success' },
   { scenario: 'Navigation: Create nav link proxy', toolName: 'manage_ai', arguments: { action: 'create_nav_link_proxy', actorName: 'IT_NavLink', location: { x: 0, y: 0, z: 100 }, startPoint: { x: -100, y: 0, z: 0 }, endPoint: { x: 100, y: 0, z: 0 }, direction: 'BothWays' }, expected: 'success' },
   { scenario: 'Navigation: Configure nav link', toolName: 'manage_ai', arguments: { action: 'configure_nav_link', actorName: 'IT_NavLink', snapRadius: 30 }, expected: 'success|not found' },
   { scenario: 'Navigation: Set nav link type', toolName: 'manage_ai', arguments: { action: 'set_nav_link_type', actorName: 'IT_NavLink', linkType: 'smart' }, expected: 'success|not found' },
-  // Phase 26: Spline System
+  // Spline System
   { scenario: 'Splines: Create spline actor', toolName: 'build_environment', arguments: { action: 'create_spline_actor', actorName: 'IT_SplineActor', location: { x: 0, y: 0, z: 100 }, bClosedLoop: false }, expected: 'success' },
   { scenario: 'Splines: Add spline point', toolName: 'build_environment', arguments: { action: 'add_spline_point', actorName: 'IT_SplineActor', position: { x: 500, y: 0, z: 100 } }, expected: 'success|not found' },
   { scenario: 'Splines: Set spline point position', toolName: 'build_environment', arguments: { action: 'set_spline_point_position', actorName: 'IT_SplineActor', pointIndex: 1, position: { x: 600, y: 100, z: 150 } }, expected: 'success|not found' },

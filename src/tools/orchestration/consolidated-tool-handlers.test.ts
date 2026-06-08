@@ -168,6 +168,25 @@ describe('consolidated action params compatibility', () => {
     }), expect.any(Object));
   });
 
+  it.each([
+    ['configure_ray_traced_shadows', { enabled: true }],
+    ['create_sphere_reflection_capture', { actorName: 'RT_Sphere' }],
+    ['configure_pp_blend', { actorName: 'PP_Global', blendWeight: 0.75 }],
+    ['create_scene_capture_2d', { actorName: 'Capture2D' }]
+  ])('routes rendering build_environment action %s through manage_render', async (action, extraArgs) => {
+    const { tools, sendAutomationRequest } = createConnectedTools();
+
+    await handleConsolidatedToolCall('build_environment', {
+      action,
+      ...extraArgs
+    }, tools);
+
+    expect(sendAutomationRequest).toHaveBeenCalledWith('manage_render', expect.objectContaining({
+      action,
+      subAction: action
+    }), expect.any(Object));
+  });
+
   it('returns structured error context for unknown consolidated tools', async () => {
     const { tools } = createConnectedTools();
 

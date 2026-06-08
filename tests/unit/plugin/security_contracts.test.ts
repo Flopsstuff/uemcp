@@ -44,4 +44,38 @@ describe('plugin security contracts', () => {
       source.indexOf('FPaths::FileExists(ResolvedSourcePath)'),
     );
   });
+
+  it('bounds render workload controls before applying CVars', () => {
+    const consoleSource = privateSource(
+      'Domains',
+      'Render',
+      'McpAutomationBridge_RenderConsole.cpp',
+    );
+    const renderTargetSource = privateSource(
+      'Domains',
+      'Render',
+      'McpAutomationBridge_RenderTargets.cpp',
+    );
+
+    expect(consoleSource).toContain('ReadBoundedNumberSetting');
+    expect(consoleSource).toContain('SamplesPerPixel');
+    expect(consoleSource).toContain('MaxBounces');
+    expect(consoleSource).toContain('MaxRoughness');
+    expect(consoleSource).toContain('Radius');
+
+    const boundedReader = consoleSource.slice(
+      consoleSource.indexOf('bool ReadBoundedNumberSetting'),
+      consoleSource.indexOf('void ApplyNumberSetting'),
+    );
+    expect(boundedReader).toContain('!Settings->TryGetNumberField(Field, Value)');
+    expect(boundedReader).toContain('!FMath::IsFinite(Value)');
+    expect(boundedReader).toContain('Value < MinValue || Value > MaxValue');
+    expect(boundedReader).toContain('Value != FMath::FloorToDouble(Value)');
+    expect(consoleSource).not.toContain('void AddNumberSetting');
+
+    expect(renderTargetSource).toContain('MaxAllocationBytes = 512ll * 1024ll * 1024ll');
+    expect(renderTargetSource).toContain('WidthValue > 8192.0');
+    expect(renderTargetSource).not.toContain('Width > 16384');
+  });
+
 });

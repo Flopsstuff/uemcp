@@ -70,6 +70,30 @@ export function evaluateAssertions(testCase, response) {
       }
     }
 
+    if (Object.prototype.hasOwnProperty.call(assertion, 'notIncludes')) {
+      const expected = assertion.notIncludes;
+      const containsExpected =
+        typeof actual === 'string' && typeof expected === 'string'
+          ? actual.includes(expected)
+          : Array.isArray(actual) && typeof expected === 'string'
+            ? actual.includes(expected)
+            : undefined;
+
+      if (containsExpected === undefined) {
+        return {
+          passed: false,
+          reason: `${label}: expected an array or string and string needle, got ${typeof actual} and ${typeof expected}`
+        };
+      }
+
+      if (containsExpected) {
+        return {
+          passed: false,
+          reason: `${label}: expected ${JSON.stringify(actual)} not to include ${JSON.stringify(expected)}`
+        };
+      }
+    }
+
     if (Object.prototype.hasOwnProperty.call(assertion, 'length') && (!Array.isArray(actual) || actual.length !== assertion.length)) {
       return { passed: false, reason: `${label}: expected array length ${assertion.length}, got ${Array.isArray(actual) ? actual.length : typeof actual}` };
     }
