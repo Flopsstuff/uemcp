@@ -44,6 +44,12 @@ void UMcpAutomationBridgeSubsystem::RegisterEnvironmentMediaHandlers()
                     McpConsolidatedActions::WithPayloadSubAction(P, SubAction);
                 return HandleManageSplinesAction(R, TEXT("manage_splines"), RoutedPayload, S);
             }
+            if (McpConsolidatedActions::IsRenderingAction(SubAction))
+            {
+                const TSharedPtr<FJsonObject> RoutedPayload =
+                    McpConsolidatedActions::WithPayloadSubAction(P, SubAction);
+                return HandleRenderAction(R, TEXT("manage_render"), RoutedPayload, S);
+            }
             return HandleBuildEnvironmentAction(R, A, P, S);
         });
 }

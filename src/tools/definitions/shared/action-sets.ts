@@ -56,7 +56,7 @@ export const SPLINE_ACTIONS = [
   'create_wall_spline', 'create_cable_spline', 'create_pipe_spline', 'get_splines_info'
 ] as const;
 
-export const PHASE_28_ENVIRONMENT_ACTIONS = [
+export const ENVIRONMENT_ACTIONS = [
   'import_heightmap', 'export_heightmap', 'create_landscape_layer_info',
   'configure_landscape_material', 'configure_landscape_splines', 'configure_landscape_lod',
   'create_landscape_streaming_proxy', 'create_foliage_type', 'configure_foliage_mesh',
@@ -69,6 +69,23 @@ export const PHASE_28_ENVIRONMENT_ACTIONS = [
   'configure_sky_color_curve', 'create_water_body_ocean', 'create_water_body_lake',
   'create_water_body_river', 'create_water_body_custom', 'configure_water_waves',
   'configure_water_material', 'configure_water_collision', 'create_buoyancy_component'
+] as const;
+
+export const RENDER_ACTIONS = [
+  'configure_ray_traced_shadows', 'configure_ray_traced_gi', 'configure_ray_traced_reflections',
+  'configure_ray_traced_ao', 'configure_path_tracing', 'set_light_channel', 'set_actor_light_channel',
+  'configure_lightmass_settings', 'build_lighting_quality', 'configure_indirect_lighting_cache',
+  'create_sphere_reflection_capture', 'create_box_reflection_capture', 'configure_capture_resolution',
+  'configure_capture_offset', 'recapture_scene', 'create_planar_reflection', 'configure_planar_reflection',
+  'configure_ssr_settings', 'configure_lumen_reflection_settings', 'configure_pp_blend',
+  'set_pp_white_balance', 'set_pp_color_grading', 'set_pp_lut', 'configure_tonemapper',
+  'set_tonemapper_type', 'configure_bloom', 'set_bloom_intensity', 'set_bloom_threshold',
+  'configure_lens_flare', 'configure_dof', 'set_dof_method', 'set_focal_distance', 'set_aperture',
+  'configure_bokeh', 'configure_motion_blur', 'set_motion_blur_amount', 'set_motion_blur_max',
+  'configure_exposure', 'set_exposure_method', 'set_exposure_compensation', 'set_exposure_min_max',
+  'configure_ssao', 'configure_gtao', 'configure_vignette', 'configure_chromatic_aberration',
+  'configure_grain', 'configure_screen_percentage', 'create_scene_capture_2d', 'create_scene_capture_cube',
+  'configure_capture_source', 'assign_render_target', 'capture_scene'
 ] as const;
 
 export const PERFORMANCE_ACTIONS = [

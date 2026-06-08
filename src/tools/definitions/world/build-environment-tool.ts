@@ -1,6 +1,11 @@
 import { commonSchemas } from '../../catalog/tool-definition-utils.js';
 import type { ToolDefinition } from '../shared/tool-definition.js';
-import { LIGHTING_ACTIONS, SPLINE_ACTIONS, PHASE_28_ENVIRONMENT_ACTIONS } from '../shared/action-sets.js';
+import {
+  LIGHTING_ACTIONS,
+  ENVIRONMENT_ACTIONS,
+  RENDER_ACTIONS,
+  SPLINE_ACTIONS
+} from '../shared/action-sets.js';
 
 export const buildEnvironmentToolDefinition: ToolDefinition = {
     name: 'build_environment',
@@ -19,7 +24,11 @@ export const buildEnvironmentToolDefinition: ToolDefinition = {
             'generate_lods', 'bake_lightmap', 'export_snapshot', 'import_snapshot', 'delete',
             'create_sky_sphere', 'set_time_of_day', 'create_fog_volume'
           ,
-            ...PHASE_28_ENVIRONMENT_ACTIONS, ...LIGHTING_ACTIONS, ...SPLINE_ACTIONS],
+            ...ENVIRONMENT_ACTIONS,
+            ...RENDER_ACTIONS,
+            ...LIGHTING_ACTIONS,
+            ...SPLINE_ACTIONS
+          ],
           description: 'Action'
         },
         name: commonSchemas.name,
@@ -117,6 +126,10 @@ export const buildEnvironmentToolDefinition: ToolDefinition = {
         spacing: commonSchemas.numberProp,
         heightScale: commonSchemas.numberProp,
         material: commonSchemas.materialPath,
+        resolution: {
+          oneOf: [commonSchemas.numberProp, commonSchemas.resolution],
+          description: 'Capture or reflection resolution.'
+        },
         hour: commonSchemas.numberProp,
         intensity: commonSchemas.numberProp,
         skyLightIntensity: commonSchemas.numberProp,
@@ -145,11 +158,24 @@ export const buildEnvironmentToolDefinition: ToolDefinition = {
         randomOffsetRange: commonSchemas.numberProp,
         randomizeRotation: commonSchemas.booleanProp,
         randomizeScale: commonSchemas.booleanProp,
+        channel: commonSchemas.numberProp,
+        channels: commonSchemas.arrayOfNumbers,
+        lutPath: commonSchemas.assetPath,
+        captureOffset: commonSchemas.location,
+        blendWeight: commonSchemas.numberProp,
+        infiniteUnbound: commonSchemas.booleanProp,
+        amount: commonSchemas.numberProp,
+        threshold: commonSchemas.numberProp,
+        aperture: commonSchemas.numberProp,
+        distance: commonSchemas.numberProp,
+        renderTargetPath: commonSchemas.stringProp,
         region: commonSchemas.objectProp,
         rotationRange: commonSchemas.rotation,
         save: commonSchemas.save,
+        screenPercentage: commonSchemas.numberProp,
         skipFlush: commonSchemas.booleanProp,
         splineType: commonSchemas.stringProp,
+        captureSource: commonSchemas.stringProp,
         useRandomOffset: commonSchemas.booleanProp,
         width: commonSchemas.numberProp
       },

@@ -6,6 +6,7 @@ import {
   MATERIAL_AUTHORING_ACTIONS,
   NAVIGATION_ACTIONS,
   PERFORMANCE_ACTIONS,
+  RENDER_ACTIONS,
   SESSION_ACTIONS,
   SKELETON_ACTIONS,
   SPLINE_ACTIONS,
@@ -36,6 +37,7 @@ export const textureActionSet = new Set<string>(TEXTURE_ACTIONS);
 export const skeletonActionSet = new Set<string>(SKELETON_ACTIONS);
 export const lightingActionSet = new Set<string>(LIGHTING_ACTIONS);
 export const splineActionSet = new Set<string>(SPLINE_ACTIONS);
+export const renderActionSet = new Set<string>(RENDER_ACTIONS);
 export const performanceActionSet = new Set<string>(PERFORMANCE_ACTIONS);
 export const behaviorTreeActionSet = new Set<string>(BEHAVIOR_TREE_ACTIONS);
 export const navigationActionSet = new Set<string>(NAVIGATION_ACTIONS);

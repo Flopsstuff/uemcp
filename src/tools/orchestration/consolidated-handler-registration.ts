@@ -13,6 +13,7 @@ import {
   lightingActionSet,
   materialAuthoringActionSet,
   navigationActionSet,
+  renderActionSet,
   performanceActionSet,
   resolveBehaviorTreeGraphSubAction,
   resolveMaterialGraphSubAction,
@@ -132,6 +133,14 @@ export function registerDefaultHandlers() {
   toolRegistry.register('build_environment', async (args, tools) => {
     const action = getToolAction(args);
     if (lightingActionSet.has(action)) return await handleLightingTools(action, args, tools);
+    if (renderActionSet.has(action)) {
+      return cleanObject(await executeAutomationRequest(
+        tools,
+        'manage_render',
+        { ...args, subAction: action },
+        `Automation bridge not available for ${action}`
+      ));
+    }
     if (splineActionSet.has(action)) return await handleSplineTools(action, args, tools);
     return await handleEnvironmentTools(action, args, tools);
   });

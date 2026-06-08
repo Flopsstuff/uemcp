@@ -65,6 +65,7 @@ inline bool IsAnimationAuthoringAction(const FString& Action) { return ContainsA
 inline bool IsAudioAuthoringAction(const FString& Action) { return ContainsAction(AudioAuthoring(), Action); }
 inline bool IsLightingAction(const FString& Action) { return ContainsAction(Lighting(), Action); }
 inline bool IsSplineAction(const FString& Action) { return ContainsAction(Splines(), Action); }
+inline bool IsRenderingAction(const FString& Action) { return ContainsAction(Rendering(), Action); }
 inline bool IsSkeletonAction(const FString& Action) { return ContainsAction(Skeleton(), Action); }
 inline bool IsPerformanceAction(const FString& Action) { return ContainsAction(Performance(), Action); }
 inline bool IsInputAction(const FString& Action) { return ContainsAction(Input(), Action); }

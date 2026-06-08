@@ -79,11 +79,71 @@ inline const TArray<FString>& Splines()
 	return Actions;
 }
 
+inline const TArray<FString>& Rendering()
+{
+	static const TArray<FString> Actions = {
+		TEXT("configure_ray_traced_shadows"),
+		TEXT("configure_ray_traced_gi"),
+		TEXT("configure_ray_traced_reflections"),
+		TEXT("configure_ray_traced_ao"),
+		TEXT("configure_path_tracing"),
+		TEXT("set_light_channel"),
+		TEXT("set_actor_light_channel"),
+		TEXT("configure_lightmass_settings"),
+		TEXT("build_lighting_quality"),
+		TEXT("configure_indirect_lighting_cache"),
+		TEXT("create_sphere_reflection_capture"),
+		TEXT("create_box_reflection_capture"),
+		TEXT("configure_capture_resolution"),
+		TEXT("configure_capture_offset"),
+		TEXT("recapture_scene"),
+		TEXT("create_planar_reflection"),
+		TEXT("configure_planar_reflection"),
+		TEXT("configure_ssr_settings"),
+		TEXT("configure_lumen_reflection_settings"),
+		TEXT("configure_pp_blend"),
+		TEXT("set_pp_white_balance"),
+		TEXT("set_pp_color_grading"),
+		TEXT("set_pp_lut"),
+		TEXT("configure_tonemapper"),
+		TEXT("set_tonemapper_type"),
+		TEXT("configure_bloom"),
+		TEXT("set_bloom_intensity"),
+		TEXT("set_bloom_threshold"),
+		TEXT("configure_lens_flare"),
+		TEXT("configure_dof"),
+		TEXT("set_dof_method"),
+		TEXT("set_focal_distance"),
+		TEXT("set_aperture"),
+		TEXT("configure_bokeh"),
+		TEXT("configure_motion_blur"),
+		TEXT("set_motion_blur_amount"),
+		TEXT("set_motion_blur_max"),
+		TEXT("configure_exposure"),
+		TEXT("set_exposure_method"),
+		TEXT("set_exposure_compensation"),
+		TEXT("set_exposure_min_max"),
+		TEXT("configure_ssao"),
+		TEXT("configure_gtao"),
+		TEXT("configure_vignette"),
+		TEXT("configure_chromatic_aberration"),
+		TEXT("configure_grain"),
+		TEXT("configure_screen_percentage"),
+		TEXT("create_scene_capture_2d"),
+		TEXT("create_scene_capture_cube"),
+		TEXT("configure_capture_source"),
+		TEXT("assign_render_target"),
+		TEXT("capture_scene")
+	};
+	return Actions;
+}
+
 inline TArray<FString> BuildEnvironment()
 {
 	TArray<FString> Actions = BuildEnvironmentCore();
 	AppendUniqueActions(Actions, Lighting());
 	AppendUniqueActions(Actions, Splines());
+	AppendUniqueActions(Actions, Rendering());
 	return Actions;
 }
 
