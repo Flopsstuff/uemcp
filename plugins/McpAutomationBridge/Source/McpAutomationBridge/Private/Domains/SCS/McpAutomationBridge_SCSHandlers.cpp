@@ -181,7 +181,11 @@ bool SCSParentMatches(USimpleConstructionScript *SCS, USCS_Node *Node,
   }
   USCS_Node *ActualParent = FindSCSParentNode(SCS, Node);
   if (ExpectedParentName.IsEmpty()) {
-    return ActualParent == nullptr || IsSCSRootNode(SCS, Node);
+    // No specific parent requested: accept the engine's default placements — the node is
+    // root, is not yet parented, or was auto-attached as a child of the root (the default
+    // for a 2nd component added without an explicit parent).
+    return ActualParent == nullptr || IsSCSRootNode(SCS, Node) ||
+           IsSCSRootNode(SCS, ActualParent);
   }
   if (IsSCSRootAlias(ExpectedParentName)) {
     return ActualParent ? IsSCSRootNode(SCS, ActualParent)
