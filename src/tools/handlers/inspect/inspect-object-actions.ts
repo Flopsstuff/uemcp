@@ -23,9 +23,14 @@ function looksLikeComponentPath(value: string | undefined): boolean {
 }
 
 async function handleBlueprintDetails(context: InspectHandlerContext): Promise<Record<string, unknown>> {
-  const requestedPath = await resolveObjectPath(context.normalizedArgs, context.tools) ?? '';
+  // Accept `blueprintPath` in addition to `objectPath`/`path`. Sibling inspect
+  // actions (inspect_cdo, get_property/set_property) already take `blueprintPath`,
+  // so callers reasonably pass it here too; without this it was rejected.
+  const requestedPath = await resolveObjectPath(context.normalizedArgs, context.tools, {
+    pathKeys: ['objectPath', 'blueprintPath', 'path']
+  }) ?? '';
   if (!requestedPath) {
-    throw new Error('inspect:get_blueprint_details - invalid objectPath: must be a non-empty string');
+    throw new Error('inspect:get_blueprint_details - invalid objectPath/blueprintPath: must be a non-empty string');
   }
 
   const res = await executeAutomationRequest(
