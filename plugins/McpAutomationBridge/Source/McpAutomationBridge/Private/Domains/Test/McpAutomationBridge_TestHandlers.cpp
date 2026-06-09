@@ -24,6 +24,7 @@
 // -----------------------------------------------------------------------------
 #include "McpAutomationBridgeSubsystem.h"
 #include "Domains/SystemControl/McpAutomationBridge_SystemControlHandlersPrivate.h"
+#include "Foundation/BridgeHelpers/Responses/McpAutomationBridgeHelpersJsonFields.h" // UE5.8: explicit include (unity regroup no longer pulls GetJsonStringField transitively)
 
 // -----------------------------------------------------------------------------
 // Engine Includes
