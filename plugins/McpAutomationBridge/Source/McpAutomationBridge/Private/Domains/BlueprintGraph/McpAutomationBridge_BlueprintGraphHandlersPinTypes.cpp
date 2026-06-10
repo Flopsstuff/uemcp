@@ -14,7 +14,12 @@ FEdGraphPinType ResolveCustomEventPinType(const FString& TypeName)
 
     if (CleanType.Equals(TEXT("float"), ESearchCase::IgnoreCase))
     {
-        PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
+        // PC_Float is a SUBcategory of PC_Real in UE5, not a valid pin
+        // category; a bare PC_Float category makes the K2 schema reject the
+        // pin and the parameter gets dropped on node reconstruction. (There
+        // is no NAME_Float hardcoded name, hence the schema constant here.)
+        PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+        PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
         return PinType;
     }
     if (CleanType.Equals(TEXT("double"), ESearchCase::IgnoreCase))
