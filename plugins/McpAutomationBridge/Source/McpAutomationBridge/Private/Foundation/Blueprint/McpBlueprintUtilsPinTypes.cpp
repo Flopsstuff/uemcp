@@ -36,9 +36,18 @@ FEdGraphPinType MakePinType(const FString& InType)
     const FString Lower = InType.ToLower();
     const FString CleanType = InType.TrimStartAndEnd();
 
-    if (Lower == TEXT("float") || Lower == TEXT("double"))
+    if (Lower == TEXT("float"))
     {
-        PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
+        // PC_Float/PC_Double are SUBcategories of PC_Real in UE5; using them as the
+        // category makes the K2 schema reject connections and the compiler coerce or
+        // drop the pins (custom-event float params get deleted on reconstruct).
+        PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+        PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
+    }
+    else if (Lower == TEXT("double") || Lower == TEXT("real"))
+    {
+        PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+        PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
     }
     else if (Lower == TEXT("int") || Lower == TEXT("integer"))
     {
