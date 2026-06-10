@@ -96,6 +96,39 @@ UObject* ResolveObjectFromPath(const FString& ObjectPath, FString* OutResolvedPa
     if (Path.StartsWith(TEXT("/Game/")) || Path.StartsWith(TEXT("/Engine/")) || Path.StartsWith(TEXT("/Script/")) ||
         FPackageName::IsValidLongPackageName(Path, true))
     {
+        // Canonical asset resolution FIRST: LoadObject auto-resolves PackageName ->
+        // PackageName.AssetName, returning a real asset (DataAsset/GE/...) as the object instead of
+        // falling through to the UPackage fallback below. Additive: pure-package callers still reach
+        // the old path. Guard against a bare path resolving to its own UPackage.
+        if (UObject* DirectObj = LoadObject<UObject>(nullptr, *Path))
+        {
+            if (!DirectObj->IsA<UPackage>())
+            {
+                if (OutResolvedPath)
+                {
+                    *OutResolvedPath = DirectObj->GetPathName();
+                }
+                return DirectObj;
+            }
+        }
+        if (!Path.Contains(TEXT(".")))
+        {
+            const FString DottedPath = Path + TEXT(".") + FPackageName::GetShortName(Path);
+            if (UObject* DottedObj = LoadObject<UObject>(nullptr, *DottedPath))
+            {
+                // Mirror the DirectObj guard above: the dotted path can also resolve to a
+                // UPackage (the exact case this fix avoids) — don't return it, fall through
+                // to the package path below so genuine package callers still work.
+                if (!DottedObj->IsA<UPackage>())
+                {
+                    if (OutResolvedPath)
+                    {
+                        *OutResolvedPath = DottedObj->GetPathName();
+                    }
+                    return DottedObj;
+                }
+            }
+        }
         FString PackagePath = Path;
         if (PackagePath.Contains(TEXT(".")))
         {
