@@ -27,12 +27,19 @@ bool HandleBlueprintRemoveEvent(const FBlueprintActionContext &Context) {
           TEXT("INVALID_BLUEPRINT_PATH"));
       return true;
     }
+    // Accept eventName, falling back to customEventName: the schema advertises
+    // both and the TS layer forwards customEventName, but the handler used to
+    // read only eventName -> a customEventName-only call was wrongly rejected
+    // with "eventName required" (dogfood #30).
     FString EventName;
     LocalPayload->TryGetStringField(TEXT("eventName"), EventName);
     if (EventName.IsEmpty()) {
+      LocalPayload->TryGetStringField(TEXT("customEventName"), EventName);
+    }
+    if (EventName.IsEmpty()) {
       Bridge.SendAutomationResponse(RequestingSocket, RequestId, false,
-                             TEXT("eventName required"), nullptr,
-                             TEXT("INVALID_ARGUMENT"));
+                             TEXT("eventName (or customEventName) required"),
+                             nullptr, TEXT("INVALID_ARGUMENT"));
       return true;
     }
 
@@ -42,81 +49,30 @@ bool HandleBlueprintRemoveEvent(const FBlueprintActionContext &Context) {
             ? NormPath
             : Path;
 
-    // CRITICAL FIX: Validate that the blueprint exists BEFORE treating operation as idempotent.
-    // Previously, the code returned success for non-existent blueprints, causing false negatives
-    // in tests that expect "not found" errors for invalid paths.
+    // The EventGraph is the source of truth (dogfood #30). The per-asset
+    // registry can be out of sync with the real graph -- e.g. a custom event
+    // created via add_node never enters the registry -- so deciding
+    // found/not-found from the registry returned a bogus "idempotent success"
+    // while the node stayed in the graph (silent no-op). Search the actual
+    // graph and remove there; the registry is only kept in sync afterwards.
     bool bBlueprintExists = false;
-#if WITH_EDITOR
-    FString NormalizedCheck;
-    FString CheckLoadErr;
-    UBlueprint *CheckBlueprint = LoadBlueprintAsset(RegistryPath, NormalizedCheck, CheckLoadErr);
-    bBlueprintExists = (CheckBlueprint != nullptr);
-#endif
-    if (!bBlueprintExists) {
-      // Check if path exists in asset registry as fallback
-      bBlueprintExists = FindBlueprintNormalizedPath(RegistryPath, NormPath);
-    }
-
-    TSharedPtr<FJsonObject> Entry =
-        FMcpAutomationBridge_EnsureBlueprintEntry(RegistryPath);
-    TArray<TSharedPtr<FJsonValue>> Events =
-        Entry->HasField(TEXT("events")) ? Entry->GetArrayField(TEXT("events"))
-                                        : TArray<TSharedPtr<FJsonValue>>();
-    int32 FoundIdx = INDEX_NONE;
-    for (int32 i = 0; i < Events.Num(); ++i) {
-      const TSharedPtr<FJsonValue> &V = Events[i];
-      if (!V.IsValid() || V->Type != EJson::Object)
-        continue;
-      const TSharedPtr<FJsonObject> Obj = V->AsObject();
-      FString CandidateName;
-      if (Obj->TryGetStringField(TEXT("name"), CandidateName) &&
-          CandidateName.Equals(EventName, ESearchCase::IgnoreCase)) {
-        FoundIdx = i;
-        break;
-      }
-    }
-    if (FoundIdx == INDEX_NONE) {
-      // FIX: If blueprint doesn't exist, return error instead of idempotent success.
-      // Tests expect "not found" for non-existent blueprint paths.
-      if (!bBlueprintExists) {
-        TSharedPtr<FJsonObject> Resp = McpHandlerUtils::CreateResultObject();
-        Resp->SetStringField(TEXT("eventName"), EventName);
-        Resp->SetStringField(TEXT("blueprintPath"), Path);
-        Bridge.SendAutomationResponse(RequestingSocket, RequestId, false,
-                               TEXT("Blueprint not found."),
-                               Resp, TEXT("BLUEPRINT_NOT_FOUND"));
-        return true;
-      }
-      // Treat remove as idempotent: if the event is not present in
-      // the registry AND blueprint exists, consider the request successful (no-op).
-      TSharedPtr<FJsonObject> Resp = McpHandlerUtils::CreateResultObject();
-      Resp->SetStringField(TEXT("eventName"), EventName);
-      Resp->SetStringField(TEXT("blueprintPath"), Path);
-      Resp->SetStringField(
-          TEXT("note"),
-          TEXT("Event not present; treated as removed (idempotent)."));
-      Bridge.SendAutomationResponse(RequestingSocket, RequestId, true,
-                             TEXT("Event not present; treated as removed"),
-                             Resp, FString());
-      // Fire completion event to satisfy waitForEvent clients
-      TSharedPtr<FJsonObject> Notify = McpHandlerUtils::CreateResultObject();
-      Notify->SetStringField(TEXT("type"), TEXT("automation_event"));
-      Notify->SetStringField(TEXT("event"), TEXT("remove_event_completed"));
-      Notify->SetStringField(TEXT("requestId"), RequestId);
-      Notify->SetObjectField(TEXT("result"), Resp);
-      Bridge.BroadcastAutomationEvent(Notify, RequestingSocket);
-      return true;
-    }
-
-#if WITH_EDITOR && MCP_HAS_K2NODE_HEADERS && MCP_HAS_EDGRAPH_SCHEMA_K2
+    int32 RemovedNodeCount = 0;
     FString NormalizedRemove;
     FString RemoveLoadErr;
     UBlueprint *RemoveBlueprint =
         LoadBlueprintAsset(RegistryPath, NormalizedRemove, RemoveLoadErr);
+    bBlueprintExists = (RemoveBlueprint != nullptr);
+    // Key registry ops off the actually-resolved asset path so add_event and
+    // remove_event agree on the same key (add_event keys off LoadBlueprintAsset's
+    // normalized path); a normalization mismatch would otherwise strand the
+    // registry entry.
+    const FString RegistryKey =
+        (RemoveBlueprint && !NormalizedRemove.IsEmpty()) ? NormalizedRemove
+                                                         : RegistryPath;
+#if MCP_HAS_K2NODE_HEADERS && MCP_HAS_EDGRAPH_SCHEMA_K2
     if (RemoveBlueprint) {
       if (UEdGraph *RemoveGraph =
               FBlueprintEditorUtils::FindEventGraph(RemoveBlueprint)) {
-        RemoveGraph->Modify();
         TArray<UEdGraphNode *> NodesToRemove;
         for (UEdGraphNode *Node : RemoveGraph->Nodes) {
           if (UK2Node_CustomEvent *CustomEvent =
@@ -127,10 +83,12 @@ bool HandleBlueprintRemoveEvent(const FBlueprintActionContext &Context) {
             }
           }
         }
-        for (UEdGraphNode *Node : NodesToRemove) {
-          RemoveGraph->RemoveNode(Node);
-        }
         if (NodesToRemove.Num() > 0) {
+          RemoveGraph->Modify();
+          for (UEdGraphNode *Node : NodesToRemove) {
+            RemoveGraph->RemoveNode(Node);
+          }
+          RemovedNodeCount = NodesToRemove.Num();
           FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(
               RemoveBlueprint);
           McpSafeCompileBlueprint(RemoveBlueprint);
@@ -138,15 +96,80 @@ bool HandleBlueprintRemoveEvent(const FBlueprintActionContext &Context) {
         }
       }
     }
-#endif // WITH_EDITOR && MCP_HAS_K2NODE_HEADERS && MCP_HAS_EDGRAPH_SCHEMA_K2
-       // Update registry
-    Events.RemoveAt(FoundIdx);
-    Entry->SetArrayField(TEXT("events"), Events);
+#endif // MCP_HAS_K2NODE_HEADERS && MCP_HAS_EDGRAPH_SCHEMA_K2
+    if (!bBlueprintExists) {
+      // Fall back to the asset registry to distinguish "blueprint missing"
+      // from "blueprint present but event absent".
+      bBlueprintExists = FindBlueprintNormalizedPath(RegistryPath, NormPath);
+    }
+    if (!bBlueprintExists) {
+      TSharedPtr<FJsonObject> Resp = McpHandlerUtils::CreateResultObject();
+      Resp->SetStringField(TEXT("eventName"), EventName);
+      Resp->SetStringField(TEXT("blueprintPath"), RegistryKey);
+      Bridge.SendAutomationResponse(RequestingSocket, RequestId, false,
+                             TEXT("Blueprint not found."), Resp,
+                             TEXT("BLUEPRINT_NOT_FOUND"));
+      return true;
+    }
+
+    // Keep the registry in sync with what actually happened to the graph.
+    TSharedPtr<FJsonObject> Entry =
+        FMcpAutomationBridge_EnsureBlueprintEntry(RegistryKey);
+    TArray<TSharedPtr<FJsonValue>> Events =
+        Entry->HasField(TEXT("events")) ? Entry->GetArrayField(TEXT("events"))
+                                        : TArray<TSharedPtr<FJsonValue>>();
+    int32 RegistryIdx = INDEX_NONE;
+    for (int32 i = 0; i < Events.Num(); ++i) {
+      const TSharedPtr<FJsonValue> &V = Events[i];
+      if (!V.IsValid() || V->Type != EJson::Object)
+        continue;
+      FString CandidateName;
+      if (V->AsObject()->TryGetStringField(TEXT("name"), CandidateName) &&
+          CandidateName.Equals(EventName, ESearchCase::IgnoreCase)) {
+        RegistryIdx = i;
+        break;
+      }
+    }
+    if (RegistryIdx != INDEX_NONE) {
+      Events.RemoveAt(RegistryIdx);
+      Entry->SetArrayField(TEXT("events"), Events);
+    }
+
+    // Graph is authoritative: removed nothing from the graph AND no registry
+    // record => the event genuinely does not exist. Report NOT_FOUND loudly
+    // instead of the old bogus idempotent success that masked the no-op
+    // (dogfood #30).
+    if (RemovedNodeCount == 0 && RegistryIdx == INDEX_NONE) {
+      TSharedPtr<FJsonObject> Resp = McpHandlerUtils::CreateResultObject();
+      Resp->SetStringField(TEXT("eventName"), EventName);
+      Resp->SetStringField(TEXT("blueprintPath"), RegistryKey);
+      Resp->SetStringField(
+          TEXT("hint"),
+          TEXT("No custom event with this name in the EventGraph. For inherited "
+               "event overrides (e.g. ReceiveBeginPlay) use delete_node."));
+      Bridge.SendAutomationResponse(RequestingSocket, RequestId, false,
+                             TEXT("Custom event not found."), Resp,
+                             TEXT("NOT_FOUND"));
+      return true;
+    }
+
     TSharedPtr<FJsonObject> Resp = McpHandlerUtils::CreateResultObject();
     Resp->SetStringField(TEXT("eventName"), EventName);
-    Resp->SetStringField(TEXT("blueprintPath"), RegistryPath);
-    Bridge.SendAutomationResponse(RequestingSocket, RequestId, true,
-                           TEXT("Event removed."), Resp, FString());
+    Resp->SetStringField(TEXT("blueprintPath"), RegistryKey);
+    Resp->SetNumberField(TEXT("removedNodeCount"), RemovedNodeCount);
+    // Reverse staleness: a registry record with no matching graph node was
+    // cleared. Say so honestly instead of claiming a node was removed.
+    if (RemovedNodeCount == 0) {
+      Resp->SetStringField(
+          TEXT("note"),
+          TEXT("No matching graph node; cleared a stale registry record only."));
+    }
+    Bridge.SendAutomationResponse(
+        RequestingSocket, RequestId, true,
+        RemovedNodeCount > 0
+            ? TEXT("Event removed.")
+            : TEXT("Stale registry record cleared (no graph node present)."),
+        Resp, FString());
     // Broadcast completion event so clients waiting for an automation_event can
     // resolve
     TSharedPtr<FJsonObject> Notify = McpHandlerUtils::CreateResultObject();
@@ -156,8 +179,8 @@ bool HandleBlueprintRemoveEvent(const FBlueprintActionContext &Context) {
     Notify->SetObjectField(TEXT("result"), Resp);
     Bridge.BroadcastAutomationEvent(Notify, RequestingSocket);
     UE_LOG(LogMcpAutomationBridgeSubsystem, Log,
-           TEXT("HandleBlueprintAction: event '%s' removed from '%s'"),
-           *EventName, *RegistryPath);
+           TEXT("HandleBlueprintAction: event '%s' removed from '%s' (%d node(s))"),
+           *EventName, *RegistryKey, RemovedNodeCount);
     return true;
   }
 
