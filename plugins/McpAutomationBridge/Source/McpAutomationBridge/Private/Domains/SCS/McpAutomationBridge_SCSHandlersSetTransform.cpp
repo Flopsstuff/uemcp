@@ -70,9 +70,25 @@ TSharedPtr<FJsonObject> FSCSHandlers::SetSCSComponentTransform(
     return Result;
   }
 
-  FVector Location(0, 0, 0);
-  FRotator Rotation(0, 0, 0);
-  FVector Scale(1, 1, 1);
+  USceneComponent *SceneComp =
+      Cast<USceneComponent>(ComponentNode->ComponentTemplate);
+  if (!SceneComp) {
+    Result->SetBoolField(TEXT("success"), false);
+    Result->SetStringField(
+        TEXT("error"),
+        TEXT("Component is not a SceneComponent (no transform)"));
+    Result->SetStringField(TEXT("errorCode"), TEXT("SCS_NOT_SCENE_COMPONENT"));
+    return Result;
+  }
+
+  // Read-modify-write: start from the template's CURRENT values so a partial
+  // payload (e.g. location only) does not stomp rotation/scale back to defaults.
+  FVector Location = SceneComp->GetRelativeLocation();
+  FRotator Rotation = SceneComp->GetRelativeRotation();
+  FVector Scale = SceneComp->GetRelativeScale3D();
+  bool bHasLocation = false;
+  bool bHasRotation = false;
+  bool bHasScale = false;
 
   const TArray<TSharedPtr<FJsonValue>> *LocArray;
   if (TransformData->TryGetArrayField(TEXT("location"), LocArray) &&
@@ -80,6 +96,7 @@ TSharedPtr<FJsonObject> FSCSHandlers::SetSCSComponentTransform(
     Location.X = (*LocArray)[0]->AsNumber();
     Location.Y = (*LocArray)[1]->AsNumber();
     Location.Z = (*LocArray)[2]->AsNumber();
+    bHasLocation = true;
   } else {
     const TSharedPtr<FJsonObject> *LocObj = nullptr;
     if (TransformData->TryGetObjectField(TEXT("location"), LocObj) && LocObj &&
@@ -87,6 +104,7 @@ TSharedPtr<FJsonObject> FSCSHandlers::SetSCSComponentTransform(
       (*LocObj)->TryGetNumberField(TEXT("x"), Location.X);
       (*LocObj)->TryGetNumberField(TEXT("y"), Location.Y);
       (*LocObj)->TryGetNumberField(TEXT("z"), Location.Z);
+      bHasLocation = true;
     }
   }
 
@@ -96,6 +114,7 @@ TSharedPtr<FJsonObject> FSCSHandlers::SetSCSComponentTransform(
     Rotation.Pitch = (*RotArray)[0]->AsNumber();
     Rotation.Yaw = (*RotArray)[1]->AsNumber();
     Rotation.Roll = (*RotArray)[2]->AsNumber();
+    bHasRotation = true;
   } else {
     const TSharedPtr<FJsonObject> *RotObj = nullptr;
     if (TransformData->TryGetObjectField(TEXT("rotation"), RotObj) && RotObj &&
@@ -103,6 +122,7 @@ TSharedPtr<FJsonObject> FSCSHandlers::SetSCSComponentTransform(
       (*RotObj)->TryGetNumberField(TEXT("pitch"), Rotation.Pitch);
       (*RotObj)->TryGetNumberField(TEXT("yaw"), Rotation.Yaw);
       (*RotObj)->TryGetNumberField(TEXT("roll"), Rotation.Roll);
+      bHasRotation = true;
     }
   }
 
@@ -112,6 +132,7 @@ TSharedPtr<FJsonObject> FSCSHandlers::SetSCSComponentTransform(
     Scale.X = (*ScaleArray)[0]->AsNumber();
     Scale.Y = (*ScaleArray)[1]->AsNumber();
     Scale.Z = (*ScaleArray)[2]->AsNumber();
+    bHasScale = true;
   } else {
     const TSharedPtr<FJsonObject> *ScaleObj = nullptr;
     if (TransformData->TryGetObjectField(TEXT("scale"), ScaleObj) && ScaleObj &&
@@ -119,13 +140,26 @@ TSharedPtr<FJsonObject> FSCSHandlers::SetSCSComponentTransform(
       (*ScaleObj)->TryGetNumberField(TEXT("x"), Scale.X);
       (*ScaleObj)->TryGetNumberField(TEXT("y"), Scale.Y);
       (*ScaleObj)->TryGetNumberField(TEXT("z"), Scale.Z);
+      bHasScale = true;
     }
+  }
+
+  // Writing engine defaults because the caller's fields never arrived is the
+  // silent no-op this handler was bitten by — refuse loudly instead.
+  if (!bHasLocation && !bHasRotation && !bHasScale) {
+    Result->SetBoolField(TEXT("success"), false);
+    Result->SetStringField(
+        TEXT("error"),
+        TEXT("No transform fields provided — pass at least one of location/"
+             "rotation/scale as a [x,y,z] array (or {x,y,z}/{pitch,yaw,roll} object)."));
+    Result->SetStringField(TEXT("errorCode"), TEXT("INVALID_ARGUMENT"));
+    return Result;
   }
 
   FTransform NewTransform(Rotation, Location, Scale);
 
-  if (USceneComponent *SceneComp =
-          Cast<USceneComponent>(ComponentNode->ComponentTemplate)) {
+  {
+    SceneComp->Modify();
     SceneComp->SetRelativeTransform(NewTransform);
 
     bool bCompiled = false;
@@ -162,12 +196,6 @@ TSharedPtr<FJsonObject> FSCSHandlers::SetSCSComponentTransform(
     Result->SetBoolField(TEXT("saved"), bSaved);
     AddSCSNodeVerification(Result, SCS, VerifiedNode);
     McpHandlerUtils::AddVerification(Result, Blueprint);
-  } else {
-    Result->SetBoolField(TEXT("success"), false);
-    Result->SetStringField(
-        TEXT("error"),
-        TEXT("Component is not a SceneComponent (no transform)"));
-    Result->SetStringField(TEXT("errorCode"), TEXT("SCS_NOT_SCENE_COMPONENT"));
   }
 #else
   return UnsupportedSCSAction();
