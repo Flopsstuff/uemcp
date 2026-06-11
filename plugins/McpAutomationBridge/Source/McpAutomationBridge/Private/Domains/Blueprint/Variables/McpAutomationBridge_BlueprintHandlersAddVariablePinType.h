@@ -10,8 +10,17 @@ inline bool ResolveAddVariablePinType(const FString &VarType,
                                       FEdGraphPinType &PinType,
                                       FString &OutError) {
   const FString LowerType = VarType.ToLower();
-  if (LowerType == TEXT("float") || LowerType == TEXT("double")) {
-    PinType.PinCategory = MCP_PC_Float;
+  if (LowerType == TEXT("float")) {
+    // UE5: PC_Float is a SUBcategory of PC_Real, not a valid pin category.
+    // A bare PC_Float category here makes the variable's Get/Set node pins
+    // resolve as int downstream (the compiler then injects Truncate /
+    // To Float casts — silent precision loss). Same family as the
+    // MakePinType fix for function/event parameters.
+    PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+    PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
+  } else if (LowerType == TEXT("double") || LowerType == TEXT("real")) {
+    PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
+    PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
   } else if (LowerType == TEXT("int") || LowerType == TEXT("integer")) {
     PinType.PinCategory = MCP_PC_Int;
   } else if (LowerType == TEXT("bool") || LowerType == TEXT("boolean")) {
