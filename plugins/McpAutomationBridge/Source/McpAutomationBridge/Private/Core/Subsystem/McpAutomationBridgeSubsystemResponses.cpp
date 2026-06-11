@@ -95,13 +95,15 @@ void UMcpAutomationBridgeSubsystem::SendAutomationResponse(
 
         if (CapturedErrors.Num() > 0)
         {
-            bEffectiveSuccess = false;
-            EffectiveErrorCode = TEXT("ENGINE_ERROR");
-            const FString FirstError = SanitizeEngineErrorForResponse(CapturedErrors[0]);
-            EffectiveMessage = FString::Printf(
-                TEXT("Handler reported success but Unreal logged errors: %s"),
-                *FirstError.Left(240));
-
+            // Surface, don't override: engine-log errors observed during the
+            // request are ATTACHED for the caller to judge, but the handler's
+            // own verdict stands. Downgrading success here conflated transport
+            // success with asset-level warnings and produced false negatives —
+            // a handler that completed its work (node created, asset saved)
+            // was reported as failed, triggering pointless retries and
+            // undo-then-reapply flows. Handlers that can genuinely fail are
+            // responsible for reporting it themselves (e.g. blueprint_compile
+            // returns its real compile status).
             TSharedPtr<FJsonObject> AugmentedResult = MakeShared<FJsonObject>();
             if (Result.IsValid())
             {
@@ -120,7 +122,7 @@ void UMcpAutomationBridgeSubsystem::SendAutomationResponse(
                 ErrorValues.Add(MakeShared<FJsonValueString>(
                     SanitizeEngineErrorForResponse(CapturedErrors[ErrorIndex])));
             }
-            AugmentedResult->SetBoolField(TEXT("success"), false);
+            AugmentedResult->SetBoolField(TEXT("engineErrorsObserved"), true);
             AugmentedResult->SetNumberField(
                 TEXT("engineErrorCount"),
                 TotalCapturedErrorCount);
@@ -129,11 +131,6 @@ void UMcpAutomationBridgeSubsystem::SendAutomationResponse(
             {
                 AugmentedResult->SetBoolField(TEXT("engineErrorsTruncated"), true);
             }
-
-            TSharedPtr<FJsonObject> ErrorObj = MakeShared<FJsonObject>();
-            ErrorObj->SetStringField(TEXT("code"), EffectiveErrorCode);
-            ErrorObj->SetStringField(TEXT("message"), EffectiveMessage);
-            AugmentedResult->SetObjectField(TEXT("error"), ErrorObj);
             EffectiveResult = AugmentedResult;
         }
     }
