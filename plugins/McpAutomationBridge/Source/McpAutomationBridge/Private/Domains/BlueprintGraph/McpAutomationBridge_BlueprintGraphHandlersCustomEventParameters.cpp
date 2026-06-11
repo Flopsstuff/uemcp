@@ -43,7 +43,9 @@ FProperty* CreateCustomEventParameter(
     {
         FBoolProperty* BoolProperty =
             new FBoolProperty(Function, PropertyName, RF_Public);
-        BoolProperty->SetBoolSize(0, true);
+        // A native bool's size is sizeof(bool); SetBoolSize(0, ...) leaves
+        // ElementSize 0 and trips check(GetElementSize() != 0) -> editor crash.
+        BoolProperty->SetBoolSize(sizeof(bool), true);
         Property = BoolProperty;
     }
     else if (PinType.PinCategory == UEdGraphSchema_K2::PC_String)
