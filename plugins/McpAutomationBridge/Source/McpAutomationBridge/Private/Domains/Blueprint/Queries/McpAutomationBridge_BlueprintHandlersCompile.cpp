@@ -41,17 +41,50 @@ bool HandleBlueprintCompile(const FBlueprintActionContext &Context) {
                              Err, TEXT("NOT_FOUND"));
       return true;
     }
-    McpSafeCompileBlueprint(BP);
+    // Report the REAL compile outcome: McpSafeCompileBlueprint already returns
+    // it (BS_UpToDate / BS_UpToDateWithWarnings) — previously the result was
+    // discarded and `compiled` hardcoded to true, so a fatally broken blueprint
+    // reported compiled:true (and was even saved to disk below).
+    const bool bCompiled = McpSafeCompileBlueprint(BP);
     bool bSaved = false;
+    bool bSaveSkipped = false;
     if (bSaveAfterCompile) {
-      bSaved = SaveLoadedAssetThrottled(BP);
+      if (bCompiled) {
+        bSaved = SaveLoadedAssetThrottled(BP);
+      } else {
+        // Don't persist a blueprint that just failed to compile.
+        bSaveSkipped = true;
+      }
     }
+
+    const TCHAR *StatusName = TEXT("Unknown");
+    switch (BP->Status) {
+      case BS_UpToDate:             StatusName = TEXT("UpToDate"); break;
+      case BS_UpToDateWithWarnings: StatusName = TEXT("UpToDateWithWarnings"); break;
+      case BS_Error:                StatusName = TEXT("Error"); break;
+      case BS_Dirty:                StatusName = TEXT("Dirty"); break;
+      case BS_BeingCreated:         StatusName = TEXT("BeingCreated"); break;
+      default: break;
+    }
+
     TSharedPtr<FJsonObject> Out = McpHandlerUtils::CreateResultObject();
-    Out->SetBoolField(TEXT("compiled"), true);
+    Out->SetBoolField(TEXT("compiled"), bCompiled);
+    Out->SetStringField(TEXT("compilerStatus"), StatusName);
     Out->SetBoolField(TEXT("saved"), bSaved);
+    if (bSaveSkipped) {
+      Out->SetBoolField(TEXT("saveSkipped"), true);
+      Out->SetStringField(
+          TEXT("saveHint"),
+          TEXT("saveAfterCompile was requested but the compile failed; the "
+               "broken blueprint was NOT written to disk."));
+    }
     Out->SetStringField(TEXT("blueprintPath"), Path);
-    Bridge.SendAutomationResponse(RequestingSocket, RequestId, true,
-                           TEXT("Blueprint compiled"), Out, FString());
+    Bridge.SendAutomationResponse(
+        RequestingSocket, RequestId, /*bSuccess=*/bCompiled,
+        bCompiled ? TEXT("Blueprint compiled")
+                  : TEXT("Blueprint compile FAILED — see the editor's Compiler "
+                         "Results / log for the errors."),
+        Out, bCompiled ? FString() : FString(TEXT("COMPILE_FAILED")));
     return true;
 #else
     Bridge.SendAutomationResponse(RequestingSocket, RequestId, false,
