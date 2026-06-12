@@ -79,6 +79,12 @@ async function handleSetScsTransform(context: BlueprintActionContext): Promise<R
 }
 
 function vector3Payload(value: unknown, fallback: number): readonly [number, number, number] | undefined {
+  // The schema advertises these as number arrays ([x, y, z]); accept that form
+  // first — dropping it here silently forwarded nothing, so the native handler
+  // wrote defaults and reported success (a no-op that looked like a pass).
+  if (Array.isArray(value) && value.length >= 3) {
+    return [numberOrFallback(value[0], fallback), numberOrFallback(value[1], fallback), numberOrFallback(value[2], fallback)];
+  }
   if (!isRecord(value)) {
     return undefined;
   }
@@ -86,6 +92,10 @@ function vector3Payload(value: unknown, fallback: number): readonly [number, num
 }
 
 function rotationPayload(value: unknown): readonly [number, number, number] | undefined {
+  // Schema form: [pitch, yaw, roll] number array (the {pitch,yaw,roll} object stays for compat).
+  if (Array.isArray(value) && value.length >= 3) {
+    return [numberOrFallback(value[0], 0), numberOrFallback(value[1], 0), numberOrFallback(value[2], 0)];
+  }
   if (!isRecord(value)) {
     return undefined;
   }
