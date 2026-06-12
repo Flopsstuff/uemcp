@@ -13,11 +13,6 @@ static bool DeleteNode(FActionContext& Context)
         return false;
     }
 
-    const FScopedTransaction Transaction(
-        FText::FromString(TEXT("Delete Blueprint Node")));
-    Context.Blueprint->Modify();
-    Context.TargetGraph->Modify();
-
     FString NodeId;
     Context.Payload->TryGetStringField(TEXT("nodeId"), NodeId);
     UEdGraphNode* TargetNode = Context.FindNode(NodeId);
@@ -27,6 +22,25 @@ static bool DeleteNode(FActionContext& Context)
         return true;
     }
 
+    // Honor the node's own deletability (the same gate the editor UI uses).
+    // Removing structural roots like K2Node_FunctionEntry leaves the function
+    // graph orphaned; a later compile then hits an engine check() and fatally
+    // crashes the editor (see ReplaceFunctionReferences, NAME_None assert).
+    if (!TargetNode->CanUserDeleteNode())
+    {
+        Context.SendError(
+            FString::Printf(
+                TEXT("Node '%s' (%s) is not user-deletable — removing it would corrupt "
+                     "the graph (function entry/result nodes are managed by the editor)."),
+                *TargetNode->GetName(), *TargetNode->GetClass()->GetName()),
+            TEXT("PROTECTED_NODE"));
+        return true;
+    }
+
+    const FScopedTransaction Transaction(
+        FText::FromString(TEXT("Delete Blueprint Node")));
+    Context.Blueprint->Modify();
+    Context.TargetGraph->Modify();
     FBlueprintEditorUtils::RemoveNode(
         Context.Blueprint,
         TargetNode,
