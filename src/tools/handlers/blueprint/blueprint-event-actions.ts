@@ -5,6 +5,7 @@ import {
   commonTimingPayload,
   executeBlueprintRequest,
   firstString,
+  optionalNumber,
   optionalString
 } from './blueprint-action-context.js';
 import type { BlueprintActionContext, BlueprintActionHandler } from './blueprint-action-context.js';
@@ -36,6 +37,10 @@ async function handleAddEvent(context: BlueprintActionContext): Promise<Record<s
     eventType: context.argsTyped.eventType ?? 'Custom',
     customEventName: optionalString(context.argsRecord.customEventName) || (!usedNameForBlueprint ? context.argsTyped.name : undefined),
     parameters: context.argsRecord.parameters,
+    posX: optionalNumber(context.argsRecord.posX),
+    posY: optionalNumber(context.argsRecord.posY),
+    x: optionalNumber(context.argsRecord.x),
+    y: optionalNumber(context.argsRecord.y),
     ...commonTimingPayload(context)
   });
 
