@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## 🏷️ [Unreleased]
+
+<details>
+<summary><b>🐛 Fixed</b></summary>
+
+- **`add_variable` now applies `defaultValue`** — the handler read the `defaultValue` payload field but never assigned it to the new variable, so every Blueprint variable was created with a zero/empty default regardless of the value supplied (e.g. a float requested as `0.35` stayed `0`). The parsed JSON default is now written to `FBPVariableDescription::DefaultValue` with type-aware formatting: booleans as lowercase `true`/`false`, integer/byte categories as whole numbers, floats/doubles via `SanitizeFloat`, and strings/struct literals passed through. UE parses the stored string back into the typed default on compile.
+
+</details>
+
+---
+
 ## 🏷️ [0.5.30] - 2026-06-05
 
 > [!IMPORTANT]
