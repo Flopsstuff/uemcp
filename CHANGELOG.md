@@ -130,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Special thanks to the contributors in this release window, with obvious author aliases collapsed.
 
+- **Native MCP Streamable HTTP endpoint:** Thanks @Fl0p for the native HTTP/SSE transport work.
 - **GitHub Actions command-injection hardening:** @google-labs-jules[bot]
 - **Dependency and workflow version updates:** @dependabot[bot]
 - **Editor/runtime behavior fixes:** @xqdd for native `get_current_level` routing, spawn scale, create-plane height, lighting routing, Blueprint SCS verification, PIE runtime reporting, active camera state, per-key input mapping edits, and prompt-save return handling.
