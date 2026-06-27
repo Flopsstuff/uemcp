@@ -227,6 +227,30 @@ bool TryCreateConstructObjectNode(
         return false;
     }
 
+    // Resolve an optional construct/spawn class up front, before mutating the
+    // graph. A classless node is valid (and no longer crashes), but if the
+    // caller explicitly named a class we must not silently drop it — reject with
+    // CLASS_NOT_FOUND, matching the Cast branch above.
+    FString RequestedClassName;
+    UClass* DesiredClass = nullptr;
+    const bool bHasRequestedClass =
+        Context.Payload->TryGetStringField(TEXT("spawnClass"), RequestedClassName) ||
+        Context.Payload->TryGetStringField(TEXT("actorClass"), RequestedClassName) ||
+        Context.Payload->TryGetStringField(TEXT("class"), RequestedClassName);
+    if (bHasRequestedClass)
+    {
+        DesiredClass = ResolveUClass(RequestedClassName);
+        if (!DesiredClass)
+        {
+            Context.SendError(
+                FString::Printf(
+                    TEXT("Class '%s' not found"),
+                    *RequestedClassName),
+                TEXT("CLASS_NOT_FOUND"));
+            return true;
+        }
+    }
+
     UEdGraphNode* NewNode =
         NewObject<UEdGraphNode>(Context.TargetGraph, NodeClass);
     if (!NewNode)
@@ -251,28 +275,20 @@ bool TryCreateConstructObjectNode(
     NewNode->AllocateDefaultPins();
     NewNode->PostPlacedNewNode();
 
-    // Optional: apply a construct/spawn class so the expose-on-spawn pins are
-    // generated. Accept a few payload spellings; a classless node is still valid
-    // (and no longer crashes), so silently skip when absent or unresolved.
-    FString SpawnClassName;
-    if (Context.Payload->TryGetStringField(TEXT("spawnClass"), SpawnClassName) ||
-        Context.Payload->TryGetStringField(TEXT("actorClass"), SpawnClassName) ||
-        Context.Payload->TryGetStringField(TEXT("class"), SpawnClassName))
+    // Apply the requested construct/spawn class (already resolved above) so the
+    // expose-on-spawn pins are generated. Mirror how the engine itself seeds the
+    // class (ExpandNode): set DefaultObject, clear the textual default, then
+    // rebuild pins. Pins already exist here, so ReconstructNode is safe.
+    if (DesiredClass)
     {
-        if (UClass* DesiredClass = ResolveUClass(SpawnClassName))
+        if (UK2Node_ConstructObjectFromClass* ConstructNode =
+                Cast<UK2Node_ConstructObjectFromClass>(NewNode))
         {
-            if (UK2Node_ConstructObjectFromClass* ConstructNode =
-                    Cast<UK2Node_ConstructObjectFromClass>(NewNode))
+            if (UEdGraphPin* ClassPin = ConstructNode->GetClassPin())
             {
-                if (UEdGraphPin* ClassPin = ConstructNode->GetClassPin())
-                {
-                    // Mirror how the engine itself seeds the class (ExpandNode):
-                    // set DefaultObject, clear the textual default, then rebuild
-                    // pins. Pins already exist here, so ReconstructNode is safe.
-                    ClassPin->DefaultObject = DesiredClass;
-                    ClassPin->DefaultValue.Reset();
-                    NewNode->ReconstructNode();
-                }
+                ClassPin->DefaultObject = DesiredClass;
+                ClassPin->DefaultValue.Reset();
+                NewNode->ReconstructNode();
             }
         }
     }
