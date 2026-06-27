@@ -146,6 +146,16 @@ void CreateDynamicNode(
         return;
     }
 
+    // UK2Node_ConstructObjectFromClass and its subclasses (SpawnActorFromClass,
+    // CreateWidget, ...) hard-crash the editor on the generic path below: their
+    // PostPlacedNewNode() dereferences a checked pin accessor (e.g.
+    // UK2Node_SpawnActorFromClass::GetScaleMethodPin() -> FindPinChecked) before
+    // AllocateDefaultPins() has created any pins. They need pins allocated first.
+    if (TryCreateConstructObjectNode(Context, NodeClass, X, Y))
+    {
+        return;
+    }
+
     UEdGraphNode* NewNode =
         NewObject<UEdGraphNode>(Context.TargetGraph, NodeClass);
     if (!NewNode)

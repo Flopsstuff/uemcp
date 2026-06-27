@@ -119,6 +119,11 @@ bool TryCreateEnhancedInputNode(
     UClass* NodeClass,
     float X,
     float Y);
+bool TryCreateConstructObjectNode(
+    FActionContext& Context,
+    UClass* NodeClass,
+    float X,
+    float Y);
 void CreateDynamicNode(
     FActionContext& Context,
     const FString& NodeType,
