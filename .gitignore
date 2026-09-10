@@ -91,3 +91,7 @@ compile_commands_56.json
 compile_commands_57.json
 compile_commands.json
 opencode.json
+
+# MCP tooling working dirs (local artifacts)
+.playwright-mcp/
+.markdown_vault_mcp/
