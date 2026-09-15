@@ -12,6 +12,27 @@ A comprehensive Model Context Protocol (MCP) server that enables AI assistants t
 
 ---
 
+## About this fork
+
+`Flopsstuff/uemcp` exists to prepare pull requests for
+[`ChiR24/Unreal_mcp`](https://github.com/ChiR24/Unreal_mcp). It is not a
+distribution of the server, and it is not where the current code lives.
+
+- **Upstream development happens on [`dev`](https://github.com/ChiR24/Unreal_mcp/tree/dev).**
+  Upstream `main` has not moved since June 2026 and is 700+ commits behind
+  `dev`; the two branches share no common ancestor.
+- **This fork's `main` tracks that dormant upstream `main`** (plus a few
+  fork-local CI and tooling commits). It is not the working base: bugs that are
+  already fixed on `dev` still reproduce on branches cut from here.
+- **Work is prepared on `base/upstream-dev-*` branches**, which are verbatim
+  snapshots of `upstream/dev`, with feature branches cut from them, so every PR
+  is reviewed against the code it will actually land on. See
+  [Fork CI: review bases](docs/fork-ci-review-bases.md).
+
+**To run the server or pick up a fix, build from `ChiR24/Unreal_mcp@dev`.**
+
+---
+
 ## Table of Contents
 
 - [Features](#features)
