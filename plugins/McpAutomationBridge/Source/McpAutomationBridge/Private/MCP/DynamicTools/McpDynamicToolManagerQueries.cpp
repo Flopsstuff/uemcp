@@ -42,6 +42,7 @@ TSharedPtr<FJsonObject> FMcpDynamicToolManager::ListCategories()
 	auto Result = MakeShared<FJsonObject>();
 	Result->SetBoolField(TEXT("success"), true);
 	Result->SetArrayField(TEXT("categories"), CatsArr);
+	Result->SetNumberField(TEXT("totalCategories"), CategoryStates.Num());
 	return Result;
 }
 
@@ -117,6 +118,7 @@ TSharedPtr<FJsonObject> FMcpDynamicToolManager::Reset(bool& bOutChanged)
 	auto Result = MakeShared<FJsonObject>();
 	Result->SetBoolField(TEXT("success"), true);
 	Result->SetNumberField(TEXT("changed"), Changed);
+	Result->SetNumberField(TEXT("enabled"), Changed);
 	Result->SetStringField(TEXT("message"),
 		FString::Printf(TEXT("Reset to initial state. %d tools changed."), Changed));
 	return Result;
