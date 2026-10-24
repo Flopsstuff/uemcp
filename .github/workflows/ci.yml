@@ -24,6 +24,9 @@ jobs:
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: '24'
+          # Without this, setup-node prefers the runner image's cached 24.x,
+          # which lags the security releases this pin exists to pick up.
+          check-latest: true
           cache: 'npm'
 
       - name: Install dependencies
